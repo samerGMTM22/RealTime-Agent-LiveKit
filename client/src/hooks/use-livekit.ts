@@ -62,12 +62,18 @@ export function useLiveKit() {
         console.log('Data received from', participant?.identity, ':', new TextDecoder().decode(payload));
       });
 
-      // Connect to room
-      const wsURL = import.meta.env.VITE_LIVEKIT_URL || 'wss://localhost:7880';
+      // Connect to room - use the LiveKit URL from environment
+      const wsURL = import.meta.env.VITE_LIVEKIT_URL || process.env.LIVEKIT_URL || 'wss://localhost:7880';
+      console.log('Connecting to LiveKit at:', wsURL);
       await newRoom.connect(wsURL, token);
 
       // Enable microphone
-      await newRoom.localParticipant.enableCameraAndMicrophone(false, true);
+      try {
+        await newRoom.localParticipant.enableCameraAndMicrophone(false, true);
+      } catch (micError) {
+        console.warn('Microphone access failed:', micError);
+        // Continue without microphone for now
+      }
 
       roomRef.current = newRoom;
       setRoom(newRoom);

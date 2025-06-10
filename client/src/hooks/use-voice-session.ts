@@ -33,12 +33,10 @@ export function useVoiceSession() {
       });
 
       // Get access token
-      const tokenResponse = await apiRequest('POST', '/api/livekit/token', {
+      const tokenData = await apiRequest('POST', '/api/livekit/token', {
         roomName,
         participantName: 'user'
       });
-      
-      const tokenData = await tokenResponse.json();
       
       // Connect to room
       await connectToRoom(roomName, tokenData.token);

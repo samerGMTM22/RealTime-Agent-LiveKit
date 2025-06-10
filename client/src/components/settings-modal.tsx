@@ -140,13 +140,13 @@ export default function SettingsModal({ isOpen, onClose, activeAgent }: Settings
                   Response Length
                 </label>
                 <Select value={responseLength} onValueChange={setResponseLength}>
-                  <SelectTrigger className="glass-card border border-white/20 text-white bg-transparent">
-                    <SelectValue />
+                  <SelectTrigger className="glass-card border border-white/20 text-white bg-slate-800/50">
+                    <SelectValue className="text-white" />
                   </SelectTrigger>
                   <SelectContent className="glass-card border border-white/20 bg-slate-800">
-                    <SelectItem value="concise" className="text-white">Concise</SelectItem>
-                    <SelectItem value="moderate" className="text-white">Moderate</SelectItem>
-                    <SelectItem value="detailed" className="text-white">Detailed</SelectItem>
+                    <SelectItem value="concise" className="text-white hover:bg-slate-700">Concise</SelectItem>
+                    <SelectItem value="moderate" className="text-white hover:bg-slate-700">Moderate</SelectItem>
+                    <SelectItem value="detailed" className="text-white hover:bg-slate-700">Detailed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -220,13 +220,13 @@ export default function SettingsModal({ isOpen, onClose, activeAgent }: Settings
                   Audio Quality
                 </label>
                 <Select value={audioQuality} onValueChange={setAudioQuality}>
-                  <SelectTrigger className="glass-card border border-white/20 text-white bg-transparent">
-                    <SelectValue />
+                  <SelectTrigger className="glass-card border border-white/20 text-white bg-slate-800/50">
+                    <SelectValue className="text-white" />
                   </SelectTrigger>
                   <SelectContent className="glass-card border border-white/20 bg-slate-800">
-                    <SelectItem value="high" className="text-white">High (48kHz)</SelectItem>
-                    <SelectItem value="standard" className="text-white">Standard (24kHz)</SelectItem>
-                    <SelectItem value="low" className="text-white">Low (16kHz)</SelectItem>
+                    <SelectItem value="high" className="text-white hover:bg-slate-700">High (48kHz)</SelectItem>
+                    <SelectItem value="standard" className="text-white hover:bg-slate-700">Standard (24kHz)</SelectItem>
+                    <SelectItem value="low" className="text-white hover:bg-slate-700">Low (16kHz)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -235,13 +235,13 @@ export default function SettingsModal({ isOpen, onClose, activeAgent }: Settings
                   Buffer Size
                 </label>
                 <Select value={bufferSize} onValueChange={setBufferSize}>
-                  <SelectTrigger className="glass-card border border-white/20 text-white bg-transparent">
-                    <SelectValue />
+                  <SelectTrigger className="glass-card border border-white/20 text-white bg-slate-800/50">
+                    <SelectValue className="text-white" />
                   </SelectTrigger>
                   <SelectContent className="glass-card border border-white/20 bg-slate-800">
-                    <SelectItem value="1024" className="text-white">1024 samples</SelectItem>
-                    <SelectItem value="2048" className="text-white">2048 samples</SelectItem>
-                    <SelectItem value="4096" className="text-white">4096 samples</SelectItem>
+                    <SelectItem value="1024" className="text-white hover:bg-slate-700">1024 samples</SelectItem>
+                    <SelectItem value="2048" className="text-white hover:bg-slate-700">2048 samples</SelectItem>
+                    <SelectItem value="4096" className="text-white hover:bg-slate-700">4096 samples</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

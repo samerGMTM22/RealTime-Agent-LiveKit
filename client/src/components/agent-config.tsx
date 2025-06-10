@@ -90,12 +90,12 @@ export default function AgentConfig() {
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">Agent Type</label>
           <Select value={selectedAgentType} onValueChange={setSelectedAgentType}>
-            <SelectTrigger className="glass-card border border-white/20 text-white bg-transparent">
-              <SelectValue />
+            <SelectTrigger className="glass-card border border-white/20 text-white bg-slate-800/50">
+              <SelectValue className="text-white" />
             </SelectTrigger>
             <SelectContent className="glass-card border border-white/20 bg-slate-800">
               {AGENT_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value} className="text-white">
+                <SelectItem key={type.value} value={type.value} className="text-white hover:bg-slate-700">
                   {type.label}
                 </SelectItem>
               ))}
@@ -107,12 +107,12 @@ export default function AgentConfig() {
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">Voice Model</label>
           <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-            <SelectTrigger className="glass-card border border-white/20 text-white bg-transparent">
-              <SelectValue />
+            <SelectTrigger className="glass-card border border-white/20 text-white bg-slate-800/50">
+              <SelectValue className="text-white" />
             </SelectTrigger>
             <SelectContent className="glass-card border border-white/20 bg-slate-800">
               {VOICE_MODELS.map((voice) => (
-                <SelectItem key={voice.value} value={voice.value} className="text-white">
+                <SelectItem key={voice.value} value={voice.value} className="text-white hover:bg-slate-700">
                   {voice.label}
                 </SelectItem>
               ))}
