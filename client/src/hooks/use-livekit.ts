@@ -9,7 +9,7 @@ export function useLiveKit() {
   
   const roomRef = useRef<Room | null>(null);
 
-  const connect = useCallback(async (roomName: string, token: string) => {
+  const connect = useCallback(async (roomName: string, token: string, livekitUrl?: string) => {
     try {
       setError(null);
       
@@ -63,8 +63,9 @@ export function useLiveKit() {
       });
 
       // Connect to room - use the LiveKit URL from environment
-      const wsURL = import.meta.env.VITE_LIVEKIT_URL || process.env.LIVEKIT_URL || 'wss://localhost:7880';
+      const wsURL = import.meta.env.VITE_LIVEKIT_URL || 'wss://voiceagent-livekit-t3b8vrdx.livekit.cloud';
       console.log('Connecting to LiveKit at:', wsURL);
+      console.log('Using token:', token);
       await newRoom.connect(wsURL, token);
 
       // Enable microphone

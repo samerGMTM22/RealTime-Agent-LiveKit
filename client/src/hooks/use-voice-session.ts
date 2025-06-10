@@ -32,16 +32,20 @@ export function useVoiceSession() {
         maxParticipants: 2
       });
 
-      // Get access token
-      const tokenData = await apiRequest('POST', '/api/livekit/token', {
-        roomName,
-        participantName: 'user'
-      });
+      // Get LiveKit URL and access token
+      const [urlData, tokenData] = await Promise.all([
+        apiRequest('GET', '/api/livekit/url'),
+        apiRequest('POST', '/api/livekit/token', {
+          roomName,
+          participantName: 'user'
+        })
+      ]);
       
+      console.log('LiveKit URL:', urlData.url);
       console.log('Token data received:', tokenData);
       
-      // Connect to room
-      await connectToRoom(roomName, tokenData.token);
+      // Connect to room with proper URL
+      await connectToRoom(roomName, tokenData.token, urlData.url);
       
       setSessionId(newSessionId);
       setConnectionStatus('connected');

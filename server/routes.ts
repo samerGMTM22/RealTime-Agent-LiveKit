@@ -87,6 +87,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // LiveKit endpoints
+  app.get("/api/livekit/url", (req, res) => {
+    res.json({ url: process.env.LIVEKIT_URL });
+  });
+
   app.post("/api/livekit/token", async (req, res) => {
     try {
       const { roomName, participantName } = req.body;
