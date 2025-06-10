@@ -7,27 +7,40 @@ import { youtubeService } from "./lib/youtube";
 import { webScraperService } from "./lib/scraper";
 import { getAgentTemplate, createAgentConfigFromTemplate } from "./config/agent-config";
 import { insertAgentConfigSchema, insertConversationSchema, insertDataSourceSchema } from "@shared/schema";
+import { spawn } from "child_process";
 import { voiceAgentManager } from "./lib/voice-agent";
 import { z } from "zod";
 
 // AI Agent implementation
 async function startAIAgent(roomName: string) {
   try {
-    console.log(`Starting LiveKit voice agent for room: ${roomName}`);
+    console.log(`Starting Python LiveKit agent for room: ${roomName}`);
     
-    // Get agent configuration
-    const agentConfig = await storage.getActiveAgentConfig(1); // Default user
-    if (!agentConfig) {
-      throw new Error('No active agent configuration found');
-    }
+    // Start the Python LiveKit agent process
+    const agentProcess = spawn('python', ['agent.py', 'start'], {
+      env: {
+        ...process.env,
+        LIVEKIT_ROOM_NAME: roomName,
+      },
+      stdio: ['inherit', 'pipe', 'pipe']
+    });
 
-    // Start the voice agent using LiveKit Agents framework
-    await voiceAgentManager.startAgent(roomName, agentConfig.id);
-    
-    console.log(`LiveKit voice agent started for room ${roomName} with config: ${agentConfig.name}`);
+    agentProcess.stdout?.on('data', (data) => {
+      console.log(`Agent stdout: ${data}`);
+    });
+
+    agentProcess.stderr?.on('data', (data) => {
+      console.error(`Agent stderr: ${data}`);
+    });
+
+    agentProcess.on('close', (code) => {
+      console.log(`Agent process exited with code ${code}`);
+    });
+
+    console.log(`Python LiveKit agent started for room ${roomName}`);
     
   } catch (error) {
-    console.error('Failed to start voice agent:', error);
+    console.error('Failed to start Python agent:', error);
     throw error;
   }
 }
