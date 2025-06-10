@@ -58,6 +58,8 @@ class GiveMeTheMicAssistant(Agent):
 async def entrypoint(ctx: agents.JobContext):
     """Main entry point for the LiveKit agent."""
     
+    print(f"Starting agent for room: {ctx.room.name}")
+    
     # Create session with OpenAI Realtime API
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
@@ -75,11 +77,14 @@ async def entrypoint(ctx: agents.JobContext):
 
     # Connect to the room
     await ctx.connect()
+    print(f"Agent connected to room: {ctx.room.name}")
 
     # Generate initial greeting
     await session.generate_reply(
         instructions="Greet the user warmly and introduce yourself as the Give Me the Mic channel assistant. Ask how you can help them today."
     )
+    
+    print("Initial greeting sent to user")
 
 
 if __name__ == "__main__":
