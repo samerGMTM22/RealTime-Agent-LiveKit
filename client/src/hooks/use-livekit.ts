@@ -62,8 +62,8 @@ export function useLiveKit() {
         console.log('Data received from', participant?.identity, ':', new TextDecoder().decode(payload));
       });
 
-      // Connect to room - use the LiveKit URL from environment
-      const wsURL = import.meta.env.VITE_LIVEKIT_URL || 'wss://voiceagent-livekit-t3b8vrdx.livekit.cloud';
+      // Connect to room - use provided URL or fallback
+      const wsURL = livekitUrl || import.meta.env.VITE_LIVEKIT_URL || 'wss://voiceagent-livekit-t3b8vrdx.livekit.cloud';
       console.log('Connecting to LiveKit at:', wsURL);
       console.log('Using token:', token);
       await newRoom.connect(wsURL, token);
