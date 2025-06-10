@@ -9,6 +9,53 @@ import { getAgentTemplate, createAgentConfigFromTemplate } from "./config/agent-
 import { insertAgentConfigSchema, insertConversationSchema, insertDataSourceSchema } from "@shared/schema";
 import { z } from "zod";
 
+// AI Agent implementation
+async function startAIAgent(roomName: string) {
+  try {
+    console.log(`Starting AI agent for room: ${roomName}`);
+    
+    // Get agent configuration
+    const agentConfig = await storage.getActiveAgentConfig(1); // Default user
+    if (!agentConfig) {
+      throw new Error('No active agent configuration found');
+    }
+
+    // Create AI agent token
+    const agentToken = await liveKitService.createAccessToken(roomName, 'ai-agent');
+    
+    // For now, we'll implement a simple text-based response system
+    // In a full implementation, this would use OpenAI Realtime API
+    console.log(`AI agent ready for room ${roomName} with config: ${agentConfig.name}`);
+    
+    // Simulate AI agent joining and listening
+    setTimeout(async () => {
+      try {
+        // Send welcome message via data channel
+        await liveKitService.sendDataMessage(roomName, {
+          type: 'ai-response',
+          message: `Hello! I'm your ${agentConfig.name} assistant. I can help you with information about the Give Me the Mic channel. What would you like to know?`,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Create conversation record
+        await storage.createConversation({
+          sessionId: roomName,
+          agentConfigId: agentConfig.id,
+          userMessage: "Session started",
+          agentResponse: `Hello! I'm your ${agentConfig.name} assistant. I can help you with information about the Give Me the Mic channel. What would you like to know?`,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        console.error('Failed to send welcome message:', error);
+      }
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Failed to start AI agent:', error);
+    throw error;
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // Agent configuration endpoints
@@ -100,6 +147,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const token = await liveKitService.createAccessToken(roomName, participantName);
+      
+      // Start AI agent for this room
+      if (participantName === 'user') {
+        setTimeout(async () => {
+          try {
+            await startAIAgent(roomName);
+          } catch (error) {
+            console.error("Failed to start AI agent for room:", roomName, error);
+          }
+        }, 1000);
+      }
+      
       res.json({ token });
     } catch (error) {
       console.error("Error creating LiveKit token:", error);

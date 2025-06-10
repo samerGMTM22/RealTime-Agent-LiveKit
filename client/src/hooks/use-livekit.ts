@@ -59,7 +59,23 @@ export function useLiveKit() {
       });
 
       newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant, kind?: DataPacket_Kind) => {
-        console.log('Data received from', participant?.identity, ':', new TextDecoder().decode(payload));
+        const message = new TextDecoder().decode(payload);
+        console.log('Data received from', participant?.identity, ':', message);
+        
+        try {
+          const data = JSON.parse(message);
+          if (data.type === 'ai-response') {
+            console.log('AI Response:', data.message);
+            
+            // Play AI response audio if available
+            if (data.audioData) {
+              const audio = new Audio(`data:audio/mpeg;base64,${data.audioData}`);
+              audio.play().catch(console.error);
+            }
+          }
+        } catch (e) {
+          // Not JSON data, ignore
+        }
       });
 
       // Connect to room - use provided URL or fallback
@@ -68,9 +84,19 @@ export function useLiveKit() {
       console.log('Using token:', token);
       await newRoom.connect(wsURL, token);
 
-      // Enable microphone
+      // Enable microphone and set up voice activity detection
       try {
         await newRoom.localParticipant.setMicrophoneEnabled(true);
+        
+        // Set up voice activity detection for speech processing
+        const audioTracks = newRoom.localParticipant.audioTrackPublications;
+        if (audioTracks.size > 0) {
+          const audioTrack = Array.from(audioTracks.values())[0];
+          if (audioTrack && audioTrack.track) {
+            console.log('Audio track ready for voice detection');
+            // Voice activity detection would go here in a full implementation
+          }
+        }
       } catch (micError) {
         console.warn('Microphone access failed:', micError);
         // Continue without microphone for now
