@@ -7,12 +7,13 @@ import { youtubeService } from "./lib/youtube";
 import { webScraperService } from "./lib/scraper";
 import { getAgentTemplate, createAgentConfigFromTemplate } from "./config/agent-config";
 import { insertAgentConfigSchema, insertConversationSchema, insertDataSourceSchema } from "@shared/schema";
+import { voiceAgentManager } from "./lib/voice-agent";
 import { z } from "zod";
 
 // AI Agent implementation
 async function startAIAgent(roomName: string) {
   try {
-    console.log(`Starting AI agent for room: ${roomName}`);
+    console.log(`Starting LiveKit voice agent for room: ${roomName}`);
     
     // Get agent configuration
     const agentConfig = await storage.getActiveAgentConfig(1); // Default user
@@ -20,48 +21,13 @@ async function startAIAgent(roomName: string) {
       throw new Error('No active agent configuration found');
     }
 
-    // Create AI agent token
-    const agentToken = await liveKitService.createAccessToken(roomName, 'ai-agent');
+    // Start the voice agent using LiveKit Agents framework
+    await voiceAgentManager.startAgent(roomName, agentConfig.id);
     
-    // For now, we'll implement a simple text-based response system
-    // In a full implementation, this would use OpenAI Realtime API
-    console.log(`AI agent ready for room ${roomName} with config: ${agentConfig.name}`);
-    
-    // Generate welcome message audio
-    setTimeout(async () => {
-      try {
-        const welcomeMessage = `Hello! I'm your ${agentConfig.name} assistant. I can help you with information about the Give Me the Mic channel. What would you like to know?`;
-        
-        // Generate welcome audio
-        const welcomeAudio = await openaiService.generateVoiceResponse(welcomeMessage, {
-          voice: agentConfig.voiceModel as any,
-          speed: 1.0
-        });
-        
-        // Send welcome message with audio via data channel
-        await liveKitService.sendDataMessage(roomName, {
-          type: 'ai-response',
-          message: welcomeMessage,
-          audioData: welcomeAudio.toString('base64'),
-          timestamp: new Date().toISOString()
-        });
-        
-        // Create conversation record
-        await storage.createConversation({
-          sessionId: roomName,
-          agentConfigId: agentConfig.id,
-          userMessage: "Session started",
-          agentResponse: welcomeMessage
-        });
-        
-        console.log(`AI agent sent welcome message to room ${roomName}`);
-      } catch (error) {
-        console.error('Failed to send welcome message:', error);
-      }
-    }, 3000);
+    console.log(`LiveKit voice agent started for room ${roomName} with config: ${agentConfig.name}`);
     
   } catch (error) {
-    console.error('Failed to start AI agent:', error);
+    console.error('Failed to start voice agent:', error);
     throw error;
   }
 }
