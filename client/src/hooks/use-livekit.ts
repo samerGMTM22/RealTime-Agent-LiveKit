@@ -69,7 +69,7 @@ export function useLiveKit() {
 
       // Enable microphone
       try {
-        await newRoom.localParticipant.enableCameraAndMicrophone(false, true);
+        await newRoom.localParticipant.setMicrophoneEnabled(true);
       } catch (micError) {
         console.warn('Microphone access failed:', micError);
         // Continue without microphone for now
@@ -108,7 +108,7 @@ export function useLiveKit() {
         const payload = encoder.encode(data);
         await roomRef.current.localParticipant.publishData(
           payload, 
-          reliable ? DataPacket_Kind.RELIABLE : DataPacket_Kind.LOSSY
+          { reliable: reliable }
         );
       } catch (err) {
         console.error('Failed to send data:', err);

@@ -38,6 +38,8 @@ export function useVoiceSession() {
         participantName: 'user'
       });
       
+      console.log('Token data received:', tokenData);
+      
       // Connect to room
       await connectToRoom(roomName, tokenData.token);
       
@@ -70,13 +72,14 @@ export function useVoiceSession() {
     }
   }, [room, disconnectFromRoom]);
 
-  const toggleMute = useCallback(() => {
+  const toggleMute = useCallback(async () => {
     if (room) {
-      const audioTrack = room.localParticipant.audioTracks.values().next().value;
-      if (audioTrack) {
+      try {
         const newMutedState = !isMuted;
-        audioTrack.mute(newMutedState);
+        await room.localParticipant.setMicrophoneEnabled(!newMutedState);
         setIsMuted(newMutedState);
+      } catch (error) {
+        console.error('Failed to toggle mute:', error);
       }
     }
   }, [room, isMuted]);
