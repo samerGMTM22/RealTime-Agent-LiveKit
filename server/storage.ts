@@ -151,8 +151,17 @@ Always provide accurate information and encourage engagement with the channel.`,
   async createAgentConfig(insertConfig: InsertAgentConfig): Promise<AgentConfig> {
     const id = this.currentAgentConfigId++;
     const config: AgentConfig = { 
-      ...insertConfig, 
-      id, 
+      id,
+      userId: insertConfig.userId || 1,
+      name: insertConfig.name,
+      type: insertConfig.type,
+      systemPrompt: insertConfig.systemPrompt,
+      personality: insertConfig.personality || 'friendly',
+      voiceModel: insertConfig.voiceModel || 'alloy',
+      responseLength: insertConfig.responseLength || 'moderate',
+      temperature: insertConfig.temperature || 70,
+      isActive: insertConfig.isActive || false,
+      settings: insertConfig.settings || {},
       createdAt: new Date() 
     };
     this.agentConfigs.set(id, config);
@@ -190,6 +199,11 @@ Always provide accurate information and encourage engagement with the channel.`,
     const conversation: Conversation = {
       ...insertConversation,
       id,
+      agentConfigId: insertConversation.agentConfigId || 1,
+      userMessage: insertConversation.userMessage || null,
+      agentResponse: insertConversation.agentResponse || null,
+      audioUrl: insertConversation.audioUrl || null,
+      metadata: insertConversation.metadata || {},
       timestamp: new Date()
     };
     this.conversations.set(id, conversation);
@@ -206,8 +220,13 @@ Always provide accurate information and encourage engagement with the channel.`,
   async createDataSource(insertDataSource: InsertDataSource): Promise<DataSource> {
     const id = this.currentDataSourceId++;
     const dataSource: DataSource = {
-      ...insertDataSource,
       id,
+      agentConfigId: insertDataSource.agentConfigId || 1,
+      type: insertDataSource.type,
+      name: insertDataSource.name,
+      url: insertDataSource.url || null,
+      isActive: insertDataSource.isActive ?? true,
+      metadata: insertDataSource.metadata || {},
       lastSynced: new Date()
     };
     this.dataSources.set(id, dataSource);

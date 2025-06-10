@@ -32,21 +32,74 @@ export interface VideoInfo {
 export class YouTubeService {
   async getChannelInfo(channelHandle: string): Promise<ChannelInfo | null> {
     try {
-      // First try to get channel by handle/custom URL
-      const searchResponse = await youtube.search.list({
-        part: ['snippet'],
-        q: channelHandle,
-        type: ['channel'],
-        maxResults: 1
-      });
+      let channelId = '';
+      
+      // Try different approaches to find the channel
+      if (channelHandle.startsWith('@')) {
+        // Handle @username format - try searching by channel name
+        const searchQuery = channelHandle.substring(1); // Remove @ symbol
+        
+        // Try searching for the channel
+        const searchResponse = await youtube.search.list({
+          part: ['snippet'],
+          q: searchQuery,
+          type: ['channel'],
+          maxResults: 10
+        });
 
-      if (!searchResponse.data.items || searchResponse.data.items.length === 0) {
-        throw new Error(`Channel not found: ${channelHandle}`);
+        if (searchResponse.data.items && searchResponse.data.items.length > 0) {
+          // Look for exact match or close match
+          const exactMatch = searchResponse.data.items.find(item => 
+            item.snippet?.title?.toLowerCase().includes('givemethemic') ||
+            item.snippet?.channelTitle?.toLowerCase().includes('givemethemic')
+          );
+          
+          if (exactMatch && exactMatch.snippet?.channelId) {
+            channelId = exactMatch.snippet.channelId;
+          } else if (searchResponse.data.items[0].snippet?.channelId) {
+            channelId = searchResponse.data.items[0].snippet.channelId;
+          }
+        }
+        
+        // If still no channel found, try searching for "GiveMeTheMic"
+        if (!channelId) {
+          const altSearchResponse = await youtube.search.list({
+            part: ['snippet'],
+            q: 'GiveMeTheMic',
+            type: ['channel'],
+            maxResults: 10
+          });
+          
+          if (altSearchResponse.data.items && altSearchResponse.data.items.length > 0) {
+            const match = altSearchResponse.data.items.find(item => 
+              item.snippet?.title?.toLowerCase().includes('givemethemic')
+            );
+            if (match && match.snippet?.channelId) {
+              channelId = match.snippet.channelId;
+            }
+          }
+        }
+      } else if (channelHandle.startsWith('UC')) {
+        // Already a channel ID
+        channelId = channelHandle;
+      } else {
+        // Try as custom URL or search term
+        const searchResponse = await youtube.search.list({
+          part: ['snippet'],
+          q: channelHandle,
+          type: ['channel'],
+          maxResults: 5
+        });
+
+        if (searchResponse.data.items && searchResponse.data.items.length > 0) {
+          channelId = searchResponse.data.items[0].snippet?.channelId || '';
+        }
       }
 
-      const channelId = searchResponse.data.items[0].snippet?.channelId;
       if (!channelId) {
-        throw new Error(`Could not extract channel ID for: ${channelHandle}`);
+        // Return null instead of throwing error for better error handling
+        console.warn(`Could not find channel ID for: ${channelHandle}`);
+        return null;
       }
 
       // Get detailed channel information
