@@ -27,13 +27,22 @@ async function startAIAgent(roomName: string) {
     // In a full implementation, this would use OpenAI Realtime API
     console.log(`AI agent ready for room ${roomName} with config: ${agentConfig.name}`);
     
-    // Simulate AI agent joining and listening
+    // Generate welcome message audio
     setTimeout(async () => {
       try {
-        // Send welcome message via data channel
+        const welcomeMessage = `Hello! I'm your ${agentConfig.name} assistant. I can help you with information about the Give Me the Mic channel. What would you like to know?`;
+        
+        // Generate welcome audio
+        const welcomeAudio = await openaiService.generateVoiceResponse(welcomeMessage, {
+          voice: agentConfig.voiceModel as any,
+          speed: 1.0
+        });
+        
+        // Send welcome message with audio via data channel
         await liveKitService.sendDataMessage(roomName, {
           type: 'ai-response',
-          message: `Hello! I'm your ${agentConfig.name} assistant. I can help you with information about the Give Me the Mic channel. What would you like to know?`,
+          message: welcomeMessage,
+          audioData: welcomeAudio.toString('base64'),
           timestamp: new Date().toISOString()
         });
         
@@ -42,13 +51,14 @@ async function startAIAgent(roomName: string) {
           sessionId: roomName,
           agentConfigId: agentConfig.id,
           userMessage: "Session started",
-          agentResponse: `Hello! I'm your ${agentConfig.name} assistant. I can help you with information about the Give Me the Mic channel. What would you like to know?`,
-          timestamp: new Date()
+          agentResponse: welcomeMessage
         });
+        
+        console.log(`AI agent sent welcome message to room ${roomName}`);
       } catch (error) {
         console.error('Failed to send welcome message:', error);
       }
-    }, 2000);
+    }, 3000);
     
   } catch (error) {
     console.error('Failed to start AI agent:', error);
