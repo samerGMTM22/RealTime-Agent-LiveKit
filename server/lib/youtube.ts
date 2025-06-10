@@ -125,7 +125,7 @@ export class YouTubeService {
         viewCount: statistics?.viewCount || '0',
         thumbnails: snippet?.thumbnails || {},
         publishedAt: snippet?.publishedAt || '',
-        customUrl: snippet?.customUrl
+        customUrl: snippet?.customUrl ?? undefined
       };
     } catch (error) {
       console.error('Error fetching YouTube channel info:', error);

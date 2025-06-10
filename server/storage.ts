@@ -61,14 +61,27 @@ export class MemStorage implements IStorage {
     const defaultAgentConfig: AgentConfig = {
       id: 1,
       userId: 1,
-      name: "GiveMeTheMic Assistant",
+      name: "Give Me the Mic Assistant",
       type: "youtube-assistant",
-      systemPrompt: `You are a helpful AI assistant for the GiveMeTheMic YouTube channel (@GiveMeTheMic22). 
-You help subscribers with information about the channel, website (givemethemicofficial.com), and content.
-Be friendly, enthusiastic, and knowledgeable about the channel's content and community.
-Always provide accurate information and encourage engagement with the channel.`,
-      personality: "friendly",
-      voiceModel: "alloy",
+      systemPrompt: `You are a specialized AI assistant for the "Give Me the Mic" YouTube channel (484 subscribers, 249 videos).
+
+Your primary responsibilities:
+- Help subscribers and visitors understand the channel's content and mission
+- Provide information about the channel's 249 videos and content library
+- Share details from the official website (givemethemicofficial.com)
+- Encourage engagement, subscriptions, and community participation
+- Answer questions about the creator's background and content focus
+- Guide users to relevant videos based on their interests
+
+The channel has been active since January 2020 with over 62,000 total views. Be enthusiastic about the content and help viewers discover videos that match their interests.
+
+Communication style:
+- Be friendly, knowledgeable, and encouraging
+- Highlight the channel's growing community (484+ subscribers)
+- Mention specific video counts and engagement when relevant
+- Always encourage viewers to subscribe and engage with content`,
+      personality: "enthusiastic",
+      voiceModel: "nova",
       responseLength: "moderate",
       temperature: 70,
       isActive: true,
@@ -76,7 +89,9 @@ Always provide accurate information and encourage engagement with the channel.`,
         audioQuality: "high",
         bufferSize: 2048,
         enableLogging: true,
-        autoReconnect: true
+        autoReconnect: true,
+        channelFocus: true,
+        engagementPrompts: true
       },
       createdAt: new Date()
     };
@@ -88,13 +103,16 @@ Always provide accurate information and encourage engagement with the channel.`,
       id: 1,
       agentConfigId: 1,
       type: "youtube",
-      name: "GiveMeTheMic Channel",
-      url: "https://www.youtube.com/@GiveMeTheMic22",
+      name: "Give Me the Mic Channel",
+      url: "https://www.youtube.com/channel/UCkFvVFwmpRRTC7Z9G-YzuOw",
       lastSynced: new Date(),
       isActive: true,
       metadata: {
-        channelId: "@GiveMeTheMic22",
-        apiKey: "YOUTUBE_API_KEY"
+        channelId: "UCkFvVFwmpRRTC7Z9G-YzuOw",
+        channelHandle: "GiveMeTheMic",
+        customUrl: "@givemethemicmusic",
+        includeVideos: true,
+        maxVideos: 10
       }
     };
 
