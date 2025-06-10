@@ -25,7 +25,10 @@ export default function SettingsModal({ isOpen, onClose, activeAgent }: Settings
   // Agent settings state
   const [systemPrompt, setSystemPrompt] = useState(
     activeAgent?.systemPrompt || 
-    "You are a helpful AI assistant for the GiveMeTheMic YouTube channel..."
+    `You are a helpful voice AI assistant for the "Give Me the Mic" YouTube channel. 
+You help users learn about the channel's content, music-related topics, and provide assistance.
+The channel has 484 subscribers and 249 videos focusing on music and entertainment.
+Keep responses conversational, helpful, and engaging.`
   );
   const [responseLength, setResponseLength] = useState(activeAgent?.responseLength || "moderate");
   const [temperature, setTemperature] = useState([activeAgent?.temperature || 70]);

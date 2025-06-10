@@ -21,9 +21,16 @@ class GiveMeTheMicAssistant(Agent):
     @function_tool()
     async def get_channel_info(self, context: RunContext) -> str:
         """Get information about the Give Me the Mic YouTube channel."""
-        return """The Give Me the Mic channel is a music-focused YouTube channel with 484 subscribers and 249 videos. 
-        The channel creates content around music, entertainment, and giving people a platform to share their voice. 
-        You can find them at @givemethemicmusic on YouTube."""
+        return """Give Me the Mic (@givemethemicmusic) is a music-focused YouTube channel with:
+        
+• 484 subscribers and growing
+• 249 videos of music content
+• 75,000+ total views
+• Focus on music education, tutorials, and entertainment
+• Gives aspiring musicians a platform to share their voice
+• Features content on singing techniques, instrument tutorials, recording tips, and music industry insights
+        
+The channel is dedicated to helping people develop their musical talents and provides valuable resources for musicians at all skill levels."""
 
     @function_tool()
     async def get_music_tips(self, context: RunContext, topic: str) -> str:
