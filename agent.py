@@ -49,7 +49,10 @@ class GiveMeTheMicAgent(Agent):
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
-        await self.session.generate_reply()
+        await self.session.say(
+            "Hello! I'm your Give Me the Mic assistant. I can help you with music tips, channel information, and content suggestions. How can I help you with music today?",
+            allow_interruptions=True
+        )
 
     @function_tool
     async def get_channel_info(self):

@@ -1,0 +1,44 @@
+LiveKit Docs › CLI › Bootstrapping an application
+
+---
+
+# Bootstrapping an application
+
+> Create and initialize an app from a convenient set of templates.
+
+> ℹ️ **Note**
+> 
+> Before starting, make sure you have created a Cloud account, [installed the LiveKit CLI](https://docs.livekit.io/home/cli/cli-setup.md), and have authenticated or manually configured your LiveKit project of choice.
+
+The LiveKit CLI can help you bootstrap applications from a number of convenient template repositories, using your project credentials to set up required environment variables and other configuration automatically. To create an application from a template, run the following:
+
+```shell
+lk app create --template <template_name> my-app
+
+```
+
+Then follow the CLI prompts to finish your setup.
+
+The `--template` flag may be omitted to see a list of all available templates, or can be chosen from a selection of our first-party templates:
+
+| **Template Name** | **Language/Framework** | **Description** |
+| [voice-assistant-frontend](https://github.com/livekit-examples/voice-assistant-frontend) | TypeScript/Next.js | Voice assistant frontend with integrated token server |
+| [meet](https://github.com/livekit-examples/meet) | TypeScript/Next.js | Video conferencing frontend with integrated token server |
+| [multimodal-agent-python](https://github.com/livekit-examples/multimodal-agent-python) | Python | Multimodal agent with speech-to-speech and transcription capabilities |
+| [voice-pipeline-agent-python](https://github.com/livekit-examples/voice-pipeline-agent-python) | Python | Voice agent using modular TTS, LLM, and STT capabilities |
+| [multimodal-agent-node](https://github.com/livekit-examples/multimodal-agent-node) | Node.js/TypeScript | Multimodal agent with speech-to-speech and transcription capabilities |
+| [token-server-node](https://github.com/livekit-examples/token-server-node) | Node.js/TypeScript | Token server for generating access tokens |
+| [android-voice-assistant](https://github.com/livekit-examples/android-voice-assistant) | Kotlin/Android | Voice assistant mobile application |
+
+> 💡 **Tip**
+> 
+> If you're looking to explore LiveKit's [Agents](https://docs.livekit.io/agents.md) framework, or want to prototype your app against a prebuilt frontend or token server, check out [Sandboxes](https://docs.livekit.io/home/cloud/sandbox.md).
+
+For more information on templates, see the [LiveKit Template Index](https://github.com/livekit-examples/index?tab=readme-ov-file).
+
+---
+
+This document was rendered at 2025-06-11T12:12:41.552Z.
+For the latest version of this document, see [https://docs.livekit.io/home/cli/templates.md](https://docs.livekit.io/home/cli/templates.md).
+
+To explore all LiveKit documentation, see [llms.txt](https://docs.livekit.io/llms.txt).
