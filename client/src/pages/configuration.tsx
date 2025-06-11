@@ -511,42 +511,36 @@ Keep responses conversational, helpful, and engaging.`,
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                  <div className="md:col-span-4">
-                    <Input
-                      placeholder="MCP Server Name (e.g., internet access)"
-                      value={newMcpServer.name}
-                      onChange={(e) => setNewMcpServer(prev => ({ ...prev, name: e.target.value }))}
-                      className="glass-card border-white/20 w-full"
-                    />
-                  </div>
-                  <div className="md:col-span-6">
-                    <Input
-                      placeholder="MCP Server URL (wss://...)"
-                      value={newMcpServer.url}
-                      onChange={(e) => setNewMcpServer(prev => ({ ...prev, url: e.target.value }))}
-                      className="glass-card border-white/20 w-full"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Button 
-                      onClick={() => {
-                        if (!newMcpServer.name.trim() || !newMcpServer.url.trim()) {
-                          toast({
-                            title: "Missing Information",
-                            description: "Please provide both name and URL for the MCP server",
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        addMcpServerMutation.mutate(newMcpServer);
-                      }}
-                      disabled={addMcpServerMutation.isPending}
-                      className="bg-electric-blue hover:bg-electric-blue/80 w-full h-10"
-                    >
-                      {addMcpServerMutation.isPending ? "Adding..." : "Add"}
-                    </Button>
-                  </div>
+                <Input
+                  placeholder="MCP Server Name (e.g., internet access)"
+                  value={newMcpServer.name}
+                  onChange={(e) => setNewMcpServer(prev => ({ ...prev, name: e.target.value }))}
+                  className="glass-card border-white/20 w-full"
+                />
+                <div className="flex gap-3">
+                  <Input
+                    placeholder="MCP Server URL (wss://...)"
+                    value={newMcpServer.url}
+                    onChange={(e) => setNewMcpServer(prev => ({ ...prev, url: e.target.value }))}
+                    className="glass-card border-white/20 flex-1"
+                  />
+                  <Button 
+                    onClick={() => {
+                      if (!newMcpServer.name.trim() || !newMcpServer.url.trim()) {
+                        toast({
+                          title: "Missing Information",
+                          description: "Please provide both name and URL for the MCP server",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      addMcpServerMutation.mutate(newMcpServer);
+                    }}
+                    disabled={addMcpServerMutation.isPending}
+                    className="bg-electric-blue hover:bg-electric-blue/80 px-8 h-10 shrink-0 text-white font-medium"
+                  >
+                    {addMcpServerMutation.isPending ? "Adding..." : "Add"}
+                  </Button>
                 </div>
               </div>
             </CardContent>
