@@ -433,8 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // For now, just set to connected. In production, implement actual WebSocket connection test
           await storage.updateMcpServer(id, { 
-            status: "connected",
-            lastConnected: new Date()
+            status: "connected"
           });
         } catch (error) {
           await storage.updateMcpServer(id, { status: "error" });

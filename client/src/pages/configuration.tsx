@@ -215,12 +215,14 @@ Keep responses conversational, helpful, and engaging.`,
     mutationFn: async (serverData: { name: string; url: string }) => {
       return apiRequest('POST', '/api/mcp/servers', serverData);
     },
-    onSuccess: (newServer) => {
+    onSuccess: async (newServer) => {
+      // Immediately refetch to sync with database
+      await refetchMcpServers();
       queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
       setNewMcpServer({ name: '', url: '' });
       toast({
         title: "MCP Server Added",
-        description: "Server has been added successfully",
+        description: "Server has been added and saved to database",
       });
     }
   });
@@ -251,11 +253,13 @@ Keep responses conversational, helpful, and engaging.`,
     mutationFn: async (serverId: string) => {
       return apiRequest('DELETE', `/api/mcp/servers/${serverId}`);
     },
-    onSuccess: (data, serverId) => {
+    onSuccess: async (data, serverId) => {
+      // Immediately refetch to sync with database
+      await refetchMcpServers();
       queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
       toast({
         title: "MCP Server Removed",
-        description: "Server has been removed successfully",
+        description: "Server has been permanently removed from database",
       });
     }
   });
