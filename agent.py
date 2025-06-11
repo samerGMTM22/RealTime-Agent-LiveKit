@@ -46,6 +46,11 @@ class GiveMeTheMicAgent(Agent):
         super().__init__(instructions=system_prompt)
         self.config = config
 
+    async def on_enter(self):
+        """Called when the agent enters the session - generates initial greeting"""
+        logger.info("Agent entering session, generating initial greeting")
+        await self.session.generate_reply()
+
     @function_tool
     async def get_channel_info(self):
         """Provides information about the Give Me the Mic YouTube channel including subscriber count, content type, and channel details."""
