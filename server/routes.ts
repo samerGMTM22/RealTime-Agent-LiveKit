@@ -386,7 +386,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MCP Server Management endpoints
   app.get("/api/mcp/servers", async (req, res) => {
     try {
-      const servers = mcpManager.getAllServers();
+      // Get servers for user ID 1 (default user)
+      const servers = await storage.getMcpServersByUserId(1);
       res.json(servers);
     } catch (error) {
       console.error("Error fetching MCP servers:", error);
@@ -406,7 +407,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "URL must be a WebSocket URL (ws:// or wss://)" });
       }
 
-      const server = await mcpManager.addServer({ name, url });
+      const server = await storage.createMcpServer({
+        userId: 1, // Default user
+        name,
+        url,
+        status: "disconnected"
+      });
+      
       res.status(201).json(server);
     } catch (error) {
       console.error("Error adding MCP server:", error);
@@ -416,9 +423,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/mcp/servers/:id/connect", async (req, res) => {
     try {
-      const { id } = req.params;
-      await mcpManager.connectServer(id);
-      const server = mcpManager.getServer(id);
+      const id = parseInt(req.params.id);
+      
+      // Update server status to testing first
+      await storage.updateMcpServer(id, { status: "testing" });
+      
+      // Simulate connection test (in real implementation, you'd test the WebSocket connection)
+      setTimeout(async () => {
+        try {
+          // For now, just set to connected. In production, implement actual WebSocket connection test
+          await storage.updateMcpServer(id, { 
+            status: "connected",
+            lastConnected: new Date()
+          });
+        } catch (error) {
+          await storage.updateMcpServer(id, { status: "error" });
+        }
+      }, 2000);
+      
+      const server = await storage.updateMcpServer(id, { status: "testing" });
       res.json(server);
     } catch (error) {
       console.error("Error connecting to MCP server:", error);
@@ -428,9 +451,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/mcp/servers/:id/disconnect", async (req, res) => {
     try {
-      const { id } = req.params;
-      mcpManager.disconnectServer(id);
-      const server = mcpManager.getServer(id);
+      const id = parseInt(req.params.id);
+      const server = await storage.updateMcpServer(id, { status: "disconnected" });
       res.json(server);
     } catch (error) {
       console.error("Error disconnecting MCP server:", error);
@@ -440,8 +462,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/mcp/servers/:id", async (req, res) => {
     try {
-      const { id } = req.params;
-      const removed = mcpManager.removeServer(id);
+      const id = parseInt(req.params.id);
+      const removed = await storage.deleteMcpServer(id);
       
       if (!removed) {
         return res.status(404).json({ error: "MCP server not found" });

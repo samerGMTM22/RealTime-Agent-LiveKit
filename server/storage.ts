@@ -114,7 +114,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAgentConfig(id: number): Promise<boolean> {
     const result = await db.delete(agentConfigs).where(eq(agentConfigs.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async getConversationsBySessionId(sessionId: string): Promise<Conversation[]> {
@@ -156,7 +156,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDataSource(id: number): Promise<boolean> {
     const result = await db.delete(dataSources).where(eq(dataSources.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async getMcpServersByUserId(userId: number): Promise<McpServer[]> {
@@ -182,218 +182,8 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMcpServer(id: number): Promise<boolean> {
     const result = await db.delete(mcpServers).where(eq(mcpServers.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 }
 
 export const storage = new DatabaseStorage();
-
-    // Create default YouTube assistant agent config
-    const defaultAgentConfig: AgentConfig = {
-      id: 1,
-      userId: 1,
-      name: "Give Me the Mic Assistant",
-      type: "youtube-assistant",
-      systemPrompt: `You are a specialized AI assistant for the "Give Me the Mic" YouTube channel (484 subscribers, 249 videos).
-
-Your primary responsibilities:
-- Help subscribers and visitors understand the channel's content and mission
-- Provide information about the channel's 249 videos and content library
-- Share details from the official website (givemethemicofficial.com)
-- Encourage engagement, subscriptions, and community participation
-- Answer questions about the creator's background and content focus
-- Guide users to relevant videos based on their interests
-
-The channel has been active since January 2020 with over 62,000 total views. Be enthusiastic about the content and help viewers discover videos that match their interests.
-
-Communication style:
-- Be friendly, knowledgeable, and encouraging
-- Highlight the channel's growing community (484+ subscribers)
-- Mention specific video counts and engagement when relevant
-- Always encourage viewers to subscribe and engage with content`,
-      personality: "enthusiastic",
-      voiceModel: "nova",
-      responseLength: "moderate",
-      temperature: 70,
-      isActive: true,
-      settings: {
-        audioQuality: "high",
-        bufferSize: 2048,
-        enableLogging: true,
-        autoReconnect: true,
-        channelFocus: true,
-        engagementPrompts: true
-      },
-      createdAt: new Date()
-    };
-    this.agentConfigs.set(1, defaultAgentConfig);
-    this.currentAgentConfigId = 2;
-
-    // Create default data sources
-    const youtubeDataSource: DataSource = {
-      id: 1,
-      agentConfigId: 1,
-      type: "youtube",
-      name: "Give Me the Mic Channel",
-      url: "https://www.youtube.com/channel/UCkFvVFwmpRRTC7Z9G-YzuOw",
-      lastSynced: new Date(),
-      isActive: true,
-      metadata: {
-        channelId: "UCkFvVFwmpRRTC7Z9G-YzuOw",
-        channelHandle: "GiveMeTheMic",
-        customUrl: "@givemethemicmusic",
-        includeVideos: true,
-        maxVideos: 10
-      }
-    };
-
-    const websiteDataSource: DataSource = {
-      id: 2,
-      agentConfigId: 1,
-      type: "website",
-      name: "Official Website",
-      url: "https://www.givemethemicofficial.com",
-      lastSynced: new Date(),
-      isActive: true,
-      metadata: {
-        crawlDepth: 3,
-        lastCrawled: new Date().toISOString()
-      }
-    };
-
-    this.dataSources.set(1, youtubeDataSource);
-    this.dataSources.set(2, websiteDataSource);
-    this.currentDataSourceId = 3;
-  }
-
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
-  }
-
-  // Agent config methods
-  async getAgentConfig(id: number): Promise<AgentConfig | undefined> {
-    return this.agentConfigs.get(id);
-  }
-
-  async getAgentConfigsByUserId(userId: number): Promise<AgentConfig[]> {
-    return Array.from(this.agentConfigs.values()).filter(config => config.userId === userId);
-  }
-
-  async getActiveAgentConfig(userId: number): Promise<AgentConfig | undefined> {
-    return Array.from(this.agentConfigs.values()).find(
-      config => config.userId === userId && config.isActive
-    );
-  }
-
-  async createAgentConfig(insertConfig: InsertAgentConfig): Promise<AgentConfig> {
-    const id = this.currentAgentConfigId++;
-    const config: AgentConfig = { 
-      id,
-      userId: insertConfig.userId || 1,
-      name: insertConfig.name,
-      type: insertConfig.type,
-      systemPrompt: insertConfig.systemPrompt,
-      personality: insertConfig.personality || 'friendly',
-      voiceModel: insertConfig.voiceModel || 'alloy',
-      responseLength: insertConfig.responseLength || 'moderate',
-      temperature: insertConfig.temperature || 70,
-      isActive: insertConfig.isActive || false,
-      settings: insertConfig.settings || {},
-      createdAt: new Date() 
-    };
-    this.agentConfigs.set(id, config);
-    return config;
-  }
-
-  async updateAgentConfig(id: number, updateData: Partial<InsertAgentConfig>): Promise<AgentConfig | undefined> {
-    const existing = this.agentConfigs.get(id);
-    if (!existing) return undefined;
-
-    const updated: AgentConfig = { ...existing, ...updateData };
-    this.agentConfigs.set(id, updated);
-    return updated;
-  }
-
-  async deleteAgentConfig(id: number): Promise<boolean> {
-    return this.agentConfigs.delete(id);
-  }
-
-  // Conversation methods
-  async getConversationsBySessionId(sessionId: string): Promise<Conversation[]> {
-    return Array.from(this.conversations.values()).filter(
-      conv => conv.sessionId === sessionId
-    );
-  }
-
-  async getConversationsByAgentConfigId(agentConfigId: number): Promise<Conversation[]> {
-    return Array.from(this.conversations.values()).filter(
-      conv => conv.agentConfigId === agentConfigId
-    );
-  }
-
-  async createConversation(insertConversation: InsertConversation): Promise<Conversation> {
-    const id = this.currentConversationId++;
-    const conversation: Conversation = {
-      ...insertConversation,
-      id,
-      agentConfigId: insertConversation.agentConfigId || 1,
-      userMessage: insertConversation.userMessage || null,
-      agentResponse: insertConversation.agentResponse || null,
-      audioUrl: insertConversation.audioUrl || null,
-      metadata: insertConversation.metadata || {},
-      timestamp: new Date()
-    };
-    this.conversations.set(id, conversation);
-    return conversation;
-  }
-
-  // Data source methods
-  async getDataSourcesByAgentConfigId(agentConfigId: number): Promise<DataSource[]> {
-    return Array.from(this.dataSources.values()).filter(
-      source => source.agentConfigId === agentConfigId
-    );
-  }
-
-  async createDataSource(insertDataSource: InsertDataSource): Promise<DataSource> {
-    const id = this.currentDataSourceId++;
-    const dataSource: DataSource = {
-      id,
-      agentConfigId: insertDataSource.agentConfigId || 1,
-      type: insertDataSource.type,
-      name: insertDataSource.name,
-      url: insertDataSource.url || null,
-      isActive: insertDataSource.isActive ?? true,
-      metadata: insertDataSource.metadata || {},
-      lastSynced: new Date()
-    };
-    this.dataSources.set(id, dataSource);
-    return dataSource;
-  }
-
-  async updateDataSource(id: number, updateData: Partial<InsertDataSource>): Promise<DataSource | undefined> {
-    const existing = this.dataSources.get(id);
-    if (!existing) return undefined;
-
-    const updated: DataSource = { ...existing, ...updateData };
-    this.dataSources.set(id, updated);
-    return updated;
-  }
-
-  async deleteDataSource(id: number): Promise<boolean> {
-    return this.dataSources.delete(id);
-  }
-}
-
-export const storage = new MemStorage();
