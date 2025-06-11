@@ -185,6 +185,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Voice session endpoints
+  app.post("/api/voice/start-session", async (req, res) => {
+    try {
+      const { agentConfigId } = req.body;
+      
+      if (!agentConfigId) {
+        return res.status(400).json({ error: "Agent config ID is required" });
+      }
+
+      // Generate unique session ID
+      const sessionId = `voice_agent_session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const roomName = sessionId;
+
+      // Create LiveKit room
+      const room = await liveKitService.createRoom(roomName, 2);
+      
+      // Generate access token for the user
+      const token = await liveKitService.createAccessToken(roomName, 'user');
+
+      // Start AI agent for this room
+      try {
+        await startAIAgent(roomName);
+        console.log(`AI agent started for room: ${roomName}`);
+      } catch (agentError) {
+        console.error(`Error starting AI agent: ${agentError}`);
+        // Continue without agent - room still usable
+      }
+
+      res.json({
+        sessionId,
+        roomName,
+        token,
+        wsUrl: process.env.LIVEKIT_URL,
+        status: 'started'
+      });
+    } catch (error) {
+      console.error("Error starting voice session:", error);
+      res.status(500).json({ error: "Failed to start voice session" });
+    }
+  });
+
   // Voice processing endpoints
   app.post("/api/voice/process", async (req, res) => {
     try {
