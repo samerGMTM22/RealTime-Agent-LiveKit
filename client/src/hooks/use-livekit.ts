@@ -48,9 +48,8 @@ export function useLiveKit() {
         
         if (track.kind === 'audio') {
           // Handle audio track with proper autoplay handling
-          const audioElement = track.attach();
+          const audioElement = track.attach() as HTMLAudioElement;
           audioElement.autoplay = true;
-          audioElement.playsInline = true;
           audioElement.volume = 1.0;
           
           // Ensure audio plays

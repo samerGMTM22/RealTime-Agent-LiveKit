@@ -133,29 +133,9 @@ export class YouTubeService {
     }
   }
 
-  private getFallbackChannelInfo(channelHandle: string): ChannelInfo {
-    // Return known information about Give Me the Mic channel when API fails
-    if (channelHandle.toLowerCase().includes('givemethemic') || 
-        channelHandle.includes('GiveMeTheMic22') || 
-        channelHandle === '@givemethemicmusic') {
-      return {
-        id: 'UC_GiveMeTheMic_Channel',
-        title: 'Give Me the Mic',
-        description: 'Music-focused YouTube channel creating content around music, entertainment, and giving people a platform to share their voice. Features music tutorials, performances, and industry insights.',
-        subscriberCount: '484',
-        videoCount: '249',
-        viewCount: '75000',
-        thumbnails: {
-          default: { url: '', width: 88, height: 88 },
-          medium: { url: '', width: 240, height: 240 },
-          high: { url: '', width: 800, height: 800 }
-        },
-        publishedAt: '2020-01-01T00:00:00Z',
-        customUrl: '@givemethemicmusic'
-      };
-    }
-    
-    // Return null for unknown channels to maintain API contract
+  private getFallbackChannelInfo(channelHandle: string): ChannelInfo | null {
+    // Return null when API quota is exceeded to prevent using synthetic data
+    console.warn(`YouTube API quota exceeded for channel: ${channelHandle}`);
     return null;
   }
 

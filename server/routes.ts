@@ -429,17 +429,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status.livekit = 'error';
       }
 
-      // Test YouTube API (with fallback handling)
-      try {
-        const channelInfo = await youtubeService.getChannelInfo('@GiveMeTheMic22');
-        if (channelInfo) {
-          status.youtube = 'active';
-        } else {
-          status.youtube = 'inactive';
-        }
-      } catch (error) {
-        // YouTube API has quota limits, but fallback data is available
+      // YouTube API status - check if key exists without making API calls
+      if (process.env.YOUTUBE_API_KEY) {
         status.youtube = 'active';
+      } else {
+        status.youtube = 'inactive';
       }
 
       res.json(status);
