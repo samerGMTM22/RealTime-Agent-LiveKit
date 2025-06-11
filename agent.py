@@ -2,18 +2,12 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
-from livekit import agents
-from livekit.agents import AgentSession, Agent, JobContext
+from livekit.agents import AgentSession, AutoSubscribe, JobContext, WorkerOptions, cli
 from livekit.plugins import openai
 from openai.types.beta.realtime.session import TurnDetection
 import requests
 
 load_dotenv()
-
-
-class ConfigurableAssistant(Agent):
-    def __init__(self, system_prompt: str) -> None:
-        super().__init__(instructions=system_prompt)
 
 
 async def get_agent_config(room_name: str):
@@ -67,10 +61,13 @@ async def entrypoint(ctx: JobContext):
     
     print(f"Voice: {voice}, Temperature: {temperature}")
     
+    # Connect to the room
+    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    print(f"Agent connected to room: {ctx.room.name}")
+
     # Create the agent session with OpenAI Realtime API following exact documentation pattern
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
-            model="gpt-4o-realtime-preview",
             voice=voice,
             temperature=temperature,
             turn_detection=TurnDetection(
@@ -84,29 +81,16 @@ async def entrypoint(ctx: JobContext):
         )
     )
 
-    # Start the session
-    await session.start(
-        room=ctx.room,
-        agent=ConfigurableAssistant(system_prompt),
-    )
-
-    # Connect to the room
-    await ctx.connect()
-    print(f"Agent connected to room: {ctx.room.name}")
-
-    # Generate initial greeting
-    await session.generate_reply(
-        instructions="Greet the user warmly and briefly introduce yourself as the Give Me the Mic channel assistant. Keep it short and offer to help with any questions about the channel or music."
-    )
+    # Start the session with the room
+    await session.start(ctx.room, agent=None)
     
     print("Give Me the Mic agent is running and ready for voice interactions")
 
 
 if __name__ == "__main__":
-    # Run the agent with different http port to avoid conflicts
-    agents.cli.run_app(
-        agents.WorkerOptions(
+    # Run the agent
+    cli.run_app(
+        WorkerOptions(
             entrypoint_fnc=entrypoint,
-            http_server_port=8082,  # Use different port to avoid conflicts
         )
     )
