@@ -405,9 +405,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Name and URL are required" });
       }
 
-      if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+      if (!url.startsWith('wss://') && !url.startsWith('ws://') && !url.startsWith('https://') && !url.startsWith('http://')) {
         console.log('Invalid URL format:', url);
-        return res.status(400).json({ error: "URL must be a WebSocket URL (ws:// or wss://)" });
+        return res.status(400).json({ error: "URL must be a valid URL (http://, https://, ws://, or wss://)" });
       }
 
       console.log('Creating MCP server in database...');

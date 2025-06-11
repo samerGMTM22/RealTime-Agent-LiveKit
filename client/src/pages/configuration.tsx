@@ -531,7 +531,7 @@ Keep responses conversational, helpful, and engaging.`,
                 />
                 <div className="flex gap-3">
                   <Input
-                    placeholder="MCP Server URL (wss://...)"
+                    placeholder="MCP Server URL (https://... or wss://...)"
                     value={newMcpServer.url}
                     onChange={(e) => setNewMcpServer(prev => ({ ...prev, url: e.target.value }))}
                     className="glass-card border-white/20 flex-1"
