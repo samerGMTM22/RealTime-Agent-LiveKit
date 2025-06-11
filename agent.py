@@ -1,12 +1,24 @@
-import os
-import asyncio
+import logging
 from dotenv import load_dotenv
 
-from livekit.agents import AgentSession, AutoSubscribe, JobContext, WorkerOptions, cli
-from livekit.plugins import openai
-from openai.types.beta.realtime.session import TurnDetection
+from livekit.agents import (
+    Agent,
+    AgentSession,
+    JobContext,
+    JobProcess,
+    RoomInputOptions,
+    RoomOutputOptions,
+    RunContext,
+    WorkerOptions,
+    cli,
+    metrics,
+)
+from livekit.agents.llm import function_tool
+from livekit.agents.voice import MetricsCollectedEvent
+from livekit.plugins import openai, silero
 import requests
 
+logger = logging.getLogger("voice-agent")
 load_dotenv()
 
 
@@ -20,10 +32,10 @@ async def get_agent_config(room_name: str):
         response = requests.get(f'http://localhost:5000/api/agent-configs/{agent_config_id}', timeout=5)
         if response.status_code == 200:
             config = response.json()
-            print(f"Fetched config from database: {config['name']}")
+            logger.info(f"Fetched config from database: {config['name']}")
             return config
     except Exception as e:
-        print(f"Error fetching agent config: {e}")
+        logger.error(f"Error fetching agent config: {e}")
     
     # Fallback configuration
     return {
@@ -34,13 +46,81 @@ async def get_agent_config(room_name: str):
     }
 
 
+class GiveMeTheMicAgent(Agent):
+    def __init__(self, config: dict) -> None:
+        system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
+        super().__init__(instructions=system_prompt)
+        self.config = config
+
+    async def on_enter(self):
+        # When the agent is added to the session, generate a greeting
+        self.session.generate_reply()
+
+    @function_tool
+    async def get_channel_info(self, context: RunContext):
+        """Provides information about the Give Me the Mic YouTube channel including subscriber count, content type, and channel details."""
+        
+        logger.info("Providing Give Me the Mic channel information")
+        
+        return """The Give Me the Mic channel (@givemethemicmusic) is a music-focused YouTube channel with 484 subscribers and 249 videos. 
+        The channel features content about singing, music performance, recording tips, and musical entertainment. 
+        It's a great resource for aspiring musicians and singers looking to improve their craft."""
+
+    @function_tool
+    async def get_music_tips(self, context: RunContext, topic: str):
+        """Provides music-related advice and tips for various topics like singing, recording, instruments, performance, etc.
+        
+        Args:
+            topic: The music topic to provide advice about (e.g., singing, recording, guitar, performance)
+        """
+        
+        logger.info(f"Providing music tips for topic: {topic}")
+        
+        music_tips = {
+            "singing": "Practice proper breathing techniques, warm up your voice before singing, stay hydrated, and record yourself to hear areas for improvement.",
+            "recording": "Use a good quality microphone, record in a quiet space with minimal echo, and monitor your audio levels to avoid clipping.",
+            "guitar": "Start with basic chords, practice regularly even if just for 15 minutes daily, and use a metronome to develop timing.",
+            "performance": "Practice performing in front of others, connect with your audience through eye contact and emotion, and prepare thoroughly to build confidence.",
+            "piano": "Focus on proper hand posture, start with scales and simple songs, and practice both hands separately before combining them.",
+            "drums": "Start with basic beats, use a metronome to develop timing, and practice rudiments to build coordination."
+        }
+        
+        tip = music_tips.get(topic.lower(), f"For {topic}, focus on consistent practice, proper technique, and listening to professionals in that area.")
+        return f"Music tip for {topic}: {tip}"
+
+    @function_tool
+    async def suggest_content(self, context: RunContext, interest: str):
+        """Suggests Give Me the Mic channel content based on user's musical interests.
+        
+        Args:
+            interest: The user's musical interest or area they want to learn about
+        """
+        
+        logger.info(f"Suggesting content for interest: {interest}")
+        
+        suggestions = {
+            "vocal": "Check out our vocal technique videos and singing tips series on the Give Me the Mic channel.",
+            "recording": "Our home recording setup guides and audio production tips would be perfect for you.",
+            "performance": "Look for our stage presence and performance confidence videos.",
+            "songwriting": "We have songwriting tutorials and creative process breakdowns you'd enjoy.",
+            "instruments": "Browse our instrument-specific tutorials and playing technique videos."
+        }
+        
+        suggestion = suggestions.get(interest.lower(), f"For {interest}, I recommend exploring our general music education content on Give Me the Mic.")
+        return f"Content suggestion: {suggestion} Don't forget to subscribe and hit the notification bell!"
+
+
+def prewarm(proc: JobProcess):
+    proc.userdata["vad"] = silero.VAD.load()
+
+
 async def entrypoint(ctx: JobContext):
     """Main entry point for the LiveKit agent."""
-    print(f"Starting agent for room: {ctx.room.name}")
+    logger.info(f"Starting agent for room: {ctx.room.name}")
     
     # Get agent configuration from database
     config = await get_agent_config(ctx.room.name)
-    print(f"Using agent config: {config.get('name', 'Default')}")
+    logger.info(f"Using agent config: {config.get('name', 'Default')}")
     
     # Map voice model names to OpenAI voice options
     voice_mapping = {
@@ -57,42 +137,50 @@ async def entrypoint(ctx: JobContext):
     # Convert temperature from percentage (0-100) to decimal (0.6-1.2)
     temp_raw = config.get("temperature", 80)
     temperature = max(0.6, min(1.2, float(temp_raw) / 100.0))
-    system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
     
-    print(f"Voice: {voice}, Temperature: {temperature}")
-    
-    # Connect to the room
-    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-    print(f"Agent connected to room: {ctx.room.name}")
+    logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
-    # Create the OpenAI Realtime model with proper configuration (no instructions parameter)
-    realtime_model = openai.realtime.RealtimeModel(
-        voice=voice,
-        temperature=temperature,
-        turn_detection=TurnDetection(
-            type="server_vad",
-            threshold=0.5,
-            prefix_padding_ms=300,
-            silence_duration_ms=500,
-            create_response=True,
-            interrupt_response=True,
-        )
+    # Each log entry will include these fields
+    ctx.log_context_fields = {
+        "room": ctx.room.name,
+    }
+
+    session = AgentSession(
+        vad=ctx.proc.userdata["vad"],
+        # Use OpenAI Realtime API
+        llm=openai.realtime.RealtimeModel(
+            voice=voice,
+            temperature=temperature,
+        ),
     )
 
-    # Create agent session with the realtime model
-    session = AgentSession(llm=realtime_model)
+    # Log metrics as they are emitted
+    usage_collector = metrics.UsageCollector()
+
+    @session.on("metrics_collected")
+    def _on_metrics_collected(ev: MetricsCollectedEvent):
+        metrics.log_metrics(ev.metrics)
+        usage_collector.collect(ev.metrics)
+
+    async def log_usage():
+        summary = usage_collector.get_summary()
+        logger.info(f"Usage: {summary}")
+
+    # Shutdown callbacks are triggered when the session is over
+    ctx.add_shutdown_callback(log_usage)
+
+    await session.start(
+        agent=GiveMeTheMicAgent(config),
+        room=ctx.room,
+        room_input_options=RoomInputOptions(),
+        room_output_options=RoomOutputOptions(transcription_enabled=True),
+    )
+
+    # Join the room when agent is ready
+    await ctx.connect()
     
-    # Start the session
-    await session.start(ctx.room)
-    
-    print("OpenAI Realtime model and agent session started successfully")
-    print("Give Me the Mic agent is running and ready for voice interactions")
+    logger.info("Give Me the Mic agent is running and ready for voice interactions")
 
 
 if __name__ == "__main__":
-    # Run the agent
-    cli.run_app(
-        WorkerOptions(
-            entrypoint_fnc=entrypoint,
-        )
-    )
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
