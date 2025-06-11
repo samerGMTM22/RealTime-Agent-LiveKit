@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Settings, Database, Globe, MessageSquare, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, Settings, Database, Globe, MessageSquare, CheckCircle, XCircle, AlertTriangle, ArrowLeft, TestTube } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +55,13 @@ interface DataSource {
 export default function Configuration() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("agent");
+  const [mcpServers, setMcpServers] = useState<Array<{
+    id: string;
+    name: string;
+    url: string;
+    status: 'connected' | 'disconnected' | 'error' | 'testing';
+  }>>([]);
+  const [newMcpServer, setNewMcpServer] = useState({ name: '', url: '' });
   
   // Agent configuration state
   const [agentName, setAgentName] = useState("");
@@ -149,8 +157,8 @@ Keep responses conversational, helpful, and engaging.`,
       queryClient.invalidateQueries({ queryKey: ["/api/agent-configs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/agent-configs/active"] });
       toast({
-        title: "Success",
-        description: "Agent configuration saved successfully",
+        title: "Configuration Saved",
+        description: "Agent settings have been updated and persisted successfully",
       });
     },
     onError: (error: any) => {
@@ -159,6 +167,51 @@ Keep responses conversational, helpful, and engaging.`,
         description: error.message || "Failed to save agent configuration",
         variant: "destructive",
       });
+    }
+  });
+
+  // MCP Server mutations
+  const addMcpServerMutation = useMutation({
+    mutationFn: async (serverData: { name: string; url: string }) => {
+      return apiRequest('POST', '/api/mcp/servers', serverData);
+    },
+    onSuccess: (newServer) => {
+      setMcpServers(prev => [...prev, { ...newServer, status: 'disconnected' as const }]);
+      setNewMcpServer({ name: '', url: '' });
+      toast({
+        title: "MCP Server Added",
+        description: "Server has been added successfully",
+      });
+    }
+  });
+
+  const testMcpConnectionMutation = useMutation({
+    mutationFn: async (serverId: string) => {
+      return apiRequest('POST', `/api/mcp/servers/${serverId}/connect`);
+    },
+    onMutate: (serverId) => {
+      setMcpServers(prev => prev.map(server => 
+        server.id === serverId ? { ...server, status: 'testing' as const } : server
+      ));
+    },
+    onSuccess: (data, serverId) => {
+      setMcpServers(prev => prev.map(server => 
+        server.id === serverId ? { ...server, status: 'connected' as const } : server
+      ));
+    },
+    onError: (error, serverId) => {
+      setMcpServers(prev => prev.map(server => 
+        server.id === serverId ? { ...server, status: 'error' as const } : server
+      ));
+    }
+  });
+
+  const removeMcpServerMutation = useMutation({
+    mutationFn: async (serverId: string) => {
+      return apiRequest('DELETE', `/api/mcp/servers/${serverId}`);
+    },
+    onSuccess: (data, serverId) => {
+      setMcpServers(prev => prev.filter(server => server.id !== serverId));
     }
   });
 
@@ -254,6 +307,14 @@ Keep responses conversational, helpful, and engaging.`,
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex items-center justify-between">
         <div>
+          <div className="flex items-center gap-4 mb-4">
+            <Link href="/">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Agent
+              </Button>
+            </Link>
+          </div>
           <h1 className="text-3xl font-bold gradient-text">Agent Configuration</h1>
           <p className="text-gray-400 mt-2">Customize your voice agent settings and integrations</p>
         </div>
