@@ -104,8 +104,11 @@ export default function Configuration() {
     refetchInterval: 10000
   });
 
-  const { data: existingMcpServers } = useQuery({
+  const { data: existingMcpServers, refetch: refetchMcpServers } = useQuery({
     queryKey: ["/api/mcp/servers"],
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
   });
 
   // Initialize form with active agent data
@@ -121,24 +124,31 @@ export default function Configuration() {
     }
   }, [activeAgent]);
 
-  // Initialize MCP servers from API
+  // Initialize MCP servers from API and always sync with database
   useEffect(() => {
     if (existingMcpServers && Array.isArray(existingMcpServers)) {
-      setMcpServers(existingMcpServers.map((server: any) => ({
-        id: server.id,
+      const servers = existingMcpServers.map((server: any) => ({
+        id: server.id.toString(), // Ensure ID is string for frontend
         name: server.name,
         url: server.url,
         status: server.status || 'disconnected'
-      })));
+      }));
+      setMcpServers(servers);
+    } else {
+      setMcpServers([]); // Clear servers if no data
     }
   }, [existingMcpServers]);
 
-  // Refresh MCP servers when tab changes to data sources
+  // Refresh MCP servers when page loads or tab changes
+  useEffect(() => {
+    refetchMcpServers();
+  }, []); // Fetch on mount
+
   useEffect(() => {
     if (activeTab === 'datasources') {
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
+      refetchMcpServers();
     }
-  }, [activeTab, queryClient]);
+  }, [activeTab, refetchMcpServers]);
 
   // Update services status from system status
   useEffect(() => {
