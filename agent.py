@@ -7,6 +7,7 @@ from livekit.agents import (
     JobContext,
     WorkerOptions,
     cli,
+    RoomInputOptions,
 )
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai
@@ -49,9 +50,8 @@ class GiveMeTheMicAgent(Agent):
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
-        await self.session.say(
-            "Hello! I'm your Give Me the Mic assistant. I can help you with music tips, channel information, and content suggestions. How can I help you with music today?",
-            allow_interruptions=True
+        await self.session.generate_reply(
+            instructions="Greet the user warmly and introduce yourself as the Give Me the Mic assistant. Ask how you can help them with music today."
         )
 
     @function_tool
@@ -137,7 +137,7 @@ async def entrypoint(ctx: JobContext):
     # Connect to the room first
     await ctx.connect()
 
-    # Create session with OpenAI Realtime API
+    # Create session with OpenAI Realtime API and noise cancellation
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
             voice=voice,
@@ -148,6 +148,7 @@ async def entrypoint(ctx: JobContext):
     await session.start(
         agent=GiveMeTheMicAgent(config),
         room=ctx.room,
+        room_input_options=RoomInputOptions(),
     )
     
     logger.info("Give Me the Mic agent is running and ready for voice interactions")
