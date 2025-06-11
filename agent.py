@@ -137,19 +137,42 @@ async def entrypoint(ctx: JobContext):
     # Connect to the room first
     await ctx.connect()
 
-    # Create session with OpenAI Realtime API and noise cancellation
-    session = AgentSession(
-        llm=openai.realtime.RealtimeModel(
-            voice=voice,
-            temperature=temperature,
-        ),
-    )
-
-    await session.start(
-        agent=GiveMeTheMicAgent(config),
-        room=ctx.room,
-        room_input_options=RoomInputOptions(),
-    )
+    # Create session with hybrid voice pipeline approach
+    try:
+        # Try OpenAI Realtime API first
+        session = AgentSession(
+            llm=openai.realtime.RealtimeModel(
+                voice=voice,
+                temperature=temperature,
+                model="gpt-4o-realtime-preview"
+            ),
+        )
+        logger.info("Attempting OpenAI Realtime API connection")
+        
+        await session.start(
+            agent=GiveMeTheMicAgent(config),
+            room=ctx.room,
+            room_input_options=RoomInputOptions(),
+        )
+        logger.info("OpenAI Realtime API session started successfully")
+        
+    except Exception as e:
+        logger.error(f"OpenAI Realtime API failed: {e}")
+        logger.info("Falling back to STT-LLM-TTS pipeline")
+        
+        # Fallback to STT-LLM-TTS pipeline for more reliable voice interaction
+        session = AgentSession(
+            stt=openai.STT(model="whisper-1"),
+            llm=openai.LLM(model="gpt-4o-mini"),
+            tts=openai.TTS(voice=voice),
+        )
+        
+        await session.start(
+            agent=GiveMeTheMicAgent(config),
+            room=ctx.room,
+            room_input_options=RoomInputOptions(),
+        )
+        logger.info("STT-LLM-TTS pipeline session started successfully")
     
     logger.info("Give Me the Mic agent is running and ready for voice interactions")
 

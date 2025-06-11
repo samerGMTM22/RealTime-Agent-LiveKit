@@ -47,8 +47,19 @@ export function useLiveKit() {
         console.log('Track subscribed:', track.kind, 'from', participant.identity);
         
         if (track.kind === 'audio') {
-          // Handle audio track
+          // Handle audio track with proper autoplay handling
           const audioElement = track.attach();
+          audioElement.autoplay = true;
+          audioElement.playsInline = true;
+          audioElement.volume = 1.0;
+          
+          // Ensure audio plays
+          audioElement.play().catch((error) => {
+            console.warn('Audio autoplay failed, user interaction required:', error);
+            // Store element for manual play on user interaction
+            (window as any).pendingAudio = audioElement;
+          });
+          
           document.body.appendChild(audioElement);
         }
       });
