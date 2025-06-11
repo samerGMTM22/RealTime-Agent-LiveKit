@@ -538,7 +538,9 @@ Keep responses conversational, helpful, and engaging.`,
                   />
                   <button 
                     onClick={() => {
+                      console.log('Add button clicked! Current values:', newMcpServer);
                       if (!newMcpServer.name.trim() || !newMcpServer.url.trim()) {
+                        console.log('Validation failed - missing name or URL');
                         toast({
                           title: "Missing Information",
                           description: "Please provide both name and URL for the MCP server",
@@ -546,6 +548,7 @@ Keep responses conversational, helpful, and engaging.`,
                         });
                         return;
                       }
+                      console.log('Validation passed, calling mutation...');
                       addMcpServerMutation.mutate(newMcpServer);
                     }}
                     disabled={addMcpServerMutation.isPending}
