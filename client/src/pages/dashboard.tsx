@@ -7,7 +7,8 @@ import SystemStatus from "@/components/system-status";
 import DataSources from "@/components/data-sources";
 import SettingsModal from "@/components/settings-modal";
 import { Button } from "@/components/ui/button";
-import { Settings, Mic, MicOff, Play, Square } from "lucide-react";
+import { Settings, Mic, MicOff, Play, Square, Cog } from "lucide-react";
+import { Link } from "wouter";
 
 export default function Dashboard() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -45,6 +46,18 @@ export default function Dashboard() {
                 {systemStatus?.livekit === 'online' ? 'Connected' : 'Disconnected'}
               </span>
             </div>
+            
+            {/* Configuration Button */}
+            <Link href="/configuration">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-gray-300 hover:text-white hover:bg-white/10"
+              >
+                <Cog className="h-5 w-5 mr-2" />
+                Configuration
+              </Button>
+            </Link>
             
             {/* User Profile */}
             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">

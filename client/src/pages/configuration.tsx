@@ -1,0 +1,603 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Plus, Trash2, Settings, Database, Globe, MessageSquare, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+const AGENT_CATEGORIES = [
+  { value: 'youtube-assistant', label: 'YouTube Channel Assistant', description: 'Specialized for YouTube channel management and audience engagement' },
+  { value: 'customer-service', label: 'Customer Service Agent', description: 'Handle customer inquiries, support tickets, and general assistance' },
+  { value: 'real-estate', label: 'Real Estate Agent', description: 'Property information, market insights, and client guidance' },
+  { value: 'fitness-coach', label: 'Fitness & Wellness Coach', description: 'Health advice, workout plans, and wellness guidance' },
+  { value: 'sales-assistant', label: 'Sales Assistant', description: 'Lead qualification, product information, and sales support' },
+  { value: 'educational-tutor', label: 'Educational Tutor', description: 'Learning support, explanations, and educational guidance' },
+  { value: 'technical-support', label: 'Technical Support', description: 'IT help, troubleshooting, and technical guidance' },
+  { value: 'general-assistant', label: 'General Assistant', description: 'Versatile AI assistant for various tasks and inquiries' }
+];
+
+const VOICE_MODELS = [
+  { value: 'alloy', label: 'Alloy (Balanced)' },
+  { value: 'echo', label: 'Echo (Authoritative)' },
+  { value: 'fable', label: 'Fable (Expressive)' },
+  { value: 'onyx', label: 'Onyx (Deep)' },
+  { value: 'nova', label: 'Nova (Warm)' },
+  { value: 'shimmer', label: 'Shimmer (Bright)' },
+  { value: 'coral', label: 'Coral (Friendly)' }
+];
+
+const RESPONSE_LENGTHS = [
+  { value: 'concise', label: 'Concise', description: 'Brief, direct responses' },
+  { value: 'moderate', label: 'Moderate', description: 'Balanced detail level' },
+  { value: 'detailed', label: 'Detailed', description: 'Comprehensive responses' }
+];
+
+interface DataSource {
+  id: string;
+  type: 'mcp' | 'youtube' | 'website' | 'database';
+  name: string;
+  url?: string;
+  config: Record<string, any>;
+  status: 'connected' | 'disconnected' | 'error';
+}
+
+export default function Configuration() {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("agent");
+  
+  // Agent configuration state
+  const [agentName, setAgentName] = useState("");
+  const [agentCategory, setAgentCategory] = useState("youtube-assistant");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [voiceModel, setVoiceModel] = useState("coral");
+  const [responseLength, setResponseLength] = useState("moderate");
+  const [temperature, setTemperature] = useState([70]);
+  
+  // Data sources state
+  const [dataSources, setDataSources] = useState<DataSource[]>([]);
+  const [newMcpUrl, setNewMcpUrl] = useState("");
+  const [newMcpName, setNewMcpName] = useState("");
+  
+  // Service connections state
+  const [services, setServices] = useState({
+    basic: {
+      livekit: { enabled: true, status: 'connected' as const },
+      openai: { enabled: true, status: 'connected' as const }
+    },
+    extras: {
+      youtube: { enabled: true, status: 'connected' as const },
+      mcp: { enabled: false, status: 'disconnected' as const }
+    }
+  });
+
+  const { data: activeAgent } = useQuery({
+    queryKey: ["/api/agent-configs/active"],
+  });
+
+  const { data: systemStatus } = useQuery({
+    queryKey: ["/api/status"],
+    refetchInterval: 10000
+  });
+
+  // Initialize form with active agent data
+  useEffect(() => {
+    if (activeAgent && typeof activeAgent === 'object') {
+      const agent = activeAgent as any;
+      setAgentName(agent.name || "Give Me the Mic Assistant");
+      setAgentCategory(agent.type || "youtube-assistant");
+      setSystemPrompt(agent.systemPrompt || getDefaultPrompt("youtube-assistant"));
+      setVoiceModel(agent.voiceModel || "coral");
+      setResponseLength(agent.responseLength || "moderate");
+      setTemperature([agent.temperature || 70]);
+    }
+  }, [activeAgent]);
+
+  // Update services status from system status
+  useEffect(() => {
+    if (systemStatus) {
+      setServices(prev => ({
+        ...prev,
+        basic: {
+          livekit: { enabled: true, status: systemStatus.livekit === 'online' ? 'connected' : 'error' },
+          openai: { enabled: true, status: systemStatus.openai === 'connected' ? 'connected' : 'error' }
+        },
+        extras: {
+          ...prev.extras,
+          youtube: { enabled: prev.extras.youtube.enabled, status: systemStatus.youtube === 'active' ? 'connected' : 'error' }
+        }
+      }));
+    }
+  }, [systemStatus]);
+
+  function getDefaultPrompt(category: string): string {
+    const prompts = {
+      'youtube-assistant': `You are a helpful voice AI assistant for the "Give Me the Mic" YouTube channel. 
+You help users learn about the channel's content, music-related topics, and provide assistance.
+The channel has 484 subscribers and 249 videos focusing on music and entertainment.
+Keep responses conversational, helpful, and engaging.`,
+      'customer-service': `You are a professional customer service agent. Your role is to assist customers with their inquiries, resolve issues, and provide helpful information about products and services. Maintain a friendly, patient, and solution-oriented approach.`,
+      'real-estate': `You are a knowledgeable real estate agent assistant. Help clients with property information, market insights, neighborhood details, and guide them through the buying or selling process. Provide accurate, helpful information while being professional and trustworthy.`,
+      'fitness-coach': `You are a certified fitness and wellness coach. Provide workout advice, nutrition guidance, and motivation to help users achieve their health goals. Always prioritize safety and encourage consulting healthcare professionals when appropriate.`,
+      'sales-assistant': `You are a professional sales assistant. Help qualify leads, provide product information, answer questions, and guide potential customers through the sales process. Be informative, persuasive, and focused on customer needs.`,
+      'educational-tutor': `You are an educational tutor and learning assistant. Help students understand concepts, provide explanations, offer study tips, and support their learning journey. Adapt your teaching style to different learning preferences.`,
+      'technical-support': `You are a technical support specialist. Help users troubleshoot issues, provide step-by-step solutions, and explain technical concepts in an accessible way. Be patient, thorough, and solution-focused.`,
+      'general-assistant': `You are a versatile AI assistant ready to help with a wide variety of tasks and questions. Provide helpful, accurate information while maintaining a friendly and professional demeanor.`
+    };
+    return prompts[category] || prompts['general-assistant'];
+  }
+
+  const updateAgentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (activeAgent) {
+        return apiRequest('PUT', `/api/agent-configs/${activeAgent.id}`, data);
+      } else {
+        return apiRequest('POST', '/api/agent-configs', data);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/agent-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/agent-configs/active"] });
+      toast({
+        title: "Success",
+        description: "Agent configuration saved successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save agent configuration",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSaveAgent = () => {
+    const config = {
+      name: agentName,
+      type: agentCategory,
+      systemPrompt,
+      voiceModel,
+      responseLength,
+      temperature: temperature[0],
+      userId: 1,
+      isActive: true
+    };
+    updateAgentMutation.mutate(config);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    setAgentCategory(category);
+    setSystemPrompt(getDefaultPrompt(category));
+  };
+
+  const addMcpDataSource = () => {
+    if (!newMcpUrl || !newMcpName) {
+      toast({
+        title: "Error",
+        description: "Please provide both MCP URL and name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newSource: DataSource = {
+      id: Date.now().toString(),
+      type: 'mcp',
+      name: newMcpName,
+      url: newMcpUrl,
+      config: {},
+      status: 'disconnected'
+    };
+
+    setDataSources(prev => [...prev, newSource]);
+    setNewMcpUrl("");
+    setNewMcpName("");
+    
+    toast({
+      title: "MCP Server Added",
+      description: "MCP data source has been added to configuration",
+    });
+  };
+
+  const removeDataSource = (id: string) => {
+    setDataSources(prev => prev.filter(source => source.id !== id));
+  };
+
+  const toggleService = (category: 'basic' | 'extras', service: string) => {
+    if (category === 'basic') {
+      toast({
+        title: "Basic Service",
+        description: "Basic services cannot be disabled",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setServices(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [service]: {
+          ...prev[category][service],
+          enabled: !prev[category][service].enabled,
+          status: !prev[category][service].enabled ? 'connected' : 'disconnected'
+        }
+      }
+    }));
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected': return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'error': return <XCircle className="h-4 w-4 text-red-500" />;
+      default: return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    }
+  };
+
+  return (
+    <div className="container mx-auto py-8 space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold gradient-text">Agent Configuration</h1>
+          <p className="text-gray-400 mt-2">Customize your voice agent settings and integrations</p>
+        </div>
+        <Button 
+          onClick={handleSaveAgent}
+          disabled={updateAgentMutation.isPending}
+          className="bg-electric-blue hover:bg-electric-blue/80"
+        >
+          {updateAgentMutation.isPending ? "Saving..." : "Save Configuration"}
+        </Button>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 glass-card">
+          <TabsTrigger value="agent" className="data-[state=active]:bg-electric-blue/30">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Agent Settings
+          </TabsTrigger>
+          <TabsTrigger value="datasources" className="data-[state=active]:bg-electric-blue/30">
+            <Database className="h-4 w-4 mr-2" />
+            Data Sources
+          </TabsTrigger>
+          <TabsTrigger value="services" className="data-[state=active]:bg-electric-blue/30">
+            <Globe className="h-4 w-4 mr-2" />
+            Services
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="data-[state=active]:bg-electric-blue/30">
+            <Settings className="h-4 w-4 mr-2" />
+            Advanced
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="agent" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Basic Information</CardTitle>
+                <CardDescription>Configure your agent's identity and behavior</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="agentName">Agent Name</Label>
+                  <Input
+                    id="agentName"
+                    value={agentName}
+                    onChange={(e) => setAgentName(e.target.value)}
+                    placeholder="Enter agent name"
+                    className="glass-card border-white/20"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="agentCategory">Use Case Category</Label>
+                  <Select value={agentCategory} onValueChange={handleCategoryChange}>
+                    <SelectTrigger className="glass-card border-white/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="glass-card bg-slate-800">
+                      {AGENT_CATEGORIES.map((category) => (
+                        <SelectItem key={category.value} value={category.value} className="text-white">
+                          <div>
+                            <div className="font-medium">{category.label}</div>
+                            <div className="text-sm text-gray-400">{category.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="voiceModel">Voice Model</Label>
+                  <Select value={voiceModel} onValueChange={setVoiceModel}>
+                    <SelectTrigger className="glass-card border-white/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="glass-card bg-slate-800">
+                      {VOICE_MODELS.map((voice) => (
+                        <SelectItem key={voice.value} value={voice.value} className="text-white">
+                          {voice.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="responseLength">Response Length</Label>
+                  <Select value={responseLength} onValueChange={setResponseLength}>
+                    <SelectTrigger className="glass-card border-white/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="glass-card bg-slate-800">
+                      {RESPONSE_LENGTHS.map((length) => (
+                        <SelectItem key={length.value} value={length.value} className="text-white">
+                          <div>
+                            <div className="font-medium">{length.label}</div>
+                            <div className="text-sm text-gray-400">{length.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="temperature">Temperature: {temperature[0]}%</Label>
+                  <Slider
+                    id="temperature"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={temperature}
+                    onValueChange={setTemperature}
+                    className="mt-2"
+                  />
+                  <div className="text-sm text-gray-400 mt-1">
+                    Lower values = more focused, Higher values = more creative
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>System Prompt</CardTitle>
+                <CardDescription>Define your agent's personality and instructions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="Enter system prompt..."
+                  className="glass-card border-white/20 min-h-[300px] resize-none"
+                />
+                <div className="text-sm text-gray-400 mt-2">
+                  This prompt defines how your agent behaves and responds to users.
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="datasources" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Add MCP Data Source</CardTitle>
+              <CardDescription>Connect Model Context Protocol servers for extended capabilities</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
+                  placeholder="MCP Server Name"
+                  value={newMcpName}
+                  onChange={(e) => setNewMcpName(e.target.value)}
+                  className="glass-card border-white/20"
+                />
+                <Input
+                  placeholder="MCP Server URL (wss://...)"
+                  value={newMcpUrl}
+                  onChange={(e) => setNewMcpUrl(e.target.value)}
+                  className="glass-card border-white/20"
+                />
+                <Button onClick={addMcpDataSource} className="bg-electric-blue hover:bg-electric-blue/80">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add MCP Server
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Connected Data Sources</CardTitle>
+              <CardDescription>Manage your agent's data connections</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Default YouTube data source */}
+                <div className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 bg-red-500/20 rounded-lg">
+                      <MessageSquare className="h-5 w-5 text-red-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium">YouTube Channel Data</h3>
+                      <p className="text-sm text-gray-400">Give Me the Mic channel information</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="secondary" className="bg-green-500/20 text-green-400">
+                      Built-in
+                    </Badge>
+                    {getStatusIcon('connected')}
+                  </div>
+                </div>
+
+                {dataSources.map((source) => (
+                  <div key={source.id} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-2 bg-electric-blue/20 rounded-lg">
+                        <Database className="h-5 w-5 text-electric-blue" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{source.name}</h3>
+                        <p className="text-sm text-gray-400">{source.url}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="outline" className="border-electric-blue/50 text-electric-blue">
+                        MCP
+                      </Badge>
+                      {getStatusIcon(source.status)}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeDataSource(source.id)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                {dataSources.length === 0 && (
+                  <div className="text-center py-8 text-gray-400">
+                    No additional data sources configured. Add MCP servers above to extend your agent's capabilities.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="services" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Basic Services</CardTitle>
+                <CardDescription>Core services required for agent operation</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Object.entries(services.basic).map(([service, config]) => (
+                  <div key={service} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div>
+                        <h3 className="font-medium capitalize">{service}</h3>
+                        <p className="text-sm text-gray-400">
+                          {service === 'livekit' ? 'Real-time voice communication' : 'AI language processing'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
+                        Required
+                      </Badge>
+                      {getStatusIcon(config.status)}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle>Extra Services</CardTitle>
+                <CardDescription>Optional services that can be enabled or disabled</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Object.entries(services.extras).map(([service, config]) => (
+                  <div key={service} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <div>
+                        <h3 className="font-medium capitalize">{service}</h3>
+                        <p className="text-sm text-gray-400">
+                          {service === 'youtube' ? 'YouTube channel integration' : 'Model Context Protocol servers'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={config.enabled}
+                        onCheckedChange={() => toggleService('extras', service)}
+                      />
+                      {config.enabled && getStatusIcon(config.status)}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="advanced" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>Advanced Settings</CardTitle>
+              <CardDescription>Fine-tune your agent's performance and behavior</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label>Audio Quality</Label>
+                  <Select defaultValue="high">
+                    <SelectTrigger className="glass-card border-white/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="glass-card bg-slate-800">
+                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="ultra">Ultra</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Buffer Size</Label>
+                  <Select defaultValue="2048">
+                    <SelectTrigger className="glass-card border-white/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="glass-card bg-slate-800">
+                      <SelectItem value="1024">1024</SelectItem>
+                      <SelectItem value="2048">2048</SelectItem>
+                      <SelectItem value="4096">4096</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Enable Logging</Label>
+                    <p className="text-sm text-gray-400">Log conversations for debugging</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Auto Reconnect</Label>
+                    <p className="text-sm text-gray-400">Automatically reconnect on disconnection</p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
