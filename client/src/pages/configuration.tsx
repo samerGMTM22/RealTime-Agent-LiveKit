@@ -524,7 +524,7 @@ Keep responses conversational, helpful, and engaging.`,
                     onChange={(e) => setNewMcpServer(prev => ({ ...prev, url: e.target.value }))}
                     className="glass-card border-white/20 flex-1"
                   />
-                  <Button 
+                  <button 
                     onClick={() => {
                       if (!newMcpServer.name.trim() || !newMcpServer.url.trim()) {
                         toast({
@@ -537,10 +537,19 @@ Keep responses conversational, helpful, and engaging.`,
                       addMcpServerMutation.mutate(newMcpServer);
                     }}
                     disabled={addMcpServerMutation.isPending}
-                    className="bg-electric-blue hover:bg-electric-blue/80 px-8 h-10 shrink-0 text-white font-medium"
+                    style={{
+                      backgroundColor: '#0ea5e9',
+                      color: 'white',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      minWidth: '80px'
+                    }}
                   >
                     {addMcpServerMutation.isPending ? "Adding..." : "Add"}
-                  </Button>
+                  </button>
                 </div>
               </div>
             </CardContent>
