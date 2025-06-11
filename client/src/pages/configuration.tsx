@@ -510,14 +510,14 @@ Keep responses conversational, helpful, and engaging.`,
               <CardDescription>Connect Model Context Protocol servers for extended capabilities</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-4">
-                <Input
-                  placeholder="MCP Server Name"
-                  value={newMcpServer.name}
-                  onChange={(e) => setNewMcpServer(prev => ({ ...prev, name: e.target.value }))}
-                  className="glass-card border-white/20 flex-1"
-                />
-                <div className="flex gap-2 flex-1">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="flex gap-3">
+                  <Input
+                    placeholder="MCP Server Name (e.g., internet access)"
+                    value={newMcpServer.name}
+                    onChange={(e) => setNewMcpServer(prev => ({ ...prev, name: e.target.value }))}
+                    className="glass-card border-white/20 flex-1"
+                  />
                   <Input
                     placeholder="MCP Server URL (wss://...)"
                     value={newMcpServer.url}
@@ -537,9 +537,9 @@ Keep responses conversational, helpful, and engaging.`,
                       addMcpServerMutation.mutate(newMcpServer);
                     }}
                     disabled={addMcpServerMutation.isPending}
-                    className="bg-electric-blue hover:bg-electric-blue/80 px-6"
+                    className="bg-electric-blue hover:bg-electric-blue/80 px-8 whitespace-nowrap"
                   >
-                    Add
+                    {addMcpServerMutation.isPending ? "Adding..." : "Add"}
                   </Button>
                 </div>
               </div>
