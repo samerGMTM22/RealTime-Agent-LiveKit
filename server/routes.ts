@@ -397,16 +397,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/mcp/servers", async (req, res) => {
     try {
+      console.log('POST /api/mcp/servers - Request body:', req.body);
       const { name, url } = req.body;
       
       if (!name || !url) {
+        console.log('Missing name or URL:', { name, url });
         return res.status(400).json({ error: "Name and URL are required" });
       }
 
       if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+        console.log('Invalid URL format:', url);
         return res.status(400).json({ error: "URL must be a WebSocket URL (ws:// or wss://)" });
       }
 
+      console.log('Creating MCP server in database...');
       const server = await storage.createMcpServer({
         userId: 1, // Default user
         name,
@@ -414,6 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "disconnected"
       });
       
+      console.log('MCP server created successfully:', server);
       res.status(201).json(server);
     } catch (error) {
       console.error("Error adding MCP server:", error);

@@ -213,9 +213,13 @@ Keep responses conversational, helpful, and engaging.`,
   // MCP Server mutations
   const addMcpServerMutation = useMutation({
     mutationFn: async (serverData: { name: string; url: string }) => {
-      return apiRequest('POST', '/api/mcp/servers', serverData);
+      console.log('Adding MCP server:', serverData);
+      const response = await apiRequest('POST', '/api/mcp/servers', serverData);
+      console.log('Server added successfully:', response);
+      return response;
     },
     onSuccess: async (newServer) => {
+      console.log('MCP server saved, refreshing list...');
       // Immediately refetch to sync with database
       await refetchMcpServers();
       queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
@@ -223,6 +227,14 @@ Keep responses conversational, helpful, and engaging.`,
       toast({
         title: "MCP Server Added",
         description: "Server has been added and saved to database",
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to add MCP server:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add MCP server. Please try again.",
+        variant: "destructive",
       });
     }
   });
