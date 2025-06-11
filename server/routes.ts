@@ -114,7 +114,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = 1; // Default user for demo
       
       const configData = createAgentConfigFromTemplate(template, userId, customizations);
-      const config = await storage.createAgentConfig(configData);
+      const config = await storage.createAgentConfig({
+        ...configData,
+        settings: configData.settings || {}
+      });
       
       res.status(201).json(config);
     } catch (error) {

@@ -468,17 +468,31 @@ Keep responses conversational, helpful, and engaging.`,
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Input
                   placeholder="MCP Server Name"
-                  value={newMcpName}
-                  onChange={(e) => setNewMcpName(e.target.value)}
+                  value={newMcpServer.name}
+                  onChange={(e) => setNewMcpServer(prev => ({ ...prev, name: e.target.value }))}
                   className="glass-card border-white/20"
                 />
                 <Input
                   placeholder="MCP Server URL (wss://...)"
-                  value={newMcpUrl}
-                  onChange={(e) => setNewMcpUrl(e.target.value)}
+                  value={newMcpServer.url}
+                  onChange={(e) => setNewMcpServer(prev => ({ ...prev, url: e.target.value }))}
                   className="glass-card border-white/20"
                 />
-                <Button onClick={addMcpDataSource} className="bg-electric-blue hover:bg-electric-blue/80">
+                <Button 
+                  onClick={() => {
+                    if (!newMcpServer.name.trim() || !newMcpServer.url.trim()) {
+                      toast({
+                        title: "Missing Information",
+                        description: "Please provide both name and URL for the MCP server",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    addMcpServerMutation.mutate(newMcpServer);
+                  }}
+                  disabled={addMcpServerMutation.isPending}
+                  className="bg-electric-blue hover:bg-electric-blue/80"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add MCP Server
                 </Button>
@@ -512,26 +526,43 @@ Keep responses conversational, helpful, and engaging.`,
                   </div>
                 </div>
 
-                {dataSources.map((source) => (
-                  <div key={source.id} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
+                {mcpServers.map((server) => (
+                  <div key={server.id} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
                     <div className="flex items-center space-x-4">
                       <div className="p-2 bg-electric-blue/20 rounded-lg">
                         <Database className="h-5 w-5 text-electric-blue" />
                       </div>
                       <div>
-                        <h3 className="font-medium">{source.name}</h3>
-                        <p className="text-sm text-gray-400">{source.url}</p>
+                        <h3 className="font-medium">{server.name}</h3>
+                        <p className="text-sm text-gray-400">{server.url}</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge variant="outline" className="border-electric-blue/50 text-electric-blue">
                         MCP
                       </Badge>
-                      {getStatusIcon(source.status)}
+                      {server.status === 'testing' ? (
+                        <div className="flex items-center space-x-1">
+                          <div className="animate-spin h-4 w-4 border-2 border-electric-blue border-t-transparent rounded-full"></div>
+                          <span className="text-sm text-gray-400">Testing...</span>
+                        </div>
+                      ) : (
+                        getStatusIcon(server.status)
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeDataSource(source.id)}
+                        onClick={() => testMcpConnectionMutation.mutate(server.id)}
+                        disabled={testMcpConnectionMutation.isPending}
+                        className="text-blue-400 hover:text-blue-300"
+                      >
+                        <TestTube className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeMcpServerMutation.mutate(server.id)}
+                        disabled={removeMcpServerMutation.isPending}
                         className="text-red-400 hover:text-red-300"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -540,9 +571,9 @@ Keep responses conversational, helpful, and engaging.`,
                   </div>
                 ))}
 
-                {dataSources.length === 0 && (
+                {mcpServers.length === 0 && (
                   <div className="text-center py-8 text-gray-400">
-                    No additional data sources configured. Add MCP servers above to extend your agent's capabilities.
+                    No MCP servers configured. Add MCP servers above to extend your agent's capabilities.
                   </div>
                 )}
               </div>
