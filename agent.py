@@ -5,17 +5,11 @@ from livekit.agents import (
     Agent,
     AgentSession,
     JobContext,
-    JobProcess,
-    RoomInputOptions,
-    RoomOutputOptions,
-    RunContext,
     WorkerOptions,
     cli,
-    metrics,
 )
 from livekit.agents.llm import function_tool
-from livekit.agents.voice import MetricsCollectedEvent
-from livekit.plugins import openai, silero
+from livekit.plugins import openai
 import requests
 
 logger = logging.getLogger("voice-agent")
@@ -52,12 +46,8 @@ class GiveMeTheMicAgent(Agent):
         super().__init__(instructions=system_prompt)
         self.config = config
 
-    async def on_enter(self):
-        # When the agent is added to the session, generate a greeting
-        self.session.generate_reply()
-
     @function_tool
-    async def get_channel_info(self, context: RunContext):
+    async def get_channel_info(self):
         """Provides information about the Give Me the Mic YouTube channel including subscriber count, content type, and channel details."""
         
         logger.info("Providing Give Me the Mic channel information")
@@ -67,7 +57,7 @@ class GiveMeTheMicAgent(Agent):
         It's a great resource for aspiring musicians and singers looking to improve their craft."""
 
     @function_tool
-    async def get_music_tips(self, context: RunContext, topic: str):
+    async def get_music_tips(self, topic: str):
         """Provides music-related advice and tips for various topics like singing, recording, instruments, performance, etc.
         
         Args:
@@ -89,7 +79,7 @@ class GiveMeTheMicAgent(Agent):
         return f"Music tip for {topic}: {tip}"
 
     @function_tool
-    async def suggest_content(self, context: RunContext, interest: str):
+    async def suggest_content(self, interest: str):
         """Suggests Give Me the Mic channel content based on user's musical interests.
         
         Args:
@@ -108,10 +98,6 @@ class GiveMeTheMicAgent(Agent):
         
         suggestion = suggestions.get(interest.lower(), f"For {interest}, I recommend exploring our general music education content on Give Me the Mic.")
         return f"Content suggestion: {suggestion} Don't forget to subscribe and hit the notification bell!"
-
-
-def prewarm(proc: JobProcess):
-    proc.userdata["vad"] = silero.VAD.load()
 
 
 async def entrypoint(ctx: JobContext):
@@ -140,47 +126,24 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
-    # Each log entry will include these fields
-    ctx.log_context_fields = {
-        "room": ctx.room.name,
-    }
+    # Connect to the room first
+    await ctx.connect()
 
+    # Create session with OpenAI Realtime API
     session = AgentSession(
-        vad=ctx.proc.userdata["vad"],
-        # Use OpenAI Realtime API
         llm=openai.realtime.RealtimeModel(
             voice=voice,
             temperature=temperature,
         ),
     )
 
-    # Log metrics as they are emitted
-    usage_collector = metrics.UsageCollector()
-
-    @session.on("metrics_collected")
-    def _on_metrics_collected(ev: MetricsCollectedEvent):
-        metrics.log_metrics(ev.metrics)
-        usage_collector.collect(ev.metrics)
-
-    async def log_usage():
-        summary = usage_collector.get_summary()
-        logger.info(f"Usage: {summary}")
-
-    # Shutdown callbacks are triggered when the session is over
-    ctx.add_shutdown_callback(log_usage)
-
     await session.start(
         agent=GiveMeTheMicAgent(config),
         room=ctx.room,
-        room_input_options=RoomInputOptions(),
-        room_output_options=RoomOutputOptions(transcription_enabled=True),
     )
-
-    # Join the room when agent is ready
-    await ctx.connect()
     
     logger.info("Give Me the Mic agent is running and ready for voice interactions")
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
