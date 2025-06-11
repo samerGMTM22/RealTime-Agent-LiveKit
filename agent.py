@@ -2,7 +2,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli
+from livekit.agents import AgentSession, AutoSubscribe, JobContext, WorkerOptions, cli
 from livekit.plugins import openai
 from openai.types.beta.realtime.session import TurnDetection
 import requests
@@ -65,11 +65,10 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     print(f"Agent connected to room: {ctx.room.name}")
 
-    # Create the OpenAI Realtime model with proper configuration
+    # Create the OpenAI Realtime model with proper configuration (no instructions parameter)
     realtime_model = openai.realtime.RealtimeModel(
         voice=voice,
         temperature=temperature,
-        instructions=system_prompt,
         turn_detection=TurnDetection(
             type="server_vad",
             threshold=0.5,
@@ -80,7 +79,13 @@ async def entrypoint(ctx: JobContext):
         )
     )
 
-    print("OpenAI Realtime model created successfully")
+    # Create agent session with the realtime model
+    session = AgentSession(llm=realtime_model)
+    
+    # Start the session
+    await session.start(ctx.room)
+    
+    print("OpenAI Realtime model and agent session started successfully")
     print("Give Me the Mic agent is running and ready for voice interactions")
 
 
