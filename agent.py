@@ -65,7 +65,7 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     print(f"Agent connected to room: {ctx.room.name}")
 
-    # Create the agent session with OpenAI Realtime API following exact documentation pattern
+    # Create the agent session with OpenAI Realtime API
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
             voice=voice,
@@ -81,8 +81,14 @@ async def entrypoint(ctx: JobContext):
         )
     )
 
-    # Start the session with the room
-    await session.start(ctx.room, agent=None)
+    # Start the session
+    await session.start(ctx.room)
+    
+    # Add system message to the session
+    session.chat_ctx.add_message(
+        role="system",
+        content=system_prompt
+    )
     
     print("Give Me the Mic agent is running and ready for voice interactions")
 
