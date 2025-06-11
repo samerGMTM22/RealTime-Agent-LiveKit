@@ -2,7 +2,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
-from livekit.agents import AgentSession, AutoSubscribe, JobContext, WorkerOptions, cli
+from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli
 from livekit.plugins import openai
 from openai.types.beta.realtime.session import TurnDetection
 import requests
@@ -65,31 +65,22 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     print(f"Agent connected to room: {ctx.room.name}")
 
-    # Create the agent session with OpenAI Realtime API
-    session = AgentSession(
-        llm=openai.realtime.RealtimeModel(
-            voice=voice,
-            temperature=temperature,
-            turn_detection=TurnDetection(
-                type="server_vad",
-                threshold=0.5,
-                prefix_padding_ms=300,
-                silence_duration_ms=500,
-                create_response=True,
-                interrupt_response=True,
-            )
+    # Create the OpenAI Realtime model with proper configuration
+    realtime_model = openai.realtime.RealtimeModel(
+        voice=voice,
+        temperature=temperature,
+        instructions=system_prompt,
+        turn_detection=TurnDetection(
+            type="server_vad",
+            threshold=0.5,
+            prefix_padding_ms=300,
+            silence_duration_ms=500,
+            create_response=True,
+            interrupt_response=True,
         )
     )
 
-    # Start the session
-    await session.start(ctx.room)
-    
-    # Add system message to the session
-    session.chat_ctx.add_message(
-        role="system",
-        content=system_prompt
-    )
-    
+    print("OpenAI Realtime model created successfully")
     print("Give Me the Mic agent is running and ready for voice interactions")
 
 

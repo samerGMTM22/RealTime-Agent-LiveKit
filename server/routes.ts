@@ -17,11 +17,18 @@ async function startAIAgent(roomName: string) {
   try {
     console.log(`Starting Python LiveKit agent for room: ${roomName}`);
     
-    // Start the Python LiveKit agent process
-    const agentProcess = spawn('python', ['agent.py', 'start'], {
+    // Start the Python LiveKit agent process with proper CLI parameters
+    const agentProcess = spawn('python', [
+      'agent.py', 
+      'start',
+      '--url', process.env.LIVEKIT_URL!,
+      '--api-key', process.env.LIVEKIT_API_KEY!,
+      '--api-secret', process.env.LIVEKIT_API_SECRET!
+    ], {
       env: {
         ...process.env,
         LIVEKIT_ROOM_NAME: roomName,
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY
       },
       stdio: ['inherit', 'pipe', 'pipe']
     });
