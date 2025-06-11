@@ -23,8 +23,7 @@ async function startAIAgent(roomName: string) {
       'start',
       '--url', process.env.LIVEKIT_URL!,
       '--api-key', process.env.LIVEKIT_API_KEY!,
-      '--api-secret', process.env.LIVEKIT_API_SECRET!,
-      '--port', '0'  // Use random available port to avoid conflicts
+      '--api-secret', process.env.LIVEKIT_API_SECRET!
     ], {
       env: {
         ...process.env,
