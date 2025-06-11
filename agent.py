@@ -67,31 +67,53 @@ async def entrypoint(ctx: agents.JobContext):
     
     print(f"Starting agent for room: {ctx.room.name}")
     
-    # Create session with OpenAI Realtime API
-    session = AgentSession(
-        llm=openai.realtime.RealtimeModel(
-            voice="coral",  # Use a warm, friendly voice
-            temperature=0.8,
-            model="gpt-4o-realtime-preview"
+    try:
+        # Create session with OpenAI Realtime API
+        session = AgentSession(
+            llm=openai.realtime.RealtimeModel(
+                voice="coral",
+                temperature=0.8,
+                model="gpt-4o-realtime-preview"
+            )
         )
-    )
 
-    # Start the session
-    await session.start(
-        room=ctx.room,
-        agent=GiveMeTheMicAssistant(),
-    )
+        # Start the session
+        await session.start(
+            room=ctx.room,
+            agent=GiveMeTheMicAssistant(),
+        )
 
-    # Connect to the room
-    await ctx.connect()
-    print(f"Agent connected to room: {ctx.room.name}")
+        # Connect to the room
+        await ctx.connect()
+        print(f"Agent connected to room: {ctx.room.name}")
 
-    # Generate initial greeting
-    await session.generate_reply(
-        instructions="Greet the user warmly and introduce yourself as the Give Me the Mic channel assistant. Ask how you can help them today."
-    )
-    
-    print("Initial greeting sent to user")
+        # Generate initial greeting
+        await session.generate_reply(
+            instructions="Greet the user warmly and introduce yourself as the Give Me the Mic channel assistant. Ask how you can help them today."
+        )
+        
+        print("Initial greeting sent to user")
+        
+    except Exception as e:
+        print(f"Error with Realtime API: {e}")
+        print("Attempting fallback with standard VoiceAssistant...")
+        
+        # Fallback to standard VoiceAssistant
+        from livekit.agents.voice import VoiceAssistant
+        
+        session = VoiceAssistant(
+            vad=agents.vad.SileroVAD.load(),
+            stt=agents.stt.StreamAdapter(
+                agents.stt.DeepgramSTT(model="nova-2-general"),
+                sentence_tokenizer=agents.tokenize.basic.SentenceTokenizer(),
+            ),
+            llm=agents.llm.openai.LLM(model="gpt-4o"),
+            tts=agents.tts.openai.TTS(voice="alloy"),
+        )
+        
+        await session.start(room=ctx.room, agent=GiveMeTheMicAssistant())
+        await ctx.connect()
+        print(f"Agent connected with fallback: {ctx.room.name}")
 
 
 if __name__ == "__main__":

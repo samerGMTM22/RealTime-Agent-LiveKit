@@ -133,6 +133,13 @@ export default function Configuration() {
     }
   }, [existingMcpServers]);
 
+  // Refresh MCP servers when tab changes to data sources
+  useEffect(() => {
+    if (activeTab === 'datasources') {
+      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
+    }
+  }, [activeTab, queryClient]);
+
   // Update services status from system status
   useEffect(() => {
     if (systemStatus && typeof systemStatus === 'object') {
