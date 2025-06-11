@@ -1,11 +1,11 @@
 import os
 import asyncio
-import json
 from dotenv import load_dotenv
 
 from livekit import agents
 from livekit.agents import AgentSession, Agent, JobContext
 from livekit.plugins import openai
+from openai.types.beta.realtime.session import TurnDetection
 import requests
 
 load_dotenv()
@@ -67,12 +67,20 @@ async def entrypoint(ctx: JobContext):
     
     print(f"Voice: {voice}, Temperature: {temperature}")
     
-    # Create the agent session with OpenAI Realtime API
+    # Create the agent session with OpenAI Realtime API following exact documentation pattern
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
             model="gpt-4o-realtime-preview",
             voice=voice,
-            temperature=temperature
+            temperature=temperature,
+            turn_detection=TurnDetection(
+                type="server_vad",
+                threshold=0.5,
+                prefix_padding_ms=300,
+                silence_duration_ms=500,
+                create_response=True,
+                interrupt_response=True,
+            )
         )
     )
 
@@ -95,9 +103,10 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    # Run the agent
+    # Run the agent with different http port to avoid conflicts
     agents.cli.run_app(
         agents.WorkerOptions(
             entrypoint_fnc=entrypoint,
+            http_server_port=8082,  # Use different port to avoid conflicts
         )
     )
