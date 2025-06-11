@@ -1,11 +1,10 @@
 import os
 import asyncio
 import json
-import sys
 from dotenv import load_dotenv
 
 from livekit import agents
-from livekit.agents import AgentSession, Agent, RoomInputOptions, JobContext
+from livekit.agents import AgentSession, Agent, JobContext
 from livekit.plugins import openai
 import requests
 
@@ -20,17 +19,15 @@ class ConfigurableAssistant(Agent):
 async def get_agent_config(room_name: str):
     """Fetch agent configuration from the database based on room name."""
     try:
-        # Extract session ID from room name
-        session_parts = room_name.split('_')
-        if len(session_parts) >= 4:
-            # Default to agent config ID 1 for now
-            # In a real implementation, you'd pass this through the room creation
-            agent_config_id = 1
-            
-            # Make request to get agent configuration
-            response = requests.get(f'http://localhost:5000/api/agent-configs/{agent_config_id}')
-            if response.status_code == 200:
-                return response.json()
+        # Default to agent config ID 1 for now
+        agent_config_id = 1
+        
+        # Make request to get agent configuration
+        response = requests.get(f'http://localhost:5000/api/agent-configs/{agent_config_id}', timeout=5)
+        if response.status_code == 200:
+            config = response.json()
+            print(f"Fetched config from database: {config['name']}")
+            return config
     except Exception as e:
         print(f"Error fetching agent config: {e}")
     
@@ -38,7 +35,7 @@ async def get_agent_config(room_name: str):
     return {
         "systemPrompt": "You are a helpful voice AI assistant for the Give Me the Mic YouTube channel. You help viewers with channel information, video content, and general music-related questions.",
         "voiceModel": "alloy",
-        "temperature": 0.8,
+        "temperature": 80,
         "responseLength": "medium"
     }
 
@@ -49,7 +46,7 @@ async def entrypoint(ctx: JobContext):
     
     # Get agent configuration from database
     config = await get_agent_config(ctx.room.name)
-    print(f"Using agent config: {config}")
+    print(f"Using agent config: {config.get('name', 'Default')}")
     
     # Map voice model names to OpenAI voice options
     voice_mapping = {
@@ -63,8 +60,12 @@ async def entrypoint(ctx: JobContext):
     }
     
     voice = voice_mapping.get(config.get("voiceModel", "alloy"), "alloy")
-    temperature = float(config.get("temperature", 0.8))
+    # Convert temperature from percentage (0-100) to decimal (0.6-1.2)
+    temp_raw = config.get("temperature", 80)
+    temperature = max(0.6, min(1.2, float(temp_raw) / 100.0))
     system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
+    
+    print(f"Voice: {voice}, Temperature: {temperature}")
     
     # Create the agent session with OpenAI Realtime API
     session = AgentSession(
@@ -79,7 +80,6 @@ async def entrypoint(ctx: JobContext):
     await session.start(
         room=ctx.room,
         agent=ConfigurableAssistant(system_prompt),
-        room_input_options=RoomInputOptions(),
     )
 
     # Connect to the room
@@ -88,7 +88,7 @@ async def entrypoint(ctx: JobContext):
 
     # Generate initial greeting
     await session.generate_reply(
-        instructions="Greet the user warmly and introduce yourself as the Give Me the Mic channel assistant. Offer to help with any questions about the channel, videos, or music topics."
+        instructions="Greet the user warmly and briefly introduce yourself as the Give Me the Mic channel assistant. Keep it short and offer to help with any questions about the channel or music."
     )
     
     print("Give Me the Mic agent is running and ready for voice interactions")
