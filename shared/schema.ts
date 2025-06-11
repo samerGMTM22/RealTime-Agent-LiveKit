@@ -45,6 +45,19 @@ export const dataSources = pgTable("data_sources", {
   metadata: jsonb("metadata").default('{}'),
 });
 
+export const mcpServers = pgTable("mcp_servers", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  status: text("status").default("disconnected"), // 'connected', 'disconnected', 'error', 'testing'
+  capabilities: jsonb("capabilities").default([]),
+  tools: jsonb("tools").default([]),
+  lastConnected: timestamp("last_connected"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -66,6 +79,13 @@ export const insertDataSourceSchema = createInsertSchema(dataSources).omit({
   lastSynced: true,
 });
 
+export const insertMcpServerSchema = createInsertSchema(mcpServers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastConnected: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -78,6 +98,9 @@ export type InsertConversation = z.infer<typeof insertConversationSchema>;
 
 export type DataSource = typeof dataSources.$inferSelect;
 export type InsertDataSource = z.infer<typeof insertDataSourceSchema>;
+
+export type McpServer = typeof mcpServers.$inferSelect;
+export type InsertMcpServer = z.infer<typeof insertMcpServerSchema>;
 
 // Voice session types
 export interface VoiceSessionData {
