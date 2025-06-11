@@ -264,19 +264,45 @@ Keep responses conversational, helpful, and engaging.`,
     }
   });
 
-  const handleSaveAgent = () => {
-    const config = {
-      name: agentName,
-      type: agentCategory,
-      systemPrompt,
-      voiceModel,
-      responseLength,
-      temperature: temperature[0],
-      userId: 1,
-      isActive: true,
-      settings: {}
-    };
-    updateAgentMutation.mutate(config);
+  const handleSaveAgent = async () => {
+    try {
+      // Save agent configuration
+      const config = {
+        name: agentName,
+        type: agentCategory,
+        systemPrompt,
+        voiceModel,
+        responseLength,
+        temperature: temperature[0],
+        userId: 1,
+        isActive: true,
+        settings: {
+          services: services,
+          advancedSettings: {
+            // Add any advanced settings here
+          }
+        }
+      };
+      
+      // Update agent configuration
+      await updateAgentMutation.mutateAsync(config);
+      
+      // Refresh all data to ensure consistency
+      await refetchMcpServers();
+      queryClient.invalidateQueries({ queryKey: ["/api/agent-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
+      
+      toast({
+        title: "Configuration Saved",
+        description: "All settings have been saved successfully across all tabs",
+      });
+    } catch (error) {
+      toast({
+        title: "Save Failed",
+        description: "There was an error saving the configuration. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCategoryChange = (category: string) => {
@@ -484,37 +510,38 @@ Keep responses conversational, helpful, and engaging.`,
               <CardDescription>Connect Model Context Protocol servers for extended capabilities</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex gap-4">
                 <Input
                   placeholder="MCP Server Name"
                   value={newMcpServer.name}
                   onChange={(e) => setNewMcpServer(prev => ({ ...prev, name: e.target.value }))}
-                  className="glass-card border-white/20"
+                  className="glass-card border-white/20 flex-1"
                 />
-                <Input
-                  placeholder="MCP Server URL (wss://...)"
-                  value={newMcpServer.url}
-                  onChange={(e) => setNewMcpServer(prev => ({ ...prev, url: e.target.value }))}
-                  className="glass-card border-white/20"
-                />
-                <Button 
-                  onClick={() => {
-                    if (!newMcpServer.name.trim() || !newMcpServer.url.trim()) {
-                      toast({
-                        title: "Missing Information",
-                        description: "Please provide both name and URL for the MCP server",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    addMcpServerMutation.mutate(newMcpServer);
-                  }}
-                  disabled={addMcpServerMutation.isPending}
-                  className="bg-electric-blue hover:bg-electric-blue/80"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add MCP Server
-                </Button>
+                <div className="flex gap-2 flex-1">
+                  <Input
+                    placeholder="MCP Server URL (wss://...)"
+                    value={newMcpServer.url}
+                    onChange={(e) => setNewMcpServer(prev => ({ ...prev, url: e.target.value }))}
+                    className="glass-card border-white/20 flex-1"
+                  />
+                  <Button 
+                    onClick={() => {
+                      if (!newMcpServer.name.trim() || !newMcpServer.url.trim()) {
+                        toast({
+                          title: "Missing Information",
+                          description: "Please provide both name and URL for the MCP server",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      addMcpServerMutation.mutate(newMcpServer);
+                    }}
+                    disabled={addMcpServerMutation.isPending}
+                    className="bg-electric-blue hover:bg-electric-blue/80 px-6"
+                  >
+                    Add
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
