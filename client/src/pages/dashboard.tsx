@@ -1,17 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import VoiceInterface from "@/components/voice-interface";
-import AgentConfig from "@/components/agent-config";
 import ConversationHistory from "@/components/conversation-history";
 import SystemStatus from "@/components/system-status";
-import DataSources from "@/components/data-sources";
-import SettingsModal from "@/components/settings-modal";
 import { Button } from "@/components/ui/button";
-import { Settings, Mic, MicOff, Play, Square, Cog } from "lucide-react";
+import { Mic, Cog } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Dashboard() {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const { data: activeAgent } = useQuery({
@@ -125,21 +121,7 @@ export default function Dashboard() {
         </div>
       </main>
 
-      {/* Floating Action Button */}
-      <Button
-        onClick={() => setIsSettingsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-electric-blue to-cyber-cyan hover:from-electric-blue/80 hover:to-cyber-cyan/80 rounded-full premium-shadow animate-float z-40"
-        size="icon"
-      >
-        <Settings className="text-white text-xl" />
-      </Button>
 
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        activeAgent={activeAgent}
-      />
     </div>
   );
 }

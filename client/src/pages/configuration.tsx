@@ -106,6 +106,10 @@ export default function Configuration() {
     refetchInterval: 10000
   });
 
+  const { data: existingMcpServers } = useQuery({
+    queryKey: ["/api/mcp/servers"],
+  });
+
   // Initialize form with active agent data
   useEffect(() => {
     if (activeAgent && typeof activeAgent === 'object') {
@@ -118,6 +122,18 @@ export default function Configuration() {
       setTemperature([agent.temperature || 70]);
     }
   }, [activeAgent]);
+
+  // Initialize MCP servers from API
+  useEffect(() => {
+    if (existingMcpServers && Array.isArray(existingMcpServers)) {
+      setMcpServers(existingMcpServers.map((server: any) => ({
+        id: server.id,
+        name: server.name,
+        url: server.url,
+        status: server.status || 'disconnected'
+      })));
+    }
+  }, [existingMcpServers]);
 
   // Update services status from system status
   useEffect(() => {
@@ -185,7 +201,7 @@ Keep responses conversational, helpful, and engaging.`,
       return apiRequest('POST', '/api/mcp/servers', serverData);
     },
     onSuccess: (newServer) => {
-      setMcpServers(prev => [...prev, { ...newServer, status: 'disconnected' as const }]);
+      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
       setNewMcpServer({ name: '', url: '' });
       toast({
         title: "MCP Server Added",
@@ -204,6 +220,7 @@ Keep responses conversational, helpful, and engaging.`,
       ));
     },
     onSuccess: (data, serverId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
       setMcpServers(prev => prev.map(server => 
         server.id === serverId ? { ...server, status: 'connected' as const } : server
       ));
@@ -220,7 +237,11 @@ Keep responses conversational, helpful, and engaging.`,
       return apiRequest('DELETE', `/api/mcp/servers/${serverId}`);
     },
     onSuccess: (data, serverId) => {
-      setMcpServers(prev => prev.filter(server => server.id !== serverId));
+      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
+      toast({
+        title: "MCP Server Removed",
+        description: "Server has been removed successfully",
+      });
     }
   });
 
@@ -233,7 +254,8 @@ Keep responses conversational, helpful, and engaging.`,
       responseLength,
       temperature: temperature[0],
       userId: 1,
-      isActive: true
+      isActive: true,
+      settings: {}
     };
     updateAgentMutation.mutate(config);
   };
