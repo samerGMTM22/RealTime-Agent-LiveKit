@@ -71,10 +71,8 @@ export default function Configuration() {
   const [responseLength, setResponseLength] = useState("moderate");
   const [temperature, setTemperature] = useState([70]);
   
-  // Data sources state
+  // Data sources state (deprecated - using mcpServers instead)
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
-  const [newMcpUrl, setNewMcpUrl] = useState("");
-  const [newMcpName, setNewMcpName] = useState("");
   
   // Service connections state
   const [services, setServices] = useState<{
@@ -265,38 +263,7 @@ Keep responses conversational, helpful, and engaging.`,
     setSystemPrompt(getDefaultPrompt(category));
   };
 
-  const addMcpDataSource = () => {
-    if (!newMcpUrl || !newMcpName) {
-      toast({
-        title: "Error",
-        description: "Please provide both MCP URL and name",
-        variant: "destructive",
-      });
-      return;
-    }
 
-    const newSource: DataSource = {
-      id: Date.now().toString(),
-      type: 'mcp',
-      name: newMcpName,
-      url: newMcpUrl,
-      config: {},
-      status: 'disconnected'
-    };
-
-    setDataSources(prev => [...prev, newSource]);
-    setNewMcpUrl("");
-    setNewMcpName("");
-    
-    toast({
-      title: "MCP Server Added",
-      description: "MCP data source has been added to configuration",
-    });
-  };
-
-  const removeDataSource = (id: string) => {
-    setDataSources(prev => prev.filter(source => source.id !== id));
-  };
 
   const toggleService = (category: 'basic' | 'extras', service: string) => {
     if (category === 'basic') {
