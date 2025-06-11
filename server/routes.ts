@@ -9,6 +9,7 @@ import { getAgentTemplate, createAgentConfigFromTemplate } from "./config/agent-
 import { insertAgentConfigSchema, insertConversationSchema, insertDataSourceSchema } from "@shared/schema";
 import { spawn } from "child_process";
 import { voiceAgentManager } from "./lib/voice-agent";
+import { mcpManager } from "./lib/mcp-client";
 import { z } from "zod";
 
 // AI Agent implementation
@@ -376,6 +377,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error checking system status:", error);
       res.status(500).json({ error: "Failed to check system status" });
+    }
+  });
+
+  // MCP Server Management endpoints
+  app.get("/api/mcp/servers", async (req, res) => {
+    try {
+      const servers = mcpManager.getAllServers();
+      res.json(servers);
+    } catch (error) {
+      console.error("Error fetching MCP servers:", error);
+      res.status(500).json({ error: "Failed to fetch MCP servers" });
+    }
+  });
+
+  app.post("/api/mcp/servers", async (req, res) => {
+    try {
+      const { name, url } = req.body;
+      
+      if (!name || !url) {
+        return res.status(400).json({ error: "Name and URL are required" });
+      }
+
+      if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+        return res.status(400).json({ error: "URL must be a WebSocket URL (ws:// or wss://)" });
+      }
+
+      const server = await mcpManager.addServer({ name, url });
+      res.status(201).json(server);
+    } catch (error) {
+      console.error("Error adding MCP server:", error);
+      res.status(500).json({ error: "Failed to add MCP server" });
+    }
+  });
+
+  app.post("/api/mcp/servers/:id/connect", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await mcpManager.connectServer(id);
+      const server = mcpManager.getServer(id);
+      res.json(server);
+    } catch (error) {
+      console.error("Error connecting to MCP server:", error);
+      res.status(500).json({ error: "Failed to connect to MCP server" });
+    }
+  });
+
+  app.post("/api/mcp/servers/:id/disconnect", async (req, res) => {
+    try {
+      const { id } = req.params;
+      mcpManager.disconnectServer(id);
+      const server = mcpManager.getServer(id);
+      res.json(server);
+    } catch (error) {
+      console.error("Error disconnecting MCP server:", error);
+      res.status(500).json({ error: "Failed to disconnect MCP server" });
+    }
+  });
+
+  app.delete("/api/mcp/servers/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const removed = mcpManager.removeServer(id);
+      
+      if (!removed) {
+        return res.status(404).json({ error: "MCP server not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing MCP server:", error);
+      res.status(500).json({ error: "Failed to remove MCP server" });
+    }
+  });
+
+  app.get("/api/mcp/tools", async (req, res) => {
+    try {
+      const tools = mcpManager.getAvailableTools();
+      res.json(tools);
+    } catch (error) {
+      console.error("Error fetching MCP tools:", error);
+      res.status(500).json({ error: "Failed to fetch MCP tools" });
+    }
+  });
+
+  // YouTube Configuration endpoints
+  app.get("/api/youtube/channel-recovery", async (req, res) => {
+    try {
+      const { handle } = req.query;
+      
+      if (!handle) {
+        return res.status(400).json({ error: "Channel handle is required" });
+      }
+
+      const channelInfo = await youtubeService.getChannelInfo(handle as string);
+      res.json({
+        success: !!channelInfo,
+        data: channelInfo,
+        fallbackUsed: !channelInfo?.id?.startsWith('UC')
+      });
+    } catch (error) {
+      console.error("Error recovering YouTube channel:", error);
+      res.status(500).json({ error: "Failed to recover YouTube channel information" });
+    }
+  });
+
+  app.post("/api/youtube/test-connection", async (req, res) => {
+    try {
+      // Test YouTube API connection with a simple search
+      const channelInfo = await youtubeService.getChannelInfo('@givemethemicmusic');
+      
+      res.json({
+        connected: true,
+        apiQuotaAvailable: !!channelInfo && channelInfo.id.startsWith('UC'),
+        fallbackActive: !channelInfo?.id?.startsWith('UC'),
+        channelData: channelInfo
+      });
+    } catch (error) {
+      res.json({
+        connected: false,
+        error: (error as Error).message,
+        fallbackActive: true
+      });
+    }
+  });
+
+  // Service Management endpoints
+  app.post("/api/services/:category/:service/toggle", async (req, res) => {
+    try {
+      const { category, service } = req.params;
+      const { enabled } = req.body;
+
+      if (category === 'basic') {
+        return res.status(400).json({ error: "Basic services cannot be disabled" });
+      }
+
+      if (category === 'extras' && service === 'youtube') {
+        // YouTube service toggle logic
+        res.json({
+          service,
+          enabled,
+          status: enabled ? 'connected' : 'disconnected'
+        });
+      } else if (category === 'extras' && service === 'mcp') {
+        // MCP service toggle logic
+        if (!enabled) {
+          // Disconnect all MCP servers
+          const servers = mcpManager.getAllServers();
+          servers.forEach(server => mcpManager.disconnectServer(server.id));
+        }
+        
+        res.json({
+          service,
+          enabled,
+          status: enabled ? 'connected' : 'disconnected'
+        });
+      } else {
+        res.status(400).json({ error: "Unknown service" });
+      }
+    } catch (error) {
+      console.error("Error toggling service:", error);
+      res.status(500).json({ error: "Failed to toggle service" });
     }
   });
 

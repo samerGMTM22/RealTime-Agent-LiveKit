@@ -104,23 +104,23 @@ export default function Configuration() {
 
   // Update services status from system status
   useEffect(() => {
-    if (systemStatus) {
+    if (systemStatus && typeof systemStatus === 'object') {
+      const status = systemStatus as any;
       setServices(prev => ({
-        ...prev,
         basic: {
-          livekit: { enabled: true, status: systemStatus.livekit === 'online' ? 'connected' : 'error' },
-          openai: { enabled: true, status: systemStatus.openai === 'connected' ? 'connected' : 'error' }
+          livekit: { enabled: true, status: status.livekit === 'online' ? 'connected' as const : 'error' as const },
+          openai: { enabled: true, status: status.openai === 'connected' ? 'connected' as const : 'error' as const }
         },
         extras: {
-          ...prev.extras,
-          youtube: { enabled: prev.extras.youtube.enabled, status: systemStatus.youtube === 'active' ? 'connected' : 'error' }
+          youtube: { enabled: prev.extras.youtube.enabled, status: status.youtube === 'active' ? 'connected' as const : 'error' as const },
+          mcp: { enabled: prev.extras.mcp.enabled, status: 'disconnected' as const }
         }
       }));
     }
   }, [systemStatus]);
 
   function getDefaultPrompt(category: string): string {
-    const prompts = {
+    const prompts: Record<string, string> = {
       'youtube-assistant': `You are a helpful voice AI assistant for the "Give Me the Mic" YouTube channel. 
 You help users learn about the channel's content, music-related topics, and provide assistance.
 The channel has 484 subscribers and 249 videos focusing on music and entertainment.
@@ -138,8 +138,9 @@ Keep responses conversational, helpful, and engaging.`,
 
   const updateAgentMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (activeAgent) {
-        return apiRequest('PUT', `/api/agent-configs/${activeAgent.id}`, data);
+      if (activeAgent && typeof activeAgent === 'object') {
+        const agent = activeAgent as any;
+        return apiRequest('PUT', `/api/agent-configs/${agent.id}`, data);
       } else {
         return apiRequest('POST', '/api/agent-configs', data);
       }
@@ -223,17 +224,22 @@ Keep responses conversational, helpful, and engaging.`,
       return;
     }
 
-    setServices(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [service]: {
-          ...prev[category][service],
-          enabled: !prev[category][service].enabled,
-          status: !prev[category][service].enabled ? 'connected' : 'disconnected'
+    setServices(prev => {
+      const extrasServices = prev.extras as Record<string, any>;
+      const currentService = extrasServices[service];
+      
+      return {
+        ...prev,
+        extras: {
+          ...prev.extras,
+          [service]: {
+            ...currentService,
+            enabled: !currentService.enabled,
+            status: !currentService.enabled ? 'connected' as const : 'disconnected' as const
+          }
         }
-      }
-    }));
+      };
+    });
   };
 
   const getStatusIcon = (status: string) => {
