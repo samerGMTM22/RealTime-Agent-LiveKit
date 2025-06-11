@@ -71,6 +71,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/agent-configs/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid agent config ID" });
+      }
+      
+      const config = await storage.getAgentConfig(id);
+      if (!config) {
+        return res.status(404).json({ error: "Agent configuration not found" });
+      }
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching agent config:", error);
+      res.status(500).json({ error: "Failed to fetch agent config" });
+    }
+  });
+
   app.post("/api/agent-configs", async (req, res) => {
     try {
       const validatedData = insertAgentConfigSchema.parse(req.body);
