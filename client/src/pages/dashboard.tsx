@@ -119,7 +119,7 @@ export default function Dashboard() {
                 )}
               </div>
               
-              <SystemStatus status={systemStatus} />
+              <SystemStatus status={systemStatus as any} />
             </div>
           </div>
         </div>

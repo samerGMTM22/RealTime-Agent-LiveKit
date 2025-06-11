@@ -77,14 +77,23 @@ export default function Configuration() {
   const [newMcpName, setNewMcpName] = useState("");
   
   // Service connections state
-  const [services, setServices] = useState({
+  const [services, setServices] = useState<{
     basic: {
-      livekit: { enabled: true, status: 'connected' as const },
-      openai: { enabled: true, status: 'connected' as const }
+      livekit: { enabled: boolean; status: 'connected' | 'error' };
+      openai: { enabled: boolean; status: 'connected' | 'error' };
+    };
+    extras: {
+      youtube: { enabled: boolean; status: 'connected' | 'error' };
+      mcp: { enabled: boolean; status: 'disconnected' | 'connected' | 'error' };
+    };
+  }>({
+    basic: {
+      livekit: { enabled: true, status: 'connected' },
+      openai: { enabled: true, status: 'connected' }
     },
     extras: {
-      youtube: { enabled: true, status: 'connected' as const },
-      mcp: { enabled: false, status: 'disconnected' as const }
+      youtube: { enabled: true, status: 'connected' },
+      mcp: { enabled: false, status: 'disconnected' }
     }
   });
 
