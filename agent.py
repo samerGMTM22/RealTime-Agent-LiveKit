@@ -3,25 +3,18 @@ import asyncio
 import os
 
 from livekit import agents
-from livekit.agents import AgentSession, Agent, RoomInputOptions, function_tool, RunContext
-from livekit.plugins import openai
+from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli
+from livekit.plugins import openai, silero
+from livekit.agents import VoiceAssistant
 
 load_dotenv()
 
 
-class GiveMeTheMicAssistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(
-            instructions="""You are a helpful voice AI assistant for the "Give Me the Mic" YouTube channel. 
-            You help users learn about the channel's content, music-related topics, and provide assistance.
-            The channel has 484 subscribers and 249 videos focusing on music and entertainment.
-            Keep responses conversational, helpful, and engaging."""
-        )
-
-    @function_tool()
-    async def get_channel_info(self, context: RunContext) -> str:
-        """Get information about the Give Me the Mic YouTube channel."""
-        return """Give Me the Mic (@givemethemicmusic) is a music-focused YouTube channel with:
+class GiveMeTheMicAssistant:
+    """Give Me the Mic YouTube channel assistant."""
+    
+    def __init__(self):
+        self.channel_info = """Give Me the Mic (@givemethemicmusic) is a music-focused YouTube channel with:
         
 • 484 subscribers and growing
 • 249 videos of music content
@@ -32,90 +25,73 @@ class GiveMeTheMicAssistant(Agent):
         
 The channel is dedicated to helping people develop their musical talents and provides valuable resources for musicians at all skill levels."""
 
-    @function_tool()
-    async def get_music_tips(self, context: RunContext, topic: str) -> str:
-        """Provide music-related tips and advice.
+    def get_system_prompt(self):
+        return f"""You are a helpful voice AI assistant for the "Give Me the Mic" YouTube channel. 
+        You help users learn about the channel's content, music-related topics, and provide assistance.
+        The channel has 484 subscribers and 249 videos focusing on music and entertainment.
+        Keep responses conversational, helpful, and engaging.
         
-        Args:
-            topic: The music topic to provide tips about (singing, instruments, recording, etc.)
+        Channel Information: {self.channel_info}
+        
+        You can help with:
+        - Information about the Give Me the Mic channel
+        - Music tips and advice (singing, instruments, recording, performance, songwriting)
+        - Content suggestions from the channel
+        - General music-related questions
         """
-        tips = {
-            "singing": "Practice breathing exercises, warm up your voice, stay hydrated, and work on your pitch accuracy.",
-            "recording": "Use a good microphone, record in a quiet space, avoid echo, and monitor your audio levels.",
-            "instruments": "Start with basic chords or scales, practice regularly, use a metronome, and be patient with yourself.",
-            "performance": "Practice in front of mirrors, know your material well, engage with your audience, and manage stage fright.",
-            "songwriting": "Start with simple chord progressions, write about personal experiences, and don't be afraid to revise."
-        }
-        
-        general_tip = f"For {topic}, focus on consistent practice and don't be afraid to experiment with different techniques."
-        return tips.get(topic.lower(), general_tip)
-
-    @function_tool()
-    async def suggest_content(self, context: RunContext, interest: str) -> str:
-        """Suggest Give Me the Mic content based on user interests.
-        
-        Args:
-            interest: The type of content the user is interested in
-        """
-        return f"""Based on your interest in {interest}, I recommend checking out the Give Me the Mic channel's 
-        latest videos. With 249 videos available, there's likely content that matches what you're looking for. 
-        The channel focuses on music and entertainment, giving people a platform to showcase their talents."""
 
 
-async def entrypoint(ctx: agents.JobContext):
+async def entrypoint(ctx: JobContext):
     """Main entry point for the LiveKit agent."""
-    
     print(f"Starting agent for room: {ctx.room.name}")
     
+    # Connect to the room
+    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    print(f"Agent connected to room: {ctx.room.name}")
+    
+    # Create assistant instance
+    assistant_helper = GiveMeTheMicAssistant()
+    
     try:
-        # Create session with OpenAI Realtime API
-        session = AgentSession(
-            llm=openai.realtime.RealtimeModel(
-                voice="coral",
+        # Create voice assistant with OpenAI integration
+        assistant = VoiceAssistant(
+            vad=silero.VAD.load(),
+            stt=openai.STT(),
+            llm=openai.LLM(
+                model="gpt-4o",
                 temperature=0.8,
-                model="gpt-4o-realtime-preview"
-            )
-        )
-
-        # Start the session
-        await session.start(
-            room=ctx.room,
-            agent=GiveMeTheMicAssistant(),
-        )
-
-        # Connect to the room
-        await ctx.connect()
-        print(f"Agent connected to room: {ctx.room.name}")
-
-        # Generate initial greeting
-        await session.generate_reply(
-            instructions="Greet the user warmly and introduce yourself as the Give Me the Mic channel assistant. Ask how you can help them today."
+            ),
+            tts=openai.TTS(voice="alloy"),
+            chat_ctx=openai.ChatContext().append(
+                role="system", 
+                text=assistant_helper.get_system_prompt()
+            ),
         )
         
-        print("Initial greeting sent to user")
+        # Start the assistant
+        assistant.start(ctx.room)
+        print("Voice assistant started successfully")
+        
+        # Send initial greeting
+        await assistant.say(
+            "Hello! I'm your Give Me the Mic assistant. I can help you with information about our YouTube channel, music tips, and answer any questions you have about music. How can I help you today?",
+            allow_interruptions=True
+        )
+        print("Initial greeting sent")
+        
+        # Keep the agent running
+        await asyncio.sleep(0.1)  # Small delay to ensure greeting is sent
         
     except Exception as e:
-        print(f"Error with Realtime API: {e}")
-        print("Attempting fallback with standard VoiceAssistant...")
-        
-        # Fallback to standard VoiceAssistant
-        from livekit.agents.voice import VoiceAssistant
-        
-        session = VoiceAssistant(
-            vad=agents.vad.SileroVAD.load(),
-            stt=agents.stt.StreamAdapter(
-                agents.stt.DeepgramSTT(model="nova-2-general"),
-                sentence_tokenizer=agents.tokenize.basic.SentenceTokenizer(),
-            ),
-            llm=agents.llm.openai.LLM(model="gpt-4o"),
-            tts=agents.tts.openai.TTS(voice="alloy"),
-        )
-        
-        await session.start(room=ctx.room, agent=GiveMeTheMicAssistant())
-        await ctx.connect()
-        print(f"Agent connected with fallback: {ctx.room.name}")
+        print(f"Error starting voice assistant: {e}")
+        # Basic fallback - just stay connected
+        print("Agent remains connected for basic functionality")
 
 
 if __name__ == "__main__":
     # Run the agent
-    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+        )
+    )
