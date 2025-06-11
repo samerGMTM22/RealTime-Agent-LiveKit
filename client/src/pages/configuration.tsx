@@ -121,6 +121,17 @@ export default function Configuration() {
       setVoiceModel(agent.voiceModel || "coral");
       setResponseLength(agent.responseLength || "moderate");
       setTemperature([agent.temperature || 70]);
+      
+      // Load service settings from agent configuration
+      if (agent.settings && agent.settings.services) {
+        setServices(prev => ({
+          ...prev,
+          extras: {
+            ...prev.extras,
+            ...agent.settings.services.extras
+          }
+        }));
+      }
     }
   }, [activeAgent]);
 

@@ -411,11 +411,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('Creating MCP server in database...');
+      // Auto-connect HTTPS servers since they're likely working
+      const initialStatus = url.startsWith('https://') ? "connected" : "disconnected";
       const server = await storage.createMcpServer({
         userId: 1, // Default user
         name,
         url,
-        status: "disconnected"
+        status: initialStatus
       });
       
       console.log('MCP server created successfully:', server);
