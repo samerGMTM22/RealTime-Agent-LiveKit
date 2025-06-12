@@ -559,46 +559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // YouTube Configuration endpoints
-  app.get("/api/youtube/channel-recovery", async (req, res) => {
-    try {
-      const { handle } = req.query;
-      
-      if (!handle) {
-        return res.status(400).json({ error: "Channel handle is required" });
-      }
 
-      const channelInfo = await youtubeService.getChannelInfo(handle as string);
-      res.json({
-        success: !!channelInfo,
-        data: channelInfo,
-        fallbackUsed: !channelInfo?.id?.startsWith('UC')
-      });
-    } catch (error) {
-      console.error("Error recovering YouTube channel:", error);
-      res.status(500).json({ error: "Failed to recover YouTube channel information" });
-    }
-  });
-
-  app.post("/api/youtube/test-connection", async (req, res) => {
-    try {
-      // Test YouTube API connection with a simple search
-      const channelInfo = await youtubeService.getChannelInfo('@givemethemicmusic');
-      
-      res.json({
-        connected: true,
-        apiQuotaAvailable: !!channelInfo && channelInfo.id.startsWith('UC'),
-        fallbackActive: !channelInfo?.id?.startsWith('UC'),
-        channelData: channelInfo
-      });
-    } catch (error) {
-      res.json({
-        connected: false,
-        error: (error as Error).message,
-        fallbackActive: true
-      });
-    }
-  });
 
   // Service Management endpoints
   app.post("/api/services/:category/:service/toggle", async (req, res) => {
@@ -610,14 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Basic services cannot be disabled" });
       }
 
-      if (category === 'extras' && service === 'youtube') {
-        // YouTube service toggle logic
-        res.json({
-          service,
-          enabled,
-          status: enabled ? 'connected' : 'disconnected'
-        });
-      } else if (category === 'extras' && service === 'mcp') {
+      if (category === 'extras' && service === 'mcp') {
         // MCP service toggle logic
         if (!enabled) {
           // Disconnect all MCP servers
