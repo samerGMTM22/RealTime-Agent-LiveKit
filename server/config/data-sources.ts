@@ -1,5 +1,4 @@
 import { DataSource } from "@shared/schema";
-import { youtubeService } from "../lib/youtube";
 import { webScraperService } from "../lib/scraper";
 import { openaiService } from "../lib/openai";
 

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { liveKitService } from "./lib/livekit";
 import { openaiService } from "./lib/openai";
-import { youtubeService } from "./lib/youtube";
+
 import { webScraperService } from "./lib/scraper";
 import { getAgentTemplate, createAgentConfigFromTemplate } from "./config/agent-config";
 import { insertAgentConfigSchema, insertConversationSchema, insertDataSourceSchema } from "@shared/schema";
@@ -270,11 +270,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let websiteData = {};
 
       try {
-        if (agentConfig.type === 'youtube-assistant') {
-          channelData = await youtubeService.getChannelStats('@GiveMeTheMic22');
+        if (agentConfig.type === 'music-assistant') {
           websiteData = await webScraperService.getWebsiteContent('https://www.givemethemicofficial.com');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Error fetching context data:", error.message);
       }
 
@@ -370,29 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // YouTube data endpoints
-  app.get("/api/youtube/channel/:handle", async (req, res) => {
-    try {
-      const { handle } = req.params;
-      const channelInfo = await youtubeService.getChannelInfo(handle);
-      res.json(channelInfo);
-    } catch (error) {
-      console.error("Error fetching YouTube channel:", error);
-      res.status(500).json({ error: "Failed to fetch YouTube channel information" });
-    }
-  });
 
-  app.get("/api/youtube/videos/:channelId", async (req, res) => {
-    try {
-      const { channelId } = req.params;
-      const maxResults = parseInt(req.query.maxResults as string) || 10;
-      const videos = await youtubeService.getChannelVideos(channelId, maxResults);
-      res.json(videos);
-    } catch (error) {
-      console.error("Error fetching YouTube videos:", error);
-      res.status(500).json({ error: "Failed to fetch YouTube videos" });
-    }
-  });
 
   // Website scraping endpoints
   app.post("/api/scrape", async (req, res) => {

@@ -41,8 +41,6 @@ export default function DataSources({ agentConfigId }: DataSourcesProps) {
 
   const getSourceIcon = (type: string) => {
     switch (type) {
-      case 'youtube':
-        return <Youtube className="text-red-500" />;
       case 'website':
         return <Globe className="text-blue-400" />;
       default:

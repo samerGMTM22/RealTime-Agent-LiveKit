@@ -34,7 +34,7 @@ async def get_agent_config(room_name: str):
     
     # Fallback configuration
     return {
-        "systemPrompt": "You are a helpful voice AI assistant for the Give Me the Mic YouTube channel. You help viewers with channel information, video content, and general music-related questions.",
+        "systemPrompt": "You are a helpful voice AI assistant that provides music guidance and advice. You help with music practice, techniques, and general music education. Use MCP tools for current information when needed.",
         "voiceModel": "alloy",
         "temperature": 80,
         "responseLength": "medium"
