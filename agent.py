@@ -8,6 +8,7 @@ from livekit.agents import (
     WorkerOptions,
     cli,
     RoomInputOptions,
+    mcp,
 )
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai
@@ -39,6 +40,20 @@ async def get_agent_config(room_name: str):
         "temperature": 80,
         "responseLength": "medium"
     }
+
+
+async def get_mcp_servers():
+    """Fetch MCP server configurations from the database."""
+    try:
+        response = requests.get('http://localhost:5000/api/mcp/servers', timeout=5)
+        if response.status_code == 200:
+            servers = response.json()
+            logger.info(f"Fetched {len(servers)} MCP servers from database")
+            return servers
+    except Exception as e:
+        logger.error(f"Error fetching MCP servers: {e}")
+    
+    return []
 
 
 class GiveMeTheMicAgent(Agent):
@@ -168,6 +183,19 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
+    # Fetch and configure MCP servers
+    mcp_servers_config = await get_mcp_servers()
+    mcp_servers = []
+    
+    for server_config in mcp_servers_config:
+        try:
+            if server_config.get('url'):
+                mcp_server = mcp.MCPServerHTTP(server_config['url'])
+                mcp_servers.append(mcp_server)
+                logger.info(f"Configured MCP server: {server_config['name']} at {server_config['url']}")
+        except Exception as e:
+            logger.error(f"Failed to configure MCP server {server_config.get('name', 'unknown')}: {e}")
+
     # Connect to the room first
     await ctx.connect()
 
@@ -180,6 +208,7 @@ async def entrypoint(ctx: JobContext):
                 temperature=temperature,
                 model="gpt-4o-realtime-preview"
             ),
+            mcp_servers=mcp_servers,
         )
         logger.info("Attempting OpenAI Realtime API connection")
         
@@ -199,6 +228,7 @@ async def entrypoint(ctx: JobContext):
             stt=openai.STT(model="whisper-1"),
             llm=openai.LLM(model="gpt-4o-mini"),
             tts=openai.TTS(voice=voice),
+            mcp_servers=mcp_servers,
         )
         
         await session.start(

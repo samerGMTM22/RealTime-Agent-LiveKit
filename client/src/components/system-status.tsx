@@ -18,11 +18,14 @@ export default function SystemStatus({ status }: SystemStatusProps) {
       case 'online':
       case 'connected':
       case 'active':
+      case 'configured':
         return 'text-green-400 bg-green-400';
       case 'offline':
       case 'disconnected':
       case 'inactive':
         return 'text-red-400 bg-red-400';
+      case 'ready':
+        return 'text-blue-400 bg-blue-400';
       case 'error':
         return 'text-red-500 bg-red-500';
       default:
@@ -38,6 +41,10 @@ export default function SystemStatus({ status }: SystemStatusProps) {
         return 'Connected';
       case 'active':
         return 'Active';
+      case 'configured':
+        return 'Configured';
+      case 'ready':
+        return 'Ready';
       case 'offline':
         return 'Offline';
       case 'disconnected':

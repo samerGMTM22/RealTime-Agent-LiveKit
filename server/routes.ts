@@ -435,10 +435,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status.livekit = 'error';
       }
 
-      // MCP status - check if servers are configured
+      // MCP status - check if servers are configured and active
       try {
         const mcpServers = await storage.getMcpServersByUserId(1);
-        status.mcp = mcpServers.length > 0 ? 'configured' : 'ready';
+        if (mcpServers.length > 0) {
+          // Check if any servers are connected
+          const connectedServers = mcpServers.filter(server => server.status === 'connected');
+          status.mcp = connectedServers.length > 0 ? 'connected' : 'disconnected';
+        } else {
+          status.mcp = 'disconnected';
+        }
       } catch (error) {
         status.mcp = 'error';
       }
