@@ -403,7 +403,7 @@ Keep responses conversational, helpful, and engaging.`,
           </TabsTrigger>
           <TabsTrigger value="datasources" className="data-[state=active]:bg-electric-blue/30">
             <Database className="h-4 w-4 mr-2" />
-            Data Sources
+            MCP Servers
           </TabsTrigger>
           <TabsTrigger value="services" className="data-[state=active]:bg-electric-blue/30">
             <Globe className="h-4 w-4 mr-2" />
@@ -529,8 +529,8 @@ Keep responses conversational, helpful, and engaging.`,
         <TabsContent value="datasources" className="space-y-6">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Add MCP Data Source</CardTitle>
-              <CardDescription>Connect Model Context Protocol servers for extended capabilities</CardDescription>
+              <CardTitle>Add MCP Server</CardTitle>
+              <CardDescription>Connect Model Context Protocol servers to extend your agent with external tools, APIs, and services</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
@@ -583,71 +583,89 @@ Keep responses conversational, helpful, and engaging.`,
 
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Connected Data Sources</CardTitle>
-              <CardDescription>Manage your agent's data connections</CardDescription>
+              <CardTitle>Connected MCP Servers</CardTitle>
+              <CardDescription>Manage your agent's external tool connections and capabilities</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* MCP Tools will be the primary data source */}
-                <div className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
+                {/* MCP Protocol Status */}
+                <div className="flex items-center justify-between p-4 border border-white/20 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10">
                   <div className="flex items-center space-x-4">
                     <div className="p-2 bg-blue-500/20 rounded-lg">
                       <MessageSquare className="h-5 w-5 text-blue-400" />
                     </div>
                     <div>
-                      <h3 className="font-medium">MCP Tools</h3>
-                      <p className="text-sm text-gray-400">External tools and services via MCP protocol</p>
+                      <h3 className="font-medium">MCP Protocol</h3>
+                      <p className="text-sm text-gray-400">Model Context Protocol framework for external integrations</p>
+                      <p className="text-xs text-gray-500 mt-1">Enables secure connections to external APIs, databases, and services</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
-                      Available
+                      Active
                     </Badge>
                     {getStatusIcon('ready')}
                   </div>
                 </div>
 
                 {mcpServers.map((server) => (
-                  <div key={server.id} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-electric-blue/20 rounded-lg">
-                        <Database className="h-5 w-5 text-electric-blue" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{server.name}</h3>
-                        <p className="text-sm text-gray-400">{server.url}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant="outline" className="border-electric-blue/50 text-electric-blue">
-                        MCP
-                      </Badge>
-                      {server.status === 'testing' ? (
-                        <div className="flex items-center space-x-1">
-                          <div className="animate-spin h-4 w-4 border-2 border-electric-blue border-t-transparent rounded-full"></div>
-                          <span className="text-sm text-gray-400">Testing...</span>
+                  <div key={server.id} className="p-4 border border-white/20 rounded-lg bg-gradient-to-r from-electric-blue/5 to-cyber-cyan/5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-2 bg-electric-blue/20 rounded-lg">
+                          <Database className="h-5 w-5 text-electric-blue" />
                         </div>
-                      ) : (
-                        getStatusIcon(server.status)
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => testMcpConnectionMutation.mutate(server.id)}
-                        disabled={testMcpConnectionMutation.isPending}
-                        className="text-blue-400 hover:text-blue-300"
-                      >
-                        <TestTube className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeMcpServerMutation.mutate(server.id)}
-                        disabled={removeMcpServerMutation.isPending}
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h3 className="font-medium">{server.name}</h3>
+                            <Badge variant="outline" className="border-electric-blue/50 text-electric-blue text-xs">
+                              MCP
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-400 mb-2">{server.url}</p>
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            <span>Protocol: Model Context Protocol</span>
+                            <span>•</span>
+                            <span>Type: External Service</span>
+                            {server.status === 'connected' && (
+                              <>
+                                <span>•</span>
+                                <span className="text-green-400">Live Connection</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {server.status === 'testing' ? (
+                          <div className="flex items-center space-x-1">
+                            <div className="animate-spin h-4 w-4 border-2 border-electric-blue border-t-transparent rounded-full"></div>
+                            <span className="text-sm text-gray-400">Testing...</span>
+                          </div>
+                        ) : (
+                          getStatusIcon(server.status)
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => testMcpConnectionMutation.mutate(server.id)}
+                          disabled={testMcpConnectionMutation.isPending}
+                          className="text-blue-400 hover:text-blue-300"
+                          title="Test Connection"
+                        >
+                          <TestTube className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeMcpServerMutation.mutate(server.id)}
+                          disabled={removeMcpServerMutation.isPending}
+                          className="text-red-400 hover:text-red-300"
+                          title="Remove Server"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -703,7 +721,7 @@ Keep responses conversational, helpful, and engaging.`,
                       <div>
                         <h3 className="font-medium capitalize">{service}</h3>
                         <p className="text-sm text-gray-400">
-                          {service === 'youtube' ? 'YouTube channel integration' : 'Model Context Protocol servers'}
+                          Model Context Protocol servers for external tool integration
                         </p>
                       </div>
                     </div>

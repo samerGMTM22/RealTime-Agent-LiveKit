@@ -6,7 +6,7 @@ interface SystemStatusProps {
   status?: {
     livekit: string;
     openai: string;
-    youtube: string;
+    mcp: string;
     latency: string;
     timestamp: string;
   };
@@ -101,19 +101,19 @@ export default function SystemStatus({ status }: SystemStatusProps) {
               </div>
             </div>
             
-            {/* YouTube API */}
+            {/* MCP Servers */}
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-300">YouTube API</span>
+              <span className="text-sm text-gray-300">MCP Servers</span>
               <div className="flex items-center space-x-2">
                 <div className={cn(
                   "w-2 h-2 rounded-full animate-pulse",
-                  getStatusColor(status.youtube).split(' ')[1]
+                  getStatusColor(status.mcp).split(' ')[1]
                 )}></div>
                 <span className={cn(
                   "text-sm font-medium",
-                  getStatusColor(status.youtube).split(' ')[0]
+                  getStatusColor(status.mcp).split(' ')[0]
                 )}>
-                  {getStatusLabel(status.youtube)}
+                  {getStatusLabel(status.mcp)}
                 </span>
               </div>
             </div>

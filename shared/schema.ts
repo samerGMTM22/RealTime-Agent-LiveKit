@@ -114,6 +114,6 @@ export interface VoiceSessionData {
 export interface SystemStatus {
   livekit: 'online' | 'offline' | 'error';
   openai: 'connected' | 'disconnected' | 'error';
-  youtube: 'active' | 'inactive' | 'error';
+  mcp: 'connected' | 'disconnected' | 'error';
   latency: string;
 }
