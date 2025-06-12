@@ -508,17 +508,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update server status to testing first
       await storage.updateMcpServer(id, { status: "testing" });
       
-      // Simulate connection test (in real implementation, you'd test the WebSocket connection)
+      // Test actual MCP server connection
       setTimeout(async () => {
         try {
-          // For now, just set to connected. In production, implement actual WebSocket connection test
-          await storage.updateMcpServer(id, { 
-            status: "connected"
-          });
+          const server = await storage.getMcpServersByUserId(1);
+          const targetServer = server.find(s => s.id === id);
+          
+          if (targetServer && targetServer.url) {
+            // Test HTTP/HTTPS connection for MCP servers
+            const response = await fetch(targetServer.url, {
+              method: 'HEAD',
+              timeout: 5000
+            });
+            
+            if (response.ok) {
+              await storage.updateMcpServer(id, { status: "connected" });
+            } else {
+              await storage.updateMcpServer(id, { status: "error" });
+            }
+          } else {
+            await storage.updateMcpServer(id, { status: "error" });
+          }
         } catch (error) {
+          console.error(`MCP server connection test failed for ID ${id}:`, error);
           await storage.updateMcpServer(id, { status: "error" });
         }
-      }, 2000);
+      }, 1500);
       
       const server = await storage.updateMcpServer(id, { status: "testing" });
       res.json(server);
