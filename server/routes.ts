@@ -411,6 +411,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // YouTube API endpoints for agent integration
+  app.get("/api/youtube/channel/:handle", async (req, res) => {
+    try {
+      const { handle } = req.params;
+      const channelInfo = await youtubeService.getChannelInfo(handle);
+      
+      if (channelInfo) {
+        res.json({ 
+          success: true, 
+          channel: channelInfo 
+        });
+      } else {
+        res.status(404).json({ 
+          success: false, 
+          error: "Channel not found or YouTube API quota exceeded" 
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching YouTube channel:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "YouTube API access not available" 
+      });
+    }
+  });
+
+  app.get("/api/youtube/channel/:handle/videos", async (req, res) => {
+    try {
+      const { handle } = req.params;
+      const channelInfo = await youtubeService.getChannelInfo(handle);
+      
+      if (!channelInfo) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "Channel not found" 
+        });
+      }
+
+      const videos = await youtubeService.getChannelVideos(channelInfo.id, 10);
+      res.json({ 
+        success: true, 
+        videos 
+      });
+    } catch (error) {
+      console.error("Error fetching YouTube videos:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "YouTube API access not available" 
+      });
+    }
+  });
+
+  // MCP execution endpoint for agent tools
+  app.post("/api/mcp/execute", async (req, res) => {
+    try {
+      const { tool, query } = req.body;
+      
+      if (!tool || !query) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Tool and query parameters required" 
+        });
+      }
+
+      // For now, return that MCP tools are not configured
+      // In production, this would interface with actual MCP servers
+      res.json({ 
+        success: false, 
+        error: "MCP tools not yet configured. Please set up MCP servers first." 
+      });
+    } catch (error) {
+      console.error("Error executing MCP tool:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "MCP execution failed" 
+      });
+    }
+  });
+
   // System status endpoint
   app.get("/api/status", async (req, res) => {
     try {

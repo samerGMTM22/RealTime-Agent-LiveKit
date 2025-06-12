@@ -58,11 +58,30 @@ class GiveMeTheMicAgent(Agent):
     async def get_channel_info(self):
         """Provides information about the Give Me the Mic YouTube channel including subscriber count, content type, and channel details."""
         
-        logger.info("Providing Give Me the Mic channel information")
+        logger.info("Fetching YouTube channel information from API")
         
-        return """The Give Me the Mic channel (@givemethemicmusic) is a music-focused YouTube channel with 484 subscribers and 249 videos. 
-        The channel features content about singing, music performance, recording tips, and musical entertainment. 
-        It's a great resource for aspiring musicians and singers looking to improve their craft."""
+        try:
+            # Make API call to get real-time channel info
+            response = requests.get('http://localhost:5000/api/youtube/channel/@givemethemicmusic', timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('channel'):
+                    channel = data['channel']
+                    return f"""Give Me the Mic Channel Information:
+                    - Channel: {channel.get('title', 'Give Me the Mic')}
+                    - Subscribers: {channel.get('subscriberCount', 'N/A')}
+                    - Videos: {channel.get('videoCount', 'N/A')} 
+                    - Total Views: {channel.get('viewCount', 'N/A')}
+                    - Description: {channel.get('description', 'Music-focused YouTube channel')}
+                    
+                    This channel focuses on music education, performance tips, and giving aspiring musicians a platform."""
+            
+            logger.warning("YouTube API unavailable, using fallback information")
+            return "I don't currently have access to real-time YouTube data. Please ensure the YouTube API is properly configured for the most up-to-date channel statistics."
+            
+        except Exception as e:
+            logger.error(f"Error fetching YouTube data: {e}")
+            return "I'm unable to access YouTube channel data right now. The YouTube API integration may need to be configured."
 
     @function_tool
     async def get_music_tips(self, topic: str):
@@ -106,6 +125,65 @@ class GiveMeTheMicAgent(Agent):
         
         suggestion = suggestions.get(interest.lower(), f"For {interest}, I recommend exploring our general music education content on Give Me the Mic.")
         return f"Content suggestion: {suggestion} Don't forget to subscribe and hit the notification bell!"
+
+    @function_tool
+    async def search_web(self, query: str):
+        """Search the web for current information using MCP internet access tools.
+        
+        Args:
+            query: The search query to find current information
+        """
+        
+        logger.info(f"Searching web for: {query}")
+        
+        try:
+            # Make API call to MCP tools for web search
+            response = requests.post('http://localhost:5000/api/mcp/execute', 
+                                   json={'tool': 'web_search', 'query': query}, 
+                                   timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success') and data.get('results'):
+                    return f"Search results for '{query}': {data['results']}"
+            
+            logger.warning("MCP web search unavailable")
+            return "I don't currently have access to web search capabilities. Please ensure MCP tools are properly configured."
+            
+        except Exception as e:
+            logger.error(f"Error accessing MCP tools: {e}")
+            return "I'm unable to perform web searches right now. The MCP integration may need to be configured."
+
+    @function_tool
+    async def get_latest_videos(self, channel_handle: str = "@givemethemicmusic"):
+        """Gets the latest videos from the specified YouTube channel.
+        
+        Args:
+            channel_handle: The YouTube channel handle (default: @givemethemicmusic)
+        """
+        
+        logger.info(f"Fetching latest videos for: {channel_handle}")
+        
+        try:
+            # Make API call to get channel videos
+            response = requests.get(f'http://localhost:5000/api/youtube/channel/{channel_handle}/videos', timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('videos') and len(data['videos']) > 0:
+                    videos = data['videos'][:5]  # Get top 5 latest videos
+                    video_list = []
+                    for video in videos:
+                        video_list.append(f"- {video.get('title', 'Untitled')} ({video.get('publishedAt', 'Unknown date')})")
+                    
+                    return f"Latest videos from {channel_handle}:\n" + "\n".join(video_list)
+            
+            logger.warning("YouTube video API unavailable")
+            return "I don't currently have access to YouTube video data. Please ensure the YouTube API is properly configured."
+            
+        except Exception as e:
+            logger.error(f"Error fetching YouTube videos: {e}")
+            return "I'm unable to access YouTube video data right now. The YouTube API integration may need to be configured."
 
 
 async def entrypoint(ctx: JobContext):
