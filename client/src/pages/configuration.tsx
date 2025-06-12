@@ -588,22 +588,22 @@ Keep responses conversational, helpful, and engaging.`,
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Default YouTube data source */}
+                {/* MCP Tools will be the primary data source */}
                 <div className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
                   <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-red-500/20 rounded-lg">
-                      <MessageSquare className="h-5 w-5 text-red-400" />
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                      <MessageSquare className="h-5 w-5 text-blue-400" />
                     </div>
                     <div>
-                      <h3 className="font-medium">YouTube Channel Data</h3>
-                      <p className="text-sm text-gray-400">Give Me the Mic channel information</p>
+                      <h3 className="font-medium">MCP Tools</h3>
+                      <p className="text-sm text-gray-400">External tools and services via MCP protocol</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="bg-green-500/20 text-green-400">
-                      Built-in
+                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
+                      Available
                     </Badge>
-                    {getStatusIcon('connected')}
+                    {getStatusIcon('ready')}
                   </div>
                 </div>
 

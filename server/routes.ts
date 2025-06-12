@@ -411,57 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // YouTube API endpoints for agent integration
-  app.get("/api/youtube/channel/:handle", async (req, res) => {
-    try {
-      const { handle } = req.params;
-      const channelInfo = await youtubeService.getChannelInfo(handle);
-      
-      if (channelInfo) {
-        res.json({ 
-          success: true, 
-          channel: channelInfo 
-        });
-      } else {
-        res.status(404).json({ 
-          success: false, 
-          error: "Channel not found or YouTube API quota exceeded" 
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching YouTube channel:", error);
-      res.status(500).json({ 
-        success: false, 
-        error: "YouTube API access not available" 
-      });
-    }
-  });
 
-  app.get("/api/youtube/channel/:handle/videos", async (req, res) => {
-    try {
-      const { handle } = req.params;
-      const channelInfo = await youtubeService.getChannelInfo(handle);
-      
-      if (!channelInfo) {
-        return res.status(404).json({ 
-          success: false, 
-          error: "Channel not found" 
-        });
-      }
-
-      const videos = await youtubeService.getChannelVideos(channelInfo.id, 10);
-      res.json({ 
-        success: true, 
-        videos 
-      });
-    } catch (error) {
-      console.error("Error fetching YouTube videos:", error);
-      res.status(500).json({ 
-        success: false, 
-        error: "YouTube API access not available" 
-      });
-    }
-  });
 
   // MCP execution endpoint for agent tools
   app.post("/api/mcp/execute", async (req, res) => {
@@ -496,7 +446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const status = {
         livekit: 'online',
         openai: 'connected',
-        youtube: 'active',
+        mcp: 'ready',
         latency: '45ms',
         timestamp: new Date().toISOString()
       };
@@ -508,11 +458,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status.livekit = 'error';
       }
 
-      // YouTube API status - check if key exists without making API calls
-      if (process.env.YOUTUBE_API_KEY) {
-        status.youtube = 'active';
-      } else {
-        status.youtube = 'inactive';
+      // MCP status - check if servers are configured
+      try {
+        const mcpServers = await storage.getMcpServersByUserId(1);
+        status.mcp = mcpServers.length > 0 ? 'configured' : 'ready';
+      } catch (error) {
+        status.mcp = 'error';
       }
 
       res.json(status);
