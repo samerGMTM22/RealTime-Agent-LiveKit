@@ -1,18 +1,18 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Room, RoomEvent, RemoteParticipant, RemoteTrack, RemoteTrackPublication, DataPacket_Kind } from "livekit-client";
+import { Room, RoomEvent, RemoteParticipant, RemoteTrack, RemoteTrackPublication, DataPacket_Kind, Track } from "livekit-client";
 
 export function useLiveKit() {
   const [room, setRoom] = useState<Room | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [participants, setParticipants] = useState<RemoteParticipant[]>([]);
-  
+
   const roomRef = useRef<Room | null>(null);
 
   const connect = useCallback(async (roomName: string, token: string, livekitUrl?: string) => {
     try {
       setError(null);
-      
+
       // Create new room instance
       const newRoom = new Room({
         // automatically manage quality based on bandwidth
@@ -45,83 +45,21 @@ export function useLiveKit() {
 
       newRoom.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
         console.log('Track subscribed:', track.kind, 'from', participant.identity);
-        
-        if (track.kind === 'audio') {
-          // Handle audio track with proper autoplay handling
-          const audioElement = track.attach() as HTMLAudioElement;
-          audioElement.autoplay = true;
-          audioElement.volume = 1.0;
-          audioElement.playsInline = true;
-          audioElement.muted = false;
-          
-          // Set audio element attributes for better compatibility
-          audioElement.setAttribute('playsinline', 'true');
-          audioElement.setAttribute('webkit-playsinline', 'true');
-          audioElement.setAttribute('controls', 'false');
-          
-          // Create a hidden container for audio elements
-          let audioContainer = document.getElementById('livekit-audio-container');
-          if (!audioContainer) {
-            audioContainer = document.createElement('div');
-            audioContainer.id = 'livekit-audio-container';
-            audioContainer.style.position = 'absolute';
-            audioContainer.style.left = '-9999px';
-            audioContainer.style.visibility = 'hidden';
-            document.body.appendChild(audioContainer);
+
+        if (track.kind === Track.Kind.Audio) {
+          console.log('Audio track subscribed, attempting to play');
+          const audioElement = track.attach();
+          if (audioElement instanceof HTMLAudioElement) {
+            audioElement.autoplay = true;
+            audioElement.volume = 1.0;
+            audioElement.playsInline = true;
+            // Ensure audio plays in browsers that require user interaction
+            audioElement.play().catch(err => {
+              console.warn('Auto-play failed, will retry on user interaction:', err);
+            });
+            document.body.appendChild(audioElement);
+            console.log('Audio element attached and configured for playback');
           }
-          
-          // Append to audio container
-          audioContainer.appendChild(audioElement);
-          
-          // Force audio context initialization and resume
-          const initializeAudio = async () => {
-            try {
-              // Create audio context if it doesn't exist
-              if (!(window as any).audioContext) {
-                (window as any).audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-              }
-              
-              const audioContext = (window as any).audioContext;
-              if (audioContext.state === 'suspended') {
-                await audioContext.resume();
-                console.log('Audio context resumed');
-              }
-              
-              // Try to play the audio
-              const playPromise = audioElement.play();
-              if (playPromise !== undefined) {
-                await playPromise;
-                console.log('Audio started playing successfully');
-              }
-            } catch (error) {
-              console.warn('Audio initialization failed:', error);
-              
-              // Store element for manual play on user interaction
-              (window as any).pendingAudio = audioElement;
-              
-              // Add click handler to enable audio
-              const enableAudio = async () => {
-                try {
-                  const audioContext = (window as any).audioContext;
-                  if (audioContext && audioContext.state === 'suspended') {
-                    await audioContext.resume();
-                  }
-                  await audioElement.play();
-                  console.log('Audio enabled after user interaction');
-                  document.removeEventListener('click', enableAudio);
-                  document.removeEventListener('touchstart', enableAudio);
-                } catch (playError) {
-                  console.error('Failed to play audio after user interaction:', playError);
-                }
-              };
-              
-              document.addEventListener('click', enableAudio, { once: true });
-              document.addEventListener('touchstart', enableAudio, { once: true });
-            }
-          };
-          
-          // Initialize audio immediately
-          initializeAudio();
         }
       });
 
@@ -133,12 +71,12 @@ export function useLiveKit() {
       newRoom.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant, kind?: DataPacket_Kind) => {
         const message = new TextDecoder().decode(payload);
         console.log('Data received from', participant?.identity, ':', message);
-        
+
         try {
           const data = JSON.parse(message);
           if (data.type === 'ai-response') {
             console.log('AI Response:', data.message);
-            
+
             // Play AI response audio if available
             if (data.audioData) {
               const audio = new Audio(`data:audio/mpeg;base64,${data.audioData}`);
@@ -156,44 +94,19 @@ export function useLiveKit() {
       console.log('Using token:', token);
       await newRoom.connect(wsURL, token);
 
-      // Initialize audio context to enable audio playback
-      try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        if (audioContext.state === 'suspended') {
-          // Resume audio context on user interaction
-          const resumeAudio = () => {
-            audioContext.resume().then(() => {
-              console.log('Audio context resumed');
-              document.removeEventListener('click', resumeAudio);
-            });
-          };
-          document.addEventListener('click', resumeAudio, { once: true });
-        }
-      } catch (audioContextError) {
-        console.warn('Audio context initialization failed:', audioContextError);
-      }
+      console.log('Connected to LiveKit room:', roomName);
 
-      // Enable microphone and set up voice activity detection
+      // Enable microphone for voice input
       try {
         await newRoom.localParticipant.setMicrophoneEnabled(true);
-        
-        // Set up voice activity detection for speech processing
-        const audioTracks = newRoom.localParticipant.audioTrackPublications;
-        if (audioTracks.size > 0) {
-          const audioTrack = Array.from(audioTracks.values())[0];
-          if (audioTrack && audioTrack.track) {
-            console.log('Audio track ready for voice detection');
-            // Voice activity detection would go here in a full implementation
-          }
-        }
-      } catch (micError) {
-        console.warn('Microphone access failed:', micError);
-        // Continue without microphone for now
+        console.log('Microphone enabled for voice input');
+      } catch (err) {
+        console.error('Failed to enable microphone:', err);
       }
 
-      roomRef.current = newRoom;
       setRoom(newRoom);
-      
+      setIsConnected(true);
+
     } catch (err) {
       console.error('Failed to connect to LiveKit room:', err);
       setError(err instanceof Error ? err.message : 'Failed to connect to room');
