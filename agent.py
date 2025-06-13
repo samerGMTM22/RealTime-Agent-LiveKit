@@ -1,16 +1,10 @@
 import logging
 from dotenv import load_dotenv
 
-from livekit.agents import (
-    Agent,
-    AgentSession,
-    JobContext,
-    WorkerOptions,
-    cli,
-    RoomInputOptions,
-)
+from livekit import agents
+from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, RoomInputOptions
 from livekit.agents.llm import function_tool
-from livekit.plugins import openai, silero
+from livekit.plugins import openai
 import requests
 
 logger = logging.getLogger("voice-agent")
@@ -41,19 +35,11 @@ async def get_agent_config(room_name: str):
     }
 
 
-class GiveMeTheMicAgent(Agent):
+class Assistant(Agent):
     def __init__(self, config: dict) -> None:
         system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
         super().__init__(instructions=system_prompt)
         self.config = config
-
-    async def on_enter(self):
-        """Called when the agent enters the session - generates initial greeting"""
-        logger.info("Agent entering session - ready for voice interaction")
-        
-        # Skip automatic greeting to avoid TTS timeout issues
-        # Wait for user to speak first, then respond with voice
-        logger.info("Agent ready - waiting for user input to demonstrate voice capability")
 
     @function_tool
     async def get_general_info(self):
@@ -143,7 +129,7 @@ class GiveMeTheMicAgent(Agent):
 
 
 
-async def entrypoint(ctx: JobContext):
+async def entrypoint(ctx: agents.JobContext):
     """Main entry point for the LiveKit agent."""
     logger.info(f"Starting agent for room: {ctx.room.name}")
     
@@ -165,53 +151,33 @@ async def entrypoint(ctx: JobContext):
     voice = voice_mapping.get(config.get("voiceModel", "alloy"), "alloy")
     # Convert temperature from percentage (0-100) to decimal (0.6-1.2)
     temp_raw = config.get("temperature", 80)
-    temperature = max(0.6, min(1.2, float(temp_raw) / 100.0))
+    temperature = max(0.6, min(1.2, float(temp_raw) / 100.0 * 0.6 + 0.6))
     
     logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
-    # Connect to the room first
-    await ctx.connect()
-
-    # Use STT-LLM-TTS pipeline for reliable voice interaction
-    logger.info("Starting STT-LLM-TTS pipeline for voice interaction")
-    
+    # Create OpenAI Realtime model session following official documentation
     session = AgentSession(
-        stt=openai.STT(model="whisper-1"),
-        llm=openai.LLM(
-            model="gpt-4o",
+        llm=openai.realtime.RealtimeModel(
+            voice=voice,
             temperature=temperature,
-        ),
-        tts=openai.TTS(voice=voice),
-        vad=silero.VAD.load(),
+            model="gpt-4o-realtime-preview"
+        )
     )
-    
-    # Start session with agent instance
-    agent_instance = GiveMeTheMicAgent(config)
+
     await session.start(
-        agent=agent_instance,
         room=ctx.room,
+        agent=Assistant(config),
     )
-    logger.info("STT-LLM-TTS pipeline session started successfully")
     
-    # Keep session alive to ensure TTS completion
-    import asyncio
-    try:
-        # Wait indefinitely to keep agent alive
-        await asyncio.create_task(asyncio.Event().wait())
-    except asyncio.CancelledError:
-        logger.info("Agent session cancelled, shutting down gracefully")
-    except Exception as e:
-        logger.error(f"Agent session error: {e}")
+    await ctx.connect()
     
-    logger.info("Give Me the Mic agent is running and ready for voice interactions")
+    # Generate initial greeting as per LiveKit documentation
+    await session.generate_reply(
+        instructions="Greet the user and offer your assistance."
+    )
+    
+    logger.info("OpenAI Realtime agent is running and ready for voice interactions")
 
 
 if __name__ == "__main__":
-    # Accept port conflicts for now - focus on TTS functionality
-    # Multiple agents can run with some failing due to port conflicts
-    # as long as at least one agent per session succeeds
-    try:
-        cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
-    except Exception as e:
-        logger.warning(f"Agent startup encountered expected error: {e}")
-        # Exit gracefully to allow other agent instances to handle the session
+    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
