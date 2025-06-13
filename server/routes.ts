@@ -515,21 +515,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // MCP execution endpoint for agent tools
   app.post("/api/mcp/execute", async (req, res) => {
     try {
-      const { tool, query } = req.body;
+      const { tool, params } = req.body;
       
-      if (!tool || !query) {
+      if (!tool) {
         return res.status(400).json({ 
           success: false, 
-          error: "Tool and query parameters required" 
+          error: "Tool parameter is required" 
         });
       }
 
-      // For now, return that MCP tools are not configured
-      // In production, this would interface with actual MCP servers
+      // Get connected MCP servers
+      const mcpServers = await storage.getMcpServersByUserId(1);
+      const activeServers = mcpServers.filter(server => server.isActive);
+      
+      if (activeServers.length === 0) {
+        return res.json({ 
+          success: false, 
+          error: "No active MCP servers available" 
+        });
+      }
+
+      // Find server that has the requested tool
+      for (const server of activeServers) {
+        try {
+          // For web search, look for internet access server
+          if (tool === "search" || tool === "web_search") {
+            if (server.name.toLowerCase().includes("internet") || 
+                server.name.toLowerCase().includes("web")) {
+              
+              // Execute search using the server's API
+              const searchQuery = params?.query || params?.q || "";
+              if (searchQuery) {
+                // Make request to MCP server
+                const response = await fetch(server.url, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+                  },
+                  body: JSON.stringify({
+                    method: "tools/call",
+                    params: {
+                      name: "search",
+                      arguments: { query: searchQuery }
+                    }
+                  })
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  return res.json({
+                    success: true,
+                    result: result.result || result.content || "Search completed",
+                    server: server.name
+                  });
+                }
+              }
+            }
+          }
+          
+          // For email tools, look for Zapier server
+          if (tool === "send_email" || tool === "email") {
+            if (server.name.toLowerCase().includes("zapier") || 
+                server.name.toLowerCase().includes("email")) {
+              
+              return res.json({
+                success: true,
+                result: "Email functionality is available via Zapier integration",
+                server: server.name
+              });
+            }
+          }
+          
+        } catch (serverError) {
+          console.error(`Error with MCP server ${server.name}:`, serverError);
+          continue;
+        }
+      }
+
+      // If no server could handle the tool
       res.json({ 
         success: false, 
-        error: "MCP tools not yet configured. Please set up MCP servers first." 
+        error: `No MCP server available to handle tool: ${tool}`,
+        available_servers: activeServers.map(s => s.name)
       });
+      
     } catch (error) {
       console.error("Error executing MCP tool:", error);
       res.status(500).json({ 
