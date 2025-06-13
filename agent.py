@@ -150,13 +150,13 @@ async def entrypoint(ctx: agents.JobContext):
     }
     
     voice = voice_mapping.get(config.get("voiceModel", "alloy"), "alloy")
-    # Convert temperature from percentage (0-100) to valid range (0.6-1.2) as per OpenAI docs
+    # Convert temperature to valid range (0.6-1.2) as per OpenAI Realtime API docs
     temp_raw = config.get("temperature", 80)
     temperature = max(0.6, min(1.2, 0.6 + (float(temp_raw) / 100.0) * 0.6))
     
     logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
-    # Configure turn detection for better voice interaction
+    # Configure server VAD turn detection as recommended for Realtime API
     turn_detection = TurnDetection(
         type="server_vad",
         threshold=0.5,
@@ -166,14 +166,19 @@ async def entrypoint(ctx: agents.JobContext):
         interrupt_response=True,
     )
 
-    # Use OpenAI Realtime API as specified in documentation
+    # Use only OpenAI Realtime API - no fallbacks as requested
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
             model="gpt-4o-realtime-preview",
             voice=voice,
             temperature=temperature,
             turn_detection=turn_detection,
-        )
+        ),
+        # Session configuration for better interruption handling
+        allow_interruptions=True,
+        min_interruption_duration=0.5,
+        min_endpointing_delay=0.5,
+        max_endpointing_delay=6.0,
     )
 
     await session.start(
@@ -183,12 +188,12 @@ async def entrypoint(ctx: agents.JobContext):
     
     await ctx.connect()
     
-    # Generate initial greeting using generate_reply as per documentation
+    # Generate initial greeting
     await session.generate_reply(
         instructions="Greet the user and offer your assistance."
     )
     
-    logger.info("OpenAI Realtime API agent is running and ready for voice interactions")
+    logger.info("OpenAI Realtime API agent is running")
 
 
 if __name__ == "__main__":
