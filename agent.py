@@ -1,12 +1,12 @@
 import logging
 from dotenv import load_dotenv
 
-from livekit import agents
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli
+from livekit import agents, rtc
+from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, AutoSubscribe, VoiceAssistant
 from livekit.agents.llm import function_tool
-from livekit.plugins import openai
-from openai.types.beta.realtime.session import TurnDetection
+from livekit.plugins import openai, silero
 import requests
+import os
 
 logger = logging.getLogger("voice-agent")
 load_dotenv()
@@ -134,6 +134,9 @@ async def entrypoint(ctx: agents.JobContext):
     """Main entry point for the LiveKit agent."""
     logger.info(f"Starting agent for room: {ctx.room.name}")
     
+    # Connect to room first
+    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    
     # Get agent configuration from database
     config = await get_agent_config(ctx.room.name)
     logger.info(f"Using agent config: {config.get('name', 'Default')}")
@@ -150,50 +153,64 @@ async def entrypoint(ctx: agents.JobContext):
     }
     
     voice = voice_mapping.get(config.get("voiceModel", "alloy"), "alloy")
-    # Convert temperature to valid range (0.6-1.2) as per OpenAI Realtime API docs
     temp_raw = config.get("temperature", 80)
-    temperature = max(0.6, min(1.2, 0.6 + (float(temp_raw) / 100.0) * 0.6))
     
-    logger.info(f"Voice: {voice}, Temperature: {temperature}")
+    logger.info(f"Voice: {voice}, Temperature: {temp_raw}%")
 
-    # Configure server VAD turn detection as recommended for Realtime API
-    turn_detection = TurnDetection(
-        type="server_vad",
-        threshold=0.5,
-        prefix_padding_ms=300,
-        silence_duration_ms=500,
-        create_response=True,
-        interrupt_response=True,
-    )
+    # Try Realtime API first, fallback to STT-LLM-TTS
+    try:
+        logger.info("Attempting OpenAI Realtime API")
+        # Convert temperature to valid range (0.6-1.2) for Realtime API
+        realtime_temp = max(0.6, min(1.2, 0.6 + (float(temp_raw) / 100.0) * 0.6))
+        
+        # Create session with Realtime API
+        session = AgentSession(
+            llm=openai.realtime.RealtimeModel(
+                model="gpt-4o-realtime-preview",
+                voice=voice,
+                temperature=realtime_temp,
+            ),
+            allow_interruptions=True,
+            min_interruption_duration=0.5,
+            min_endpointing_delay=0.5,
+            max_endpointing_delay=6.0,
+        )
 
-    # Use only OpenAI Realtime API - no fallbacks as requested
-    session = AgentSession(
-        llm=openai.realtime.RealtimeModel(
-            model="gpt-4o-realtime-preview",
-            voice=voice,
-            temperature=temperature,
-            turn_detection=turn_detection,
-        ),
-        # Session configuration for better interruption handling
-        allow_interruptions=True,
-        min_interruption_duration=0.5,
-        min_endpointing_delay=0.5,
-        max_endpointing_delay=6.0,
-    )
-
-    await session.start(
-        room=ctx.room,
-        agent=Assistant(config),
-    )
-    
-    await ctx.connect()
-    
-    # Generate initial greeting
-    await session.generate_reply(
-        instructions="Greet the user and offer your assistance."
-    )
-    
-    logger.info("OpenAI Realtime API agent is running")
+        await session.start(
+            room=ctx.room,
+            agent=Assistant(config),
+        )
+        
+        # Test with initial greeting
+        await session.generate_reply(
+            instructions="Greet the user and offer your assistance."
+        )
+        
+        logger.info("OpenAI Realtime API agent started successfully")
+        
+    except Exception as e:
+        logger.error(f"Realtime API failed: {e}")
+        logger.info("Falling back to STT-LLM-TTS pipeline")
+        
+        # Convert temperature for standard LLM (0.0-2.0 range)
+        llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
+        
+        # Create STT-LLM-TTS pipeline
+        vad = silero.VAD.load()
+        stt = openai.STT(model="whisper-1")
+        llm = openai.LLM(model="gpt-4o-mini", temperature=llm_temp)
+        tts = openai.TTS(voice=voice)
+        
+        # Create VoiceAssistant with STT-LLM-TTS pipeline
+        assistant = VoiceAssistant(
+            vad=vad,
+            stt=stt,
+            llm=llm,
+            tts=tts,
+        )
+        
+        await assistant.start(ctx.room)
+        logger.info("STT-LLM-TTS pipeline assistant started successfully")
 
 
 if __name__ == "__main__":
