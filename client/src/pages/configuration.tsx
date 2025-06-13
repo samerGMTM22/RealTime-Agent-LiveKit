@@ -614,33 +614,33 @@ Keep responses conversational, helpful, and engaging.`,
 
                 {mcpServers.map((server) => (
                   <div key={server.id} className="p-4 border border-white/20 rounded-lg bg-gradient-to-r from-electric-blue/5 to-cyber-cyan/5">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
-                        <div className="p-2 bg-electric-blue/20 rounded-lg">
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                      <div className="flex items-start space-x-4 flex-1 min-w-0">
+                        <div className="p-2 bg-electric-blue/20 rounded-lg flex-shrink-0">
                           <Database className="h-5 w-5 text-electric-blue" />
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <h3 className="font-medium">{server.name}</h3>
-                            <Badge variant="outline" className="border-electric-blue/50 text-electric-blue text-xs">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h3 className="font-medium truncate">{server.name}</h3>
+                            <Badge variant="outline" className="border-electric-blue/50 text-electric-blue text-xs flex-shrink-0">
                               MCP
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-400 mb-2">{server.url}</p>
-                          <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            <span>Protocol: Model Context Protocol</span>
-                            <span>•</span>
-                            <span>Type: External Service</span>
+                          <p className="text-sm text-gray-400 mb-2 break-all">{server.url}</p>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                            <span className="whitespace-nowrap">Protocol: Model Context Protocol</span>
+                            <span className="hidden sm:inline">•</span>
+                            <span className="whitespace-nowrap">Type: External Service</span>
                             {server.status === 'connected' && (
                               <>
-                                <span>•</span>
-                                <span className="text-green-400">Live Connection</span>
+                                <span className="hidden sm:inline">•</span>
+                                <span className="text-green-400 whitespace-nowrap">Live Connection</span>
                               </>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-shrink-0">
                         {server.status === 'testing' ? (
                           <div className="flex items-center space-x-1">
                             <div className="animate-spin h-4 w-4 border-2 border-electric-blue border-t-transparent rounded-full"></div>
