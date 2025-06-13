@@ -51,15 +51,35 @@ export function useLiveKit() {
           const audioElement = track.attach() as HTMLAudioElement;
           audioElement.autoplay = true;
           audioElement.volume = 1.0;
+          audioElement.playsInline = true;
           
-          // Ensure audio plays
-          audioElement.play().catch((error) => {
-            console.warn('Audio autoplay failed, user interaction required:', error);
-            // Store element for manual play on user interaction
-            (window as any).pendingAudio = audioElement;
-          });
+          // Set audio element attributes for better compatibility
+          audioElement.setAttribute('playsinline', 'true');
+          audioElement.setAttribute('webkit-playsinline', 'true');
           
+          // Append to body first, then try to play
           document.body.appendChild(audioElement);
+          
+          // Try to play immediately
+          const playPromise = audioElement.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              console.log('Audio started playing successfully');
+            }).catch((error) => {
+              console.warn('Audio autoplay failed, user interaction required:', error);
+              // Store element for manual play on user interaction
+              (window as any).pendingAudio = audioElement;
+              
+              // Try to enable audio on next user click
+              const enableAudio = () => {
+                audioElement.play().then(() => {
+                  console.log('Audio enabled after user interaction');
+                  document.removeEventListener('click', enableAudio);
+                }).catch(console.error);
+              };
+              document.addEventListener('click', enableAudio, { once: true });
+            });
+          }
         }
       });
 
@@ -93,6 +113,23 @@ export function useLiveKit() {
       console.log('Connecting to LiveKit at:', wsURL);
       console.log('Using token:', token);
       await newRoom.connect(wsURL, token);
+
+      // Initialize audio context to enable audio playback
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        if (audioContext.state === 'suspended') {
+          // Resume audio context on user interaction
+          const resumeAudio = () => {
+            audioContext.resume().then(() => {
+              console.log('Audio context resumed');
+              document.removeEventListener('click', resumeAudio);
+            });
+          };
+          document.addEventListener('click', resumeAudio, { once: true });
+        }
+      } catch (audioContextError) {
+        console.warn('Audio context initialization failed:', audioContextError);
+      }
 
       // Enable microphone and set up voice activity detection
       try {

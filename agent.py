@@ -65,9 +65,11 @@ class GiveMeTheMicAgent(Agent):
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
-        await self.session.generate_reply(
-            instructions="Greet the user warmly and introduce yourself as the Give Me the Mic assistant. Ask how you can help them with music today."
-        )
+        # Generate initial greeting with proper session context
+        greeting = "Hello! I'm your Give Me the Mic assistant. I'm here to help you with music, singing, recording, and all things related to your musical journey. How can I assist you today?"
+        
+        # Use the session's say method to ensure audio output
+        await self.session.say(greeting, allow_interruptions=True)
 
     @function_tool
     async def get_general_info(self):
@@ -219,6 +221,12 @@ async def entrypoint(ctx: JobContext):
         realtime_model = openai.realtime.RealtimeModel(
             voice=voice,
             temperature=temperature,
+            instructions=config.get("systemPrompt", "You are a helpful voice AI assistant."),
+            turn_detection=openai.realtime.ServerVAD(
+                threshold=0.5,
+                prefix_padding_ms=300,
+                silence_duration_ms=500,
+            ),
         )
         
         session = AgentSession(
@@ -232,6 +240,10 @@ async def entrypoint(ctx: JobContext):
             room=ctx.room,
         )
         logger.info("OpenAI Realtime API session started successfully")
+        
+        # Add debug logging for agent audio capabilities
+        logger.info(f"Agent can publish audio: {session.agent_participant.can_publish}")
+        logger.info(f"Agent participant identity: {session.agent_participant.identity}")
         
     except Exception as e:
         logger.error(f"OpenAI Realtime API failed: {e}")
