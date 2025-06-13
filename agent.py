@@ -8,14 +8,24 @@ from livekit.agents import (
     WorkerOptions,
     cli,
     RoomInputOptions,
-    mcp,
 )
+
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai
 import requests
 
 logger = logging.getLogger("voice-agent")
 load_dotenv()
+
+# Conditional MCP import - only if package is available
+try:
+    from livekit.agents import mcp
+    MCP_AVAILABLE = True
+    logger.info("MCP package available - MCP features enabled")
+except ImportError:
+    MCP_AVAILABLE = False
+    mcp = None
+    logger.warning("MCP package not available. MCP features will be disabled. Install with: pip install 'livekit-agents[mcp]'")
 
 
 async def get_agent_config(room_name: str):
@@ -183,18 +193,25 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
-    # Fetch and configure MCP servers
-    mcp_servers_config = await get_mcp_servers()
+    # MCP servers will be configured when package is available
     mcp_servers = []
-    
-    for server_config in mcp_servers_config:
+    if MCP_AVAILABLE and mcp is not None:
         try:
-            if server_config.get('url'):
-                mcp_server = mcp.MCPServerHTTP(server_config['url'])
-                mcp_servers.append(mcp_server)
-                logger.info(f"Configured MCP server: {server_config['name']} at {server_config['url']}")
+            mcp_servers_config = await get_mcp_servers()
+            logger.info(f"Found {len(mcp_servers_config)} MCP server configurations")
+            
+            for server_config in mcp_servers_config:
+                try:
+                    if server_config.get('url'):
+                        mcp_server = mcp.MCPServerHTTP(server_config['url'])
+                        mcp_servers.append(mcp_server)
+                        logger.info(f"Configured MCP server: {server_config['name']} at {server_config['url']}")
+                except Exception as e:
+                    logger.error(f"Failed to configure MCP server {server_config.get('name', 'unknown')}: {e}")
         except Exception as e:
-            logger.error(f"Failed to configure MCP server {server_config.get('name', 'unknown')}: {e}")
+            logger.error(f"Error setting up MCP servers: {e}")
+    else:
+        logger.info("MCP package not installed - agent will run without MCP servers")
 
     # Connect to the room first
     await ctx.connect()
@@ -202,14 +219,19 @@ async def entrypoint(ctx: JobContext):
     # Create session with hybrid voice pipeline approach
     try:
         # Try OpenAI Realtime API first
-        session = AgentSession(
-            llm=openai.realtime.RealtimeModel(
+        session_config = {
+            "llm": openai.realtime.RealtimeModel(
                 voice=voice,
                 temperature=temperature,
                 model="gpt-4o-realtime-preview"
-            ),
-            mcp_servers=mcp_servers,
-        )
+            )
+        }
+        
+        # Only add MCP servers if available
+        if MCP_AVAILABLE and mcp_servers:
+            session_config["mcp_servers"] = mcp_servers
+            
+        session = AgentSession(**session_config)
         logger.info("Attempting OpenAI Realtime API connection")
         
         await session.start(
@@ -224,12 +246,17 @@ async def entrypoint(ctx: JobContext):
         logger.info("Falling back to STT-LLM-TTS pipeline")
         
         # Fallback to STT-LLM-TTS pipeline for more reliable voice interaction
-        session = AgentSession(
-            stt=openai.STT(model="whisper-1"),
-            llm=openai.LLM(model="gpt-4o-mini"),
-            tts=openai.TTS(voice=voice),
-            mcp_servers=mcp_servers,
-        )
+        fallback_session_config = {
+            "stt": openai.STT(model="whisper-1"),
+            "llm": openai.LLM(model="gpt-4o-mini"),
+            "tts": openai.TTS(voice=voice),
+        }
+        
+        # Only add MCP servers if available
+        if MCP_AVAILABLE and mcp_servers:
+            fallback_session_config["mcp_servers"] = mcp_servers
+            
+        session = AgentSession(**fallback_session_config)
         
         await session.start(
             agent=GiveMeTheMicAgent(config),
