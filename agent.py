@@ -267,14 +267,29 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {realtime_temp}")
 
+    # Initialize global MCP manager for module-level function tools
+    global _mcp_manager
+    logger.info("Initializing MCP integration...")
+    _mcp_manager = SimpleMCPManager()
+    
+    try:
+        mcp_servers = await _mcp_manager.initialize_user_servers(user_id=1)
+        connected_count = len([s for s in mcp_servers if s.get("status") == "connected"])
+        logger.info(f"Connected to {connected_count} MCP servers")
+    except Exception as e:
+        logger.error(f"Failed to initialize MCP servers: {e}")
+        _mcp_manager = None
+
     try:
         logger.info("Attempting OpenAI Realtime API")
         
-        # Create assistant and start MCP initialization asynchronously
+        # Create assistant
         assistant = Assistant(config)
         
-        # Start MCP initialization in background (non-blocking)
-        mcp_task = asyncio.create_task(assistant.initialize_mcp(user_id=1))
+        # Add module-level function tools to assistant
+        assistant.add_function(search_web)
+        assistant.add_function(send_email)
+        logger.info("Module-level function tools added to assistant")
         
         # Create AgentSession with Realtime API
         session = AgentSession(
@@ -282,6 +297,7 @@ async def entrypoint(ctx: JobContext):
                 model="gpt-4o-realtime-preview",
                 voice=voice,
                 temperature=realtime_temp,
+                instructions=config.get("systemPrompt", "You are a helpful assistant."),
             ),
             allow_interruptions=True,
             min_interruption_duration=0.5,
@@ -298,17 +314,6 @@ async def entrypoint(ctx: JobContext):
         await session.generate_reply(
             instructions="Greet the user warmly and offer your assistance."
         )
-        
-        # Wait for MCP initialization with timeout
-        try:
-            mcp_servers = await asyncio.wait_for(mcp_task, timeout=10.0)
-            if mcp_servers:
-                logger.info(f"MCP servers loaded: {len(mcp_servers)}")
-                await session.generate_reply(
-                    instructions=f"Inform the user that {len(mcp_servers)} external tools are now available for enhanced assistance."
-                )
-        except asyncio.TimeoutError:
-            logger.warning("MCP initialization timed out, continuing with voice-only functionality")
         
         logger.info("OpenAI Realtime API agent started successfully")
         
