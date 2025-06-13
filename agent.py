@@ -49,28 +49,11 @@ class GiveMeTheMicAgent(Agent):
 
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
-        logger.info("Agent entering session, generating initial greeting")
+        logger.info("Agent entering session - ready for voice interaction")
         
-        # Schedule greeting after a delay to allow session to fully initialize
-        import asyncio
-        
-        async def delayed_greeting():
-            await asyncio.sleep(1.0)  # Wait for session stabilization
-            try:
-                logger.info("Starting delayed TTS greeting...")
-                await self.session.say("Hello! I'm your music assistant. How can I help you today?")
-                logger.info("TTS greeting completed successfully")
-            except Exception as e:
-                logger.error(f"TTS greeting failed: {str(e)}")
-                # Try again with shorter message
-                try:
-                    await self.session.say("Hi there!")
-                    logger.info("Short greeting completed")
-                except Exception as e2:
-                    logger.error(f"All greeting attempts failed: {str(e2)}")
-        
-        # Start greeting task without blocking session initialization
-        asyncio.create_task(delayed_greeting())
+        # Skip automatic greeting to avoid TTS timeout issues
+        # Wait for user to speak first, then respond with voice
+        logger.info("Agent ready - waiting for user input to demonstrate voice capability")
 
     @function_tool
     async def get_general_info(self):
