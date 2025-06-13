@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
+    "aiohttp>=3.12.12",
+    "asyncpg>=0.30.0",
     "livekit-agents[openai]>=1.0.23",
     "livekit-plugins-silero>=1.0.23",
     "pydantic-ai>=0.2.18",
