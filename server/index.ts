@@ -56,6 +56,15 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
+  // Handle WebSocket upgrades for Vite HMR
+  server.on('upgrade', (request, socket, head) => {
+    // Allow WebSocket connections for Vite HMR
+    if (request.url?.includes('vite-dev-server')) {
+      // Let Vite handle the WebSocket upgrade
+      return;
+    }
+  });
+
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
