@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
-    "livekit-agents[mcp,openai]>=1.0.23",
+    "livekit-agents[openai]>=1.0.23",
     "python-dotenv>=1.1.0",
     "requests>=2.32.4",
 ]
