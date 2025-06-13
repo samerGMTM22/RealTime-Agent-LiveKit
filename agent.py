@@ -55,6 +55,7 @@ class Assistant(Agent):
         self.config = config
         self.mcp_manager = None
         self.mcp_tools_integration = None
+        self.mcp_tools = []
 
     async def initialize_mcp(self, user_id: int = 1):
         """Initialize MCP servers with error handling and graceful degradation"""
@@ -75,10 +76,9 @@ class Assistant(Agent):
                 )
                 
                 if tools:
-                    # Add MCP tools to agent (tools are already decorated function_tool objects)
-                    for tool in tools:
-                        self.register_tool(tool)
-                    logger.info(f"Added {len(tools)} MCP tools to agent")
+                    # Add MCP tools to agent - tools list is read-only, so we'll store them separately
+                    self.mcp_tools = tools
+                    logger.info(f"Loaded {len(tools)} MCP tools")
                 else:
                     logger.info("No MCP tools available")
             else:
@@ -197,9 +197,18 @@ async def entrypoint(ctx: JobContext):
     participant = await ctx.wait_for_participant()
     logger.info(f"Participant joined: {participant.identity}")
     
-    # Get agent configuration from database
-    config = await get_agent_config(ctx.room.name)
-    logger.info(f"Using agent config: {config.get('name', 'Default')}")
+    # Get agent configuration from database using PostgreSQL storage
+    try:
+        storage = PostgreSQLStorage()
+        config = await storage.getAgentConfigByUserId(user_id=1)
+        if not config:
+            # Fallback to REST API
+            config = await get_agent_config(ctx.room.name)
+        logger.info(f"Using agent config: {config.get('name', 'Default')}")
+        logger.info(f"System prompt: {config.get('systemPrompt', 'Default')[:100]}...")
+    except Exception as e:
+        logger.error(f"Failed to load config from database: {e}")
+        config = await get_agent_config(ctx.room.name)
     
     # Map voice model names to OpenAI voice options
     voice_mapping = {

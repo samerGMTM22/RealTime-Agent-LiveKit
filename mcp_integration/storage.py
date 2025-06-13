@@ -30,7 +30,7 @@ class PostgreSQLStorage:
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT id, name, system_prompt, voice_model, temperature
+                SELECT id, name, system_prompt, voice_model, temperature, personality, response_length
                 FROM agent_configs
                 WHERE user_id = $1 AND is_active = true
                 ORDER BY created_at DESC
@@ -45,7 +45,9 @@ class PostgreSQLStorage:
                     "name": row["name"],
                     "systemPrompt": row["system_prompt"],
                     "voiceModel": row["voice_model"],
-                    "temperature": row["temperature"]
+                    "temperature": row["temperature"],
+                    "personality": row["personality"],
+                    "responseLength": row["response_length"]
                 }
             return None
     
@@ -59,7 +61,7 @@ class PostgreSQLStorage:
                 SELECT id, name, url, description, api_key, is_active,
                        connection_status, last_connected, metadata
                 FROM mcp_servers
-                WHERE user_id = $1
+                WHERE user_id = $1 AND is_active = true
                 ORDER BY created_at DESC
                 """,
                 user_id
