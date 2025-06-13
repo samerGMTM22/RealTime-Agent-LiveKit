@@ -46,6 +46,29 @@ class Assistant(Agent):
         system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
         super().__init__(instructions=system_prompt)
         self.config = config
+        self.mcp_manager = None
+        self.mcp_tools_integration = None
+
+    async def initialize_mcp(self, user_id: int = 1):
+        """Initialize MCP servers and tools for this agent"""
+        try:
+            # Initialize MCP manager with database storage
+            storage = DatabaseStorage()
+            self.mcp_manager = MCPManager(storage)
+            
+            # Load and connect MCP servers for the user
+            await self.mcp_manager.initialize_user_servers(user_id)
+            
+            # Initialize MCP tools integration
+            self.mcp_tools_integration = MCPToolsIntegration(self.mcp_manager)
+            
+            # Build and add MCP tools to agent
+            mcp_tools = await self.mcp_tools_integration.build_livekit_tools()
+            if mcp_tools:
+                logger.info(f"Added {len(mcp_tools)} MCP tools to agent")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize MCP: {e}")
 
     @function_tool
     async def get_general_info(self):
