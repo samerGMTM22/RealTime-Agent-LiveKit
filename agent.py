@@ -51,20 +51,33 @@ class GiveMeTheMicAgent(Agent):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
         try:
-            greeting = "Hello! I'm your Give Me the Mic music assistant. I can help you with music practice, vocal techniques, songwriting, and answer any music-related questions. What would you like to work on today?"
-            logger.info(f"Attempting TTS synthesis for greeting: {greeting[:50]}...")
+            import asyncio
+            greeting = "Hello! I'm your music assistant ready to help you today!"
+            logger.info(f"Attempting TTS synthesis for greeting: {greeting}")
             
-            await self.session.say(greeting, allow_interruptions=True)
+            # Add timeout to TTS synthesis to prevent hanging
+            await asyncio.wait_for(
+                self.session.say(greeting, allow_interruptions=True),
+                timeout=10.0
+            )
             logger.info("TTS greeting synthesis completed successfully")
             
-        except Exception as e:
-            logger.error(f"TTS synthesis failed: {str(e)}")
-            # Fallback: try without interruptions
+        except asyncio.TimeoutError:
+            logger.error("TTS synthesis timed out after 10 seconds")
+            # Try shorter fallback message
             try:
-                await self.session.say("Hello! I'm your music assistant. How can I help you today?")
-                logger.info("Fallback TTS synthesis completed")
-            except Exception as e2:
-                logger.error(f"Fallback TTS also failed: {str(e2)}")
+                await asyncio.wait_for(
+                    self.session.say("Hello! How can I help with music today?"),
+                    timeout=5.0
+                )
+                logger.info("Short fallback TTS completed")
+            except Exception as e3:
+                logger.error(f"All TTS attempts failed: {str(e3)}")
+        except Exception as e:
+            logger.error(f"TTS synthesis failed with error: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
 
     @function_tool
     async def get_general_info(self):
@@ -206,35 +219,11 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    import asyncio
-    import signal
-    import sys
-    from livekit.agents import Worker
-    
-    async def main():
-        """Direct worker implementation bypassing CLI and HTTP server"""
-        worker = Worker(entrypoint=entrypoint)
-        
-        def signal_handler():
-            worker.shutdown()
-        
-        # Register signal handlers for graceful shutdown
-        if sys.platform != "win32":
-            loop = asyncio.get_event_loop()
-            for sig in (signal.SIGTERM, signal.SIGINT):
-                loop.add_signal_handler(sig, signal_handler)
-        
-        logger.info("Starting LiveKit worker without HTTP debug server")
-        
-        try:
-            await worker.run()
-        except KeyboardInterrupt:
-            logger.info("Worker interrupted by user")
-        except Exception as e:
-            logger.error(f"Worker error: {e}")
-            raise
-        finally:
-            await worker.aclose()
-    
-    # Run worker directly without CLI to avoid HTTP server conflicts
-    asyncio.run(main())
+    # Accept port conflicts for now - focus on TTS functionality
+    # Multiple agents can run with some failing due to port conflicts
+    # as long as at least one agent per session succeeds
+    try:
+        cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    except Exception as e:
+        logger.warning(f"Agent startup encountered expected error: {e}")
+        # Exit gracefully to allow other agent instances to handle the session
