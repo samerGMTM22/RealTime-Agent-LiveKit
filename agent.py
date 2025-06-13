@@ -2,7 +2,7 @@ import logging
 from dotenv import load_dotenv
 
 from livekit import agents, rtc
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, AutoSubscribe, VoiceAssistant
+from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, AutoSubscribe
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
@@ -195,22 +195,24 @@ async def entrypoint(ctx: agents.JobContext):
         # Convert temperature for standard LLM (0.0-2.0 range)
         llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
         
-        # Create STT-LLM-TTS pipeline
-        vad = silero.VAD.load()
-        stt = openai.STT(model="whisper-1")
-        llm = openai.LLM(model="gpt-4o-mini", temperature=llm_temp)
-        tts = openai.TTS(voice=voice)
-        
-        # Create VoiceAssistant with STT-LLM-TTS pipeline
-        assistant = VoiceAssistant(
-            vad=vad,
-            stt=stt,
-            llm=llm,
-            tts=tts,
+        # Create STT-LLM-TTS pipeline using AgentSession
+        session = AgentSession(
+            vad=silero.VAD.load(),
+            stt=openai.STT(model="whisper-1"),
+            llm=openai.LLM(model="gpt-4o-mini", temperature=llm_temp),
+            tts=openai.TTS(voice=voice),
+            allow_interruptions=True,
+            min_interruption_duration=0.5,
+            min_endpointing_delay=0.5,
+            max_endpointing_delay=6.0,
+        )
+
+        await session.start(
+            room=ctx.room,
+            agent=Assistant(config),
         )
         
-        await assistant.start(ctx.room)
-        logger.info("STT-LLM-TTS pipeline assistant started successfully")
+        logger.info("STT-LLM-TTS pipeline agent started successfully")
 
 
 if __name__ == "__main__":
