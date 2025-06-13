@@ -1,5 +1,19 @@
 # MCP (Model Context Protocol) Integration Expert Consultation
 
+## Phase Two: Status Reliability Enhancement (Current Issue)
+
+### User Request Analysis
+- **Problem**: Warning signs appearing on working MCP servers despite "connected" status in logs
+- **Root Cause**: Frontend hardcoded MCP status to 'disconnected' instead of using actual system status
+- **Impact**: MCP service shows warning in services tab when any server has warning state
+- **Solution Required**: Implement real connectivity tests and fix status propagation
+
+### Technical Fixes Implemented
+1. **Frontend Status Fix**: Changed hardcoded 'disconnected' to use actual `status.mcp` from system API
+2. **Real Connection Testing**: Replaced setTimeout simulation with actual HTTP/WebSocket connectivity tests
+3. **MCP Text Capitalization**: Fixed "mcp" to display as "MCP" in services section
+4. **Enhanced Error Handling**: Added proper timeout handling and response time tracking
+
 ## Context & Objective
 
 We have a working LiveKit OpenAI Realtime API voice agent and need to implement MCP (Model Context Protocol) server integration. The system should allow dynamic addition, deletion, and management of MCP servers through a persistent database, with real-time UI updates and automatic connection to the LiveKit agent.

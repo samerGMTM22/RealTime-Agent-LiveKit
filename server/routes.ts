@@ -12,6 +12,66 @@ import { voiceAgentManager } from "./lib/voice-agent";
 import { mcpManager } from "./lib/mcp-client";
 import { z } from "zod";
 
+// MCP Server Connection Testing
+async function testMcpServerConnection(server: any): Promise<{ success: boolean; error?: string; responseTime?: number }> {
+  const startTime = Date.now();
+  
+  try {
+    if (server.url.startsWith('http://') || server.url.startsWith('https://')) {
+      // Test HTTP/HTTPS endpoints
+      const response = await fetch(server.url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'LiveKit-MCP-Agent/1.0',
+          ...(server.apiKey ? { 'Authorization': `Bearer ${server.apiKey}` } : {})
+        },
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+      
+      const responseTime = Date.now() - startTime;
+      
+      if (response.ok || response.status === 404) {
+        // 404 is acceptable for MCP endpoints that might not have GET handlers
+        return { success: true, responseTime };
+      } else {
+        return { success: false, error: `HTTP ${response.status}: ${response.statusText}`, responseTime };
+      }
+    } else if (server.url.startsWith('ws://') || server.url.startsWith('wss://')) {
+      // Test WebSocket endpoints
+      return new Promise((resolve) => {
+        const ws = new WebSocket(server.url);
+        const timeout = setTimeout(() => {
+          ws.close();
+          resolve({ success: false, error: 'WebSocket connection timeout' });
+        }, 10000);
+        
+        ws.onopen = () => {
+          clearTimeout(timeout);
+          const responseTime = Date.now() - startTime;
+          ws.close();
+          resolve({ success: true, responseTime });
+        };
+        
+        ws.onerror = (error) => {
+          clearTimeout(timeout);
+          const responseTime = Date.now() - startTime;
+          resolve({ success: false, error: 'WebSocket connection failed', responseTime });
+        };
+      });
+    } else {
+      // For other protocol types (like npm packages), consider them valid
+      return { success: true, responseTime: Date.now() - startTime };
+    }
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Connection test failed',
+      responseTime 
+    };
+  }
+}
+
 // AI Agent implementation
 async function startAIAgent(roomName: string) {
   try {
@@ -507,25 +567,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       
+      // Get server details first
+      const servers = await storage.getMcpServersByUserId(1);
+      const server = servers.find(s => s.id === id);
+      
+      if (!server) {
+        return res.status(404).json({ error: "MCP server not found" });
+      }
+      
       // Update server status to testing first
       await storage.updateMcpServer(id, { connectionStatus: "testing" });
       
-      // Simulate connection test (in real implementation, you'd test the WebSocket connection)
-      setTimeout(async () => {
-        try {
-          // For now, just set to connected. In production, implement actual WebSocket connection test
-          await storage.updateMcpServer(id, { 
-            connectionStatus: "connected"
-          });
-        } catch (error) {
-          await storage.updateMcpServer(id, { connectionStatus: "error" });
-        }
-      }, 2000);
+      // Perform actual connection test
+      const connectionResult = await testMcpServerConnection(server);
       
-      const server = await storage.updateMcpServer(id, { connectionStatus: "testing" });
-      res.json(server);
+      await storage.updateMcpServer(id, { 
+        connectionStatus: connectionResult.success ? "connected" : "error",
+        metadata: {
+          ...(server.metadata || {}),
+          lastTestResult: connectionResult,
+          lastTestTime: new Date().toISOString(),
+          responseTime: connectionResult.responseTime
+        }
+      });
+      
+      const updatedServer = await storage.updateMcpServer(id, {});
+      res.json(updatedServer);
     } catch (error) {
       console.error("Error connecting to MCP server:", error);
+      await storage.updateMcpServer(parseInt(req.params.id), { connectionStatus: "error" });
       res.status(500).json({ error: "Failed to connect to MCP server" });
     }
   });

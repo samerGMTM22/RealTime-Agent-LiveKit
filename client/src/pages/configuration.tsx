@@ -169,7 +169,7 @@ export default function Configuration() {
           openai: { enabled: true, status: status.openai === 'connected' ? 'connected' as const : 'error' as const }
         },
         extras: {
-          mcp: { enabled: prev.extras.mcp.enabled, status: 'disconnected' as const }
+          mcp: { enabled: prev.extras.mcp.enabled, status: status.mcp === 'connected' ? 'connected' as const : 'error' as const }
         }
       }));
     }
