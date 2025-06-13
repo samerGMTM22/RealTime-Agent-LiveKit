@@ -715,7 +715,7 @@ Keep responses conversational, helpful, and engaging.`,
                   <div key={service} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
                     <div className="flex items-center space-x-4">
                       <div>
-                        <h3 className="font-medium capitalize">{service}</h3>
+                        <h3 className="font-medium">{service === 'mcp' ? 'MCP' : service.charAt(0).toUpperCase() + service.slice(1)}</h3>
                         <p className="text-sm text-gray-400">
                           Model Context Protocol servers for external tool integration
                         </p>
