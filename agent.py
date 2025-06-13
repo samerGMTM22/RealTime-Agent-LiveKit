@@ -70,11 +70,13 @@ class GiveMeTheMicAgent(Agent):
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
-        # Generate initial greeting with proper session context
-        greeting = "Hello! I'm your Give Me the Mic assistant. I'm here to help you with music, singing, recording, and all things related to your musical journey. How can I assist you today?"
         
-        # Use the session's say method to ensure audio output
-        await self.session.say(greeting, allow_interruptions=True)
+        # Use generate_reply for realtime models as per LiveKit docs
+        # The say() method requires a TTS model which isn't needed for realtime API
+        await self.session.generate_reply(
+            instructions="Greet the user as your Give Me the Mic assistant. Introduce yourself as here to help with music, singing, recording, and all things related to their musical journey. Ask how you can assist them today.",
+            allow_interruptions=True
+        )
 
     @function_tool
     async def get_general_info(self):
