@@ -1,0 +1,67 @@
+
+> rest-express@1.0.0 dev
+9:49:10 AM [express] serving on port 5000s
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+9:49:16 AM [express] GET /api/agent-configs/active 304 in 66ms :: {"id":1,"userId":1,"name":"My YouT…
+9:49:17 AM [express] GET /api/status 200 in 1307ms :: {"livekit":"online","openai":"connected","mcp"…
+9:49:20 AM [express] GET /api/agent-configs/active 304 in 59ms :: {"id":1,"userId":1,"name":"My YouT…
+9:49:21 AM [express] GET /api/status 200 in 1172ms :: {"livekit":"online","openai":"connected","mcp"…
+9:49:25 AM [express] POST /api/livekit/rooms 201 in 708ms :: {"sid":"RM_EavLcePiia5L","name":"voice_…
+9:49:25 AM [express] POST /api/livekit/token 200 in 1ms :: {"token":"eyJhbGciOiJIUzI1NiJ9.eyJ2aWRlby…
+9:49:25 AM [express] GET /api/livekit/url 304 in 0ms :: {"url":"wss://test-project-eg4kodos.livekit.…
+Starting Python LiveKit agent for room: voice_agent_session_1749808161609_bfravp6rv
+Python LiveKit agent started for room voice_agent_session_1749808161609_bfravp6rv
+9:49:27 AM [express] GET /api/conversations 200 in 4ms
+Agent stdout: {"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.1.1", "rtc-version": "1.0.8", "timestamp": "2025-06-13T09:49:27.900037+00:00"}
+{"message": "preloading plugins", "level": "INFO", "name": "livekit.agents", "packages": ["livekit.plugins.openai", "livekit.plugins.silero"], "timestamp": "2025-06-13T09:49:27.900193+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 8393, "timestamp": "2025-06-13T09:49:29.264652+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 8395, "timestamp": "2025-06-13T09:49:29.268090+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 8397, "timestamp": "2025-06-13T09:49:29.297086+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 8399, "timestamp": "2025-06-13T09:49:29.297414+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 8395, "elapsed_time": 0.11, "timestamp": "2025-06-13T09:49:29.376479+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 8393, "elapsed_time": 0.12, "timestamp": "2025-06-13T09:49:29.381487+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 8399, "elapsed_time": 0.08, "timestamp": "2025-06-13T09:49:29.382175+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 8397, "elapsed_time": 0.09, "timestamp": "2025-06-13T09:49:29.383894+00:00"}
+
+Agent stdout: {"message": "see tracing information at http://localhost:8081/debug", "level": "INFO", "name": "livekit.agents", "timestamp": "2025-06-13T09:49:29.385144+00:00"}
+
+Agent stdout: {"message": "registered worker", "level": "INFO", "name": "livekit.agents", "id": "AW_Vv2dNhxAnAph", "url": "wss://test-project-eg4kodos.livekit.cloud", "region": "US West", "protocol": 16, "timestamp": "2025-06-13T09:49:29.615336+00:00"}
+
+Agent stdout: {"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_oCXuf5dKrcVa", "dispatch_id": "", "room_name": "voice_agent_session_1749808161609_bfravp6rv", "agent_name": "", "resuming": false, "timestamp": "2025-06-13T09:49:29.670024+00:00"}
+
+Agent stdout: {"message": "Starting agent for room: voice_agent_session_1749808161609_bfravp6rv", "level": "INFO", "name": "voice-agent", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:29.706605+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 8407, "timestamp": "2025-06-13T09:49:29.732511+00:00"}
+
+9:49:29 AM [express] GET /api/agent-configs/1 200 in 62ms :: {"id":1,"userId":1,"name":"My YouTube A…
+Agent stdout: {"message": "Fetched config from database: My YouTube Agent", "level": "INFO", "name": "voice-agent", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:29.773154+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 8407, "elapsed_time": 0.06, "timestamp": "2025-06-13T09:49:29.797497+00:00"}
+
+9:49:29 AM [express] GET /api/mcp/servers 200 in 59ms :: [{"id":9,"userId":1,"name":"internet access…
+Agent stdout: {"message": "Loaded 1 MCP servers for agent", "level": "INFO", "name": "voice-agent", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:29.840308+00:00"}
+
+Agent stdout: {"message": "Using agent config: My YouTube Agent", "level": "INFO", "name": "voice-agent", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:29.840568+00:00"}
+{"message": "Voice: coral, Temperature: 0.7", "level": "INFO", "name": "voice-agent", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:29.840644+00:00"}
+
+Agent stdout: {"message": "OpenAI Realtime API failed: RealtimeModel.__init__() got an unexpected keyword argument 'instructions'", "level": "ERROR", "name": "voice-agent", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:30.410198+00:00"}
+{"message": "OpenAI Realtime API failed: RealtimeModel.__init__() got an unexpected keyword argument 'instructions'", "level": "ERROR", "name": "voice-agent", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:30.410306+00:00"}
+{"message": "Falling back to STT-LLM-TTS pipeline with VAD", "level": "INFO", "name": "voice-agent", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:30.410353+00:00"}
+
+Agent stdout: {"message": "unhandled exception while running the job task\nTraceback (most recent call last):\n  File \"/home/runner/workspace/agent.py\", line 244, in entrypoint\n    raise realtime_error\n  File \"/home/runner/workspace/agent.py\", line 224, in entrypoint\n    realtime_model = openai.realtime.RealtimeModel(\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: RealtimeModel.__init__() got an unexpected keyword argument 'instructions'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/home/runner/workspace/agent.py\", line 253, in entrypoint\n    vad=silero.VAD.load(\n        ^^^^^^^^^^^^^^^^\nTypeError: VAD.load() got an unexpected keyword argument 'min_speaking_duration'", "level": "ERROR", "name": "livekit.agents", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:49:30.410495+00:00"}
+
+Agent stdout: {"message": "process exiting", "level": "INFO", "name": "livekit.agents", "reason": "", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:50:06.876854+00:00"}
+
+Agent stdout: {"message": "livekit::rtc_engine:450:livekit::rtc_engine - received session close: \"signal client closed: \\\"stream closed\\\"\" UnknownReason Resume", "level": "WARNING", "name": "livekit", "pid": 8395, "job_id": "AJ_oCXuf5dKrcVa", "timestamp": "2025-06-13T09:50:06.876290+00:00"}
+
+9:50:19 AM [express] GET /api/status 200 in 1482ms :: {"livekit":"online","openai":"connected","mcp"…
