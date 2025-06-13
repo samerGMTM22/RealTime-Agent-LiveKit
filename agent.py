@@ -15,10 +15,8 @@ from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
 
-# Import MCP integration as a package
-from mcp_integration.manager import MCPManager
-from mcp_integration.tools import MCPToolsIntegration
-from mcp_integration.storage import PostgreSQLStorage
+# Import simplified MCP integration 
+from mcp_integration.simple_client import SimpleMCPManager
 
 logger = logging.getLogger("voice-agent")
 load_dotenv()
@@ -62,22 +60,18 @@ class Assistant(Agent):
         try:
             logger.info("Initializing MCP integration...")
             
-            # Create storage interface
-            storage = PostgreSQLStorage()
-            self.mcp_manager = MCPManager(storage)
+            # Create simplified MCP manager 
+            self.mcp_manager = SimpleMCPManager()
             
             # Load and connect MCP servers for user
             mcp_servers = await self.mcp_manager.initialize_user_servers(user_id)
             
             if mcp_servers:
-                logger.info(f"Found {len(mcp_servers)} MCP servers")
-                # Build tools from MCP servers
-                tools = await MCPToolsIntegration.build_livekit_tools(
-                    self.mcp_manager.connected_servers
-                )
+                logger.info(f"Connected to {len(self.mcp_manager.connected_servers)} MCP servers")
                 
+                # Get available tools
+                tools = await self.mcp_manager.get_all_tools()
                 if tools:
-                    # Store MCP tools separately since agent tools are read-only
                     self.mcp_tools = tools
                     logger.info(f"Loaded {len(tools)} MCP tools")
                 else:
@@ -165,18 +159,19 @@ async def entrypoint(ctx: JobContext):
     participant = await ctx.wait_for_participant()
     logger.info(f"Participant joined: {participant.identity}")
     
-    # Get agent configuration from database using PostgreSQL storage
+    # Get agent configuration from REST API
     try:
-        storage = PostgreSQLStorage()
-        config = await storage.getAgentConfigByUserId(user_id=1)
-        if not config:
-            # Fallback to REST API
-            config = await get_agent_config(ctx.room.name)
+        config = await get_agent_config(ctx.room.name)
         logger.info(f"Using agent config: {config.get('name', 'Default')}")
         logger.info(f"System prompt: {config.get('systemPrompt', 'Default')[:100]}...")
     except Exception as e:
-        logger.error(f"Failed to load config from database: {e}")
-        config = await get_agent_config(ctx.room.name)
+        logger.error(f"Failed to load config: {e}")
+        config = {
+            "systemPrompt": "You are a helpful AI assistant.",
+            "voiceModel": "alloy",
+            "temperature": 80,
+            "responseLength": "medium"
+        }
     
     # Map voice model names to OpenAI voice options
     voice_mapping = {
