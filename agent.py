@@ -2,7 +2,7 @@ import logging
 from dotenv import load_dotenv
 
 from livekit import agents
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, RoomInputOptions
+from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai
 from openai.types.beta.realtime.session import TurnDetection
