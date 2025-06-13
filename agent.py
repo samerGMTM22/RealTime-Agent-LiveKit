@@ -65,7 +65,7 @@ class GiveMeTheMicAgent(Agent):
         system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
         super().__init__()
         self.config = config
-        self._instructions = system_prompt
+        self.system_prompt = system_prompt
 
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
@@ -220,7 +220,7 @@ async def entrypoint(ctx: JobContext):
     
     # Create session with proper VAD and streaming configuration
     try:
-        # Try OpenAI Realtime API first (without ServerVAD which doesn't exist)
+        # Try OpenAI Realtime API first
         try:
             realtime_model = openai.realtime.RealtimeModel(
                 voice=voice,
@@ -231,6 +231,10 @@ async def entrypoint(ctx: JobContext):
                 llm=realtime_model,
             )
             logger.info("Attempting OpenAI Realtime API connection")
+            
+            # Configure the system prompt for the realtime model
+            if hasattr(realtime_model, 'set_instructions'):
+                realtime_model.set_instructions(agent.system_prompt)
             
             # Start session with proper agent and room configuration
             await session.start(
