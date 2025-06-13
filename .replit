@@ -13,14 +13,6 @@ deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
 
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 8081
-externalPort = 8081
-
 [workflows]
 runButton = "Project"
 
@@ -41,3 +33,11 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[[ports]]
+localPort = 42637
+externalPort = 80
+
+[[ports]]
+localPort = 52601
+externalPort = 3000
