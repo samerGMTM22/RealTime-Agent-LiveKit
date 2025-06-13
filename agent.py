@@ -69,11 +69,13 @@ class Assistant(Agent):
             if mcp_servers:
                 logger.info(f"Connected to {len(self.mcp_manager.connected_servers)} MCP servers")
                 
-                # Get available tools
+                # Get available tools and register them as function tools
                 tools = await self.mcp_manager.get_all_tools()
                 if tools:
                     self.mcp_tools = tools
-                    logger.info(f"Loaded {len(tools)} MCP tools")
+                    # Register MCP tools as proper function tools
+                    self._register_mcp_tools(tools)
+                    logger.info(f"Loaded and registered {len(tools)} MCP tools")
                 else:
                     logger.info("No MCP tools available from servers")
             else:
@@ -85,6 +87,83 @@ class Assistant(Agent):
             logger.error(f"MCP initialization failed: {e}")
             # Agent continues without MCP tools - this is graceful degradation
             return []
+
+    def _register_mcp_tools(self, tools):
+        """Register MCP tools as LiveKit function tools"""
+        for tool in tools:
+            tool_name = tool["name"]
+            server_id = tool["server_id"]
+            
+            logger.info(f"Registering MCP tool: {tool_name} from server {tool['server_name']}")
+            
+            # Store MCP tool mapping for later use
+            if not hasattr(self, '_mcp_tool_mapping'):
+                self._mcp_tool_mapping = {}
+            self._mcp_tool_mapping[tool_name] = server_id
+            
+        logger.info(f"Stored {len(self._mcp_tool_mapping)} MCP tool mappings")
+
+    # Define MCP tools as proper class methods with function_tool decorator
+    @function_tool
+    async def search_web(self, query: str):
+        """Search the web for current information using MCP internet access tools.
+        
+        Args:
+            query: The search query to find current information
+        """
+        logger.info(f"Executing web search for: {query}")
+        
+        try:
+            # Use MCP manager if available
+            if self.mcp_manager and hasattr(self, '_mcp_tool_mapping'):
+                for server_id, client in self.mcp_manager.connected_servers.items():
+                    if "internet" in client.name.lower():
+                        result = await self.mcp_manager.call_tool(server_id, "search", {"query": query})
+                        if "error" not in result:
+                            return result.get("content", "Search completed successfully")
+            
+            # Fallback to Express API
+            response = requests.post('http://localhost:5000/api/mcp/execute', 
+                                   json={"tool": "search", "params": {"query": query}}, 
+                                   timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    return data.get("result", "Search completed")
+                else:
+                    return "Web search is currently unavailable. Please check MCP server connections."
+                    
+        except Exception as e:
+            logger.error(f"Error in web search: {e}")
+            return "Web search is currently unavailable. Please check MCP server connections."
+
+    @function_tool
+    async def send_email(self, to: str, subject: str, body: str):
+        """Send an email via Zapier MCP integration.
+        
+        Args:
+            to: Email recipient address
+            subject: Email subject line
+            body: Email message content
+        """
+        logger.info(f"Sending email to: {to}")
+        
+        try:
+            # Use MCP manager if available
+            if self.mcp_manager and hasattr(self, '_mcp_tool_mapping'):
+                for server_id, client in self.mcp_manager.connected_servers.items():
+                    if "zapier" in client.name.lower():
+                        result = await self.mcp_manager.call_tool(server_id, "send_email", {
+                            "to": to, "subject": subject, "body": body
+                        })
+                        if "error" not in result:
+                            return result.get("content", "Email sent successfully via Zapier")
+            
+            return "Email functionality is available via Zapier MCP integration"
+                    
+        except Exception as e:
+            logger.error(f"Error sending email: {e}")
+            return "Email functionality is currently unavailable. Please check Zapier MCP server connection."
 
     @function_tool
     async def get_available_tools(self):

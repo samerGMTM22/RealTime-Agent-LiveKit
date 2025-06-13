@@ -1,0 +1,103 @@
+
+> rest-express@1.0.0 dev
+Starting MCP health monitor...ver/index.ts
+7:38:23 PM [express] serving on port 5000
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+7:38:26 PM [express] GET /api/agent-configs/active 304 in 70ms :: {"id":1,"userId":1,"name":"Voice A…
+7:38:26 PM [express] GET /api/status 200 in 494ms :: {"livekit":"online","openai":"connected","mcp":…
+7:38:29 PM [express] GET /api/agent-configs/active 304 in 61ms :: {"id":1,"userId":1,"name":"Voice A…
+7:38:29 PM [express] GET /api/status 200 in 170ms :: {"livekit":"online","openai":"connected","mcp":…
+7:39:00 PM [express] GET /api/status 200 in 469ms :: {"livekit":"online","openai":"connected","mcp":…
+7:39:05 PM [express] POST /api/livekit/rooms 201 in 767ms :: {"sid":"RM_eZaim3xdUS4d","name":"voice_…
+7:39:05 PM [express] GET /api/livekit/url 304 in 0ms :: {"url":"wss://test-project-eg4kodos.livekit.…
+7:39:05 PM [express] POST /api/livekit/token 200 in 0ms :: {"token":"eyJhbGciOiJIUzI1NiJ9.eyJ2aWRlby…
+7:39:06 PM [express] GET /api/conversations 200 in 6ms
+Starting Python LiveKit agent for room: voice_agent_session_1749843544444_t5l5sc0tj
+Python LiveKit agent started for room voice_agent_session_1749843544444_t5l5sc0tj
+Agent stdout: {"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.0.23", "rtc-version": "1.0.8", "timestamp": "2025-06-13T19:39:08.143265+00:00"}
+
+Agent stdout: {"message": "preloading plugins", "level": "INFO", "name": "livekit.agents", "packages": ["livekit.plugins.openai", "livekit.plugins.silero"], "timestamp": "2025-06-13T19:39:08.143384+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 13039, "timestamp": "2025-06-13T19:39:09.402095+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 13041, "timestamp": "2025-06-13T19:39:09.430734+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 13043, "timestamp": "2025-06-13T19:39:09.431123+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 13044, "timestamp": "2025-06-13T19:39:09.431904+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 13041, "elapsed_time": 0.04, "timestamp": "2025-06-13T19:39:09.473132+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 13039, "elapsed_time": 0.08, "timestamp": "2025-06-13T19:39:09.478211+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 13044, "elapsed_time": 0.06, "timestamp": "2025-06-13T19:39:09.496578+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 13043, "elapsed_time": 0.07, "timestamp": "2025-06-13T19:39:09.503153+00:00"}
+
+Agent stdout: {"message": "see tracing information at http://localhost:8081/debug", "level": "INFO", "name": "livekit.agents", "timestamp": "2025-06-13T19:39:09.503664+00:00"}
+
+Agent stdout: {"message": "registered worker", "level": "INFO", "name": "livekit.agents", "id": "AW_EjA47WdxUePz", "url": "wss://test-project-eg4kodos.livekit.cloud", "region": "US West", "protocol": 16, "timestamp": "2025-06-13T19:39:09.652838+00:00"}
+
+Agent stdout: {"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_kbS5GA2jcU4J", "dispatch_id": "", "room_name": "voice_agent_session_1749843544444_t5l5sc0tj", "agent_name": "", "resuming": false, "timestamp": "2025-06-13T19:39:09.708385+00:00"}
+
+Agent stdout: {"message": "Agent started for room: voice_agent_session_1749843544444_t5l5sc0tj", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:09.744996+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 13066, "timestamp": "2025-06-13T19:39:09.769434+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 13066, "elapsed_time": 0.06, "timestamp": "2025-06-13T19:39:09.831146+00:00"}
+
+Agent stdout: {"message": "Participant joined: user", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.160300+00:00"}
+
+7:39:10 PM [express] GET /api/agent-configs/1 200 in 59ms :: {"id":1,"userId":1,"name":"Voice Assist…
+Agent stdout: {"message": "Fetched config from database: Voice Assistant", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.223924+00:00"}
+
+Agent stdout: {"message": "Using agent config: Voice Assistant", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.224089+00:00"}
+{"message": "System prompt: You are a professional customer service agent. Your role is to assist customers with their inquiries...", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.224138+00:00"}
+
+Agent stdout: {"message": "Voice: echo, Temperature: 1.02", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.224183+00:00"}
+{"message": "Attempting OpenAI Realtime API", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.224219+00:00"}
+
+Agent stdout: {"message": "Initializing MCP integration...", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.234874+00:00"}
+
+7:39:10 PM [express] GET /api/mcp/servers 200 in 59ms :: [{"id":11,"userId":1,"name":"Zapier send dr…
+Agent stdout: {"message": "MCP server Zapier send draft email marked as available", "level": "INFO", "name": "mcp_integration.simple_client", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.297620+00:00"}
+
+Agent stdout: {"message": "Connected to MCP server: Zapier send draft email", "level": "INFO", "name": "mcp_integration.simple_client", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.297713+00:00"}
+{"message": "MCP server internet access marked as available", "level": "INFO", "name": "mcp_integration.simple_client", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.297761+00:00"}
+
+Agent stdout: {"message": "Connected to MCP server: internet access", "level": "INFO", "name": "mcp_integration.simple_client", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.297792+00:00"}
+
+Agent stdout: {"message": "Initialized 2 MCP servers", "level": "INFO", "name": "mcp_integration.simple_client", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.297821+00:00"}
+
+Agent stdout: {"message": "Connected to 2 MCP servers", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.297986+00:00"}
+{"message": "Loaded 2 MCP tools", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:10.298061+00:00"}
+
+Agent stdout: {"message": "MCP servers loaded: 2", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:15.388733+00:00"}
+
+Agent stdout: {"message": "OpenAI Realtime API agent started successfully", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:21.904226+00:00"}
+
+7:39:26 PM [express] GET /api/agent-configs/active 304 in 61ms :: {"id":1,"userId":1,"name":"Voice A…
+7:39:26 PM [express] GET /api/status 200 in 259ms :: {"livekit":"online","openai":"connected","mcp":…
+Agent stdout: {"message": "Searching web for: most recent news on OpenAI", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:29.123847+00:00"}
+
+7:39:30 PM [express] GET /api/status 200 in 382ms :: {"livekit":"online","openai":"connected","mcp":…
+Agent stdout: {"message": "Searching web for: OpenAI most recent announcement", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:39:53.961976+00:00"}
+
+Agent stdout: {"message": "Searching web for: OpenAI most recent announcement", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:40:14.115835+00:00"}
+
+7:41:01 PM [express] GET /api/status 200 in 280ms :: {"livekit":"online","openai":"connected","mcp":…
+Agent stdout: {"message": "Checking available MCP tools", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:41:04.553018+00:00"}
+
+Agent stdout: {"message": "Searching web for: OpenAI most recent announcement", "level": "INFO", "name": "voice-agent", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:41:21.927219+00:00"}
+
+7:42:02 PM [express] GET /api/status 200 in 329ms :: {"livekit":"online","openai":"connected","mcp":…
+Agent stdout: {"message": "unknown AI function `Zapier_send_draft_email`", "level": "WARNING", "name": "livekit.agents", "function": "Zapier_send_draft_email", "speech_id": "speech_7a1c9a2b1014", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:42:18.097360+00:00"}
+
+7:42:32 PM [express] GET /api/status 200 in 277ms :: {"livekit":"online","openai":"connected","mcp":…
+7:43:03 PM [express] GET /api/status 200 in 308ms :: {"livekit":"online","openai":"connected","mcp":…
+7:43:33 PM [express] GET /api/status 200 in 464ms :: {"livekit":"online","openai":"connected","mcp":…
+Agent stdout: {"message": "process exiting", "level": "INFO", "name": "livekit.agents", "reason": "", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:43:43.118235+00:00"}
+
+Agent stdout: {"message": "AgentSession is closing due to unrecoverable error\nlivekit.agents._exceptions.APIConnectionError: OpenAI S2S connection closed unexpectedly", "level": "ERROR", "name": "livekit.agents", "pid": 13041, "job_id": "AJ_kbS5GA2jcU4J", "timestamp": "2025-06-13T19:43:43.121189+00:00"}
