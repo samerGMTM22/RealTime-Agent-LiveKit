@@ -1,18 +1,24 @@
 import logging
+import os
+import asyncio
+import sys
+from pathlib import Path
+from typing import Dict, Optional
 from dotenv import load_dotenv
+
+# Add the workspace root to Python path
+sys.path.insert(0, str(Path(__file__).parent))
 
 from livekit import agents, rtc
 from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, llm, AgentSession, Agent
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
-import os
-import sys
-sys.path.append('./server')
-# Temporarily disable MCP imports to fix agent startup
-# from mcp_manager import MCPManager
-# from mcp_tools import MCPToolsIntegration
-# from storage import DatabaseStorage
+
+# Import MCP integration as a package
+from mcp_integration.manager import MCPManager
+from mcp_integration.tools import MCPToolsIntegration
+from mcp_integration.storage import PostgreSQLStorage
 
 logger = logging.getLogger("voice-agent")
 load_dotenv()
@@ -51,9 +57,39 @@ class Assistant(Agent):
         self.mcp_tools_integration = None
 
     async def initialize_mcp(self, user_id: int = 1):
-        """Initialize MCP servers and tools for this agent"""
-        # Temporarily disabled MCP to fix agent startup
-        logger.info("MCP initialization temporarily disabled")
+        """Initialize MCP servers with error handling and graceful degradation"""
+        try:
+            logger.info("Initializing MCP integration...")
+            
+            # Create storage interface
+            storage = PostgreSQLStorage()
+            self.mcp_manager = MCPManager(storage)
+            
+            # Load and connect MCP servers for user
+            mcp_servers = await self.mcp_manager.initialize_user_servers(user_id)
+            
+            if mcp_servers:
+                # Build tools from MCP servers
+                tools = await MCPToolsIntegration.build_livekit_tools(
+                    self.mcp_manager.connected_servers
+                )
+                
+                if tools:
+                    # Add MCP tools to agent (tools are already decorated function_tool objects)
+                    for tool in tools:
+                        self.register_tool(tool)
+                    logger.info(f"Added {len(tools)} MCP tools to agent")
+                else:
+                    logger.info("No MCP tools available")
+            else:
+                logger.info("No MCP servers connected")
+            
+            return mcp_servers
+            
+        except Exception as e:
+            logger.error(f"MCP initialization failed: {e}")
+            # Agent continues without MCP tools - this is graceful degradation
+            return []
 
     @function_tool
     async def get_general_info(self):
@@ -198,15 +234,32 @@ async def entrypoint(ctx: JobContext):
             max_endpointing_delay=6.0,
         )
 
+        # Create assistant and start MCP initialization asynchronously
+        assistant = Assistant(config)
+        
+        # Start MCP initialization in background (non-blocking)
+        mcp_task = asyncio.create_task(assistant.initialize_mcp(user_id=1))
+        
         await session.start(
             room=ctx.room,
-            agent=Assistant(config),
+            agent=assistant,
         )
         
         # Generate initial greeting
         await session.generate_reply(
             instructions="Greet the user warmly and offer your assistance."
         )
+        
+        # Wait for MCP initialization with timeout
+        try:
+            mcp_servers = await asyncio.wait_for(mcp_task, timeout=10.0)
+            if mcp_servers:
+                logger.info(f"MCP servers loaded: {len(mcp_servers)}")
+                await session.generate_reply(
+                    instructions=f"Inform the user that {len(mcp_servers)} external tools are now available for enhanced assistance."
+                )
+        except asyncio.TimeoutError:
+            logger.warning("MCP initialization timed out, continuing with voice-only functionality")
         
         logger.info("OpenAI Realtime API agent started successfully")
         
