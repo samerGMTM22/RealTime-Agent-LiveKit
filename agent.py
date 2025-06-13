@@ -194,14 +194,4 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    # Configure worker options to avoid port conflicts
-    import os
-    import random
-    
-    # Use random port for debug server to avoid conflicts
-    debug_port = random.randint(8082, 8999)
-    os.environ["LIVEKIT_AGENTS_DEBUG_PORT"] = str(debug_port)
-    
-    cli.run_app(WorkerOptions(
-        entrypoint_fnc=entrypoint
-    ))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
