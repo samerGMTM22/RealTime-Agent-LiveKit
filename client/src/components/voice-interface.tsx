@@ -107,32 +107,7 @@ export default function VoiceInterface({ activeAgent, sessionId, onSessionStart 
             <Play className="h-5 w-5 text-green-400" />
             <span>Start Session</span>
           </Button>
-          
-          {/* Audio Enable Button - shown when session is active */}
-          {isConnected && (
-            <Button
-              onClick={() => {
-                // Enable any pending audio
-                if ((window as any).pendingAudio) {
-                  (window as any).pendingAudio.play().then(() => {
-                    console.log('Manual audio play successful');
-                    delete (window as any).pendingAudio;
-                  }).catch(console.error);
-                }
-                // Resume audio context if suspended
-                const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-                if (audioContext.state === 'suspended') {
-                  audioContext.resume();
-                }
-              }}
-              className="glass-card hover:bg-blue-500/20 transition-all duration-300 px-6 py-3 rounded-xl flex items-center space-x-2"
-              variant="ghost"
-            >
-              <Play className="h-5 w-5 text-blue-400" />
-              <span>Enable Audio</span>
-            </Button>
-          )}
-          
+
           <Button
             onClick={stopSession}
             disabled={!isConnected}
@@ -142,7 +117,7 @@ export default function VoiceInterface({ activeAgent, sessionId, onSessionStart 
             <Square className="h-5 w-5 text-red-400" />
             <span>Stop</span>
           </Button>
-          
+
           <Button
             onClick={toggleMute}
             disabled={!isConnected}

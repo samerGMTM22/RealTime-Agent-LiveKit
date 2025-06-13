@@ -63,8 +63,9 @@ async def get_agent_config(room_name: str):
 class GiveMeTheMicAgent(Agent):
     def __init__(self, config: dict) -> None:
         system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
-        super().__init__(instructions=system_prompt)
+        super().__init__()
         self.config = config
+        self._instructions = system_prompt
 
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
@@ -214,7 +215,7 @@ async def entrypoint(ctx: JobContext):
     # Connect to the room first
     await ctx.connect()
 
-    # Initialize agent instance
+    # Initialize agent instance with system prompt
     agent = GiveMeTheMicAgent(config)
     
     # Create session with proper VAD and streaming configuration
@@ -224,7 +225,6 @@ async def entrypoint(ctx: JobContext):
             realtime_model = openai.realtime.RealtimeModel(
                 voice=voice,
                 temperature=temperature,
-                instructions=config.get("systemPrompt", "You are a helpful voice AI assistant."),
             )
             
             session = AgentSession(
@@ -250,10 +250,7 @@ async def entrypoint(ctx: JobContext):
         # Fallback to STT-LLM-TTS pipeline with proper VAD configuration
         session = AgentSession(
             # Add Silero VAD for voice activity detection
-            vad=silero.VAD.load(
-                min_silence_duration=0.5,  # 500ms of silence to stop
-                min_speaking_duration=0.3,  # 300ms to start speaking
-            ),
+            vad=silero.VAD.load(),
             # Use streaming STT with adapter
             stt=stt.StreamAdapter(
                 stt=openai.STT(model="whisper-1"),
