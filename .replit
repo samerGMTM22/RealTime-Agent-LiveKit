@@ -35,9 +35,18 @@ args = "npm run dev"
 waitForPort = 5000
 
 [[ports]]
-localPort = 52855
-externalPort = 3000
+localPort = 5000
+externalPort = 80
 
 [[ports]]
-localPort = 53089
-externalPort = 80
+localPort = 8081
+externalPort = 8081
+
+# Additional ports for WebRTC audio streams
+[[ports]]
+localPort = 3478
+externalPort = 3478
+
+[[ports]]
+localPort = 5349
+externalPort = 5349

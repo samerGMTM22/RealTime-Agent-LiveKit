@@ -24,10 +24,27 @@ export default function VoiceInterface({ activeAgent, sessionId, onSessionStart 
 
   const handleStartSession = async () => {
     try {
+      // Check microphone permissions before starting
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Your browser does not support microphone access. Please use a modern browser.');
+        return;
+      }
+
+      // Test microphone access
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        console.log('Microphone test successful');
+      } catch (err) {
+        alert('Please allow microphone access to use voice features.');
+        return;
+      }
+
       const newSessionId = await startSession(activeAgent?.id || 1);
       onSessionStart(newSessionId);
     } catch (error) {
       console.error("Failed to start voice session:", error);
+      alert(`Failed to start voice session: ${error.message}`);
     }
   };
 

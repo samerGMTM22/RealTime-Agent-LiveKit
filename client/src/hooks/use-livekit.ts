@@ -43,6 +43,14 @@ export function useLiveKit() {
         setParticipants(prev => prev.filter(p => p.identity !== participant.identity));
       });
 
+      // Monitor local track publishing
+      newRoom.on(RoomEvent.LocalTrackPublished, (publication, participant) => {
+        console.log('Local track published:', publication.kind, publication.source);
+        if (publication.kind === Track.Kind.Audio) {
+          console.log('Local audio track published successfully');
+        }
+      });
+
       newRoom.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
         console.log('Track subscribed:', track.kind, 'from', participant.identity);
 
@@ -53,10 +61,30 @@ export function useLiveKit() {
             audioElement.autoplay = true;
             audioElement.volume = 1.0;
             audioElement.playsInline = true;
+            audioElement.controls = false;
+            
+            // Add event listeners for debugging
+            audioElement.addEventListener('canplay', () => {
+              console.log('Audio element can play');
+            });
+            
+            audioElement.addEventListener('play', () => {
+              console.log('Audio element started playing');
+            });
+            
+            audioElement.addEventListener('error', (e) => {
+              console.error('Audio element error:', e);
+            });
+            
             // Ensure audio plays in browsers that require user interaction
             audioElement.play().catch(err => {
               console.warn('Auto-play failed, will retry on user interaction:', err);
+              // Try to play after a user gesture
+              document.addEventListener('click', () => {
+                audioElement.play().catch(console.error);
+              }, { once: true });
             });
+            
             document.body.appendChild(audioElement);
             console.log('Audio element attached and configured for playback');
           }
@@ -88,6 +116,27 @@ export function useLiveKit() {
         }
       });
 
+      // Request microphone permissions first
+      try {
+        console.log('Requesting microphone permissions...');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 48000
+          } 
+        });
+        console.log('Microphone permissions granted');
+        
+        // Stop the test stream
+        stream.getTracks().forEach(track => track.stop());
+      } catch (err) {
+        console.error('Microphone permission denied:', err);
+        setError('Microphone permission is required for voice interaction');
+        throw new Error('Microphone permission denied');
+      }
+
       // Connect to room - use provided URL or fallback
       const wsURL = livekitUrl || import.meta.env.VITE_LIVEKIT_URL || 'wss://voiceagent-livekit-t3b8vrdx.livekit.cloud';
       console.log('Connecting to LiveKit at:', wsURL);
@@ -96,12 +145,22 @@ export function useLiveKit() {
 
       console.log('Connected to LiveKit room:', roomName);
 
-      // Enable microphone for voice input
+      // Enable microphone for voice input with better error handling
       try {
+        console.log('Enabling microphone...');
         await newRoom.localParticipant.setMicrophoneEnabled(true);
-        console.log('Microphone enabled for voice input');
+        
+        // Verify microphone is actually enabled
+        const micTrack = newRoom.localParticipant.audioTrackPublications.values().next().value;
+        if (micTrack && micTrack.track) {
+          console.log('Microphone enabled and audio track created successfully');
+        } else {
+          console.warn('Microphone enabled but no audio track detected');
+        }
       } catch (err) {
         console.error('Failed to enable microphone:', err);
+        setError(`Failed to enable microphone: ${err.message}`);
+        throw err;
       }
 
       setRoom(newRoom);

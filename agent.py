@@ -69,6 +69,15 @@ class GiveMeTheMicAgent(Agent):
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
+        
+        # Monitor for participant connections
+        ctx = self.session._ctx
+        if ctx and ctx.room:
+            logger.info(f"Room participants: {len(ctx.room.participants)}")
+            for participant in ctx.room.participants.values():
+                logger.info(f"Participant: {participant.identity}")
+                for track_pub in participant.audio_track_publications.values():
+                    logger.info(f"Audio track: {track_pub.sid}, subscribed: {track_pub.subscribed}")
 
         # Use generate_reply for realtime models as per LiveKit docs
         # The say() method requires a TTS model which isn't needed for realtime API
