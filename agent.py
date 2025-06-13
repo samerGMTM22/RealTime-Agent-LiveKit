@@ -195,10 +195,22 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    import sys
-    from livekit.agents.cli import cli
+    # Monkey patch to disable HTTP server before worker initialization
+    from livekit.agents import worker
     
-    # Override CLI arguments to disable HTTP server
-    sys.argv.extend(['--no-debug', '--host', '127.0.0.1', '--port', '0'])
+    # Override HTTPServer.start to prevent port binding
+    original_start = None
+    if hasattr(worker.Worker, '_http_server'):
+        class MockHTTPServer:
+            async def start(self):
+                pass
+            async def stop(self):
+                pass
+        
+        # Replace HTTP server with mock
+        def mock_init_http_server(self):
+            self._http_server = MockHTTPServer()
+        
+        worker.Worker._init_http_server = mock_init_http_server
     
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
