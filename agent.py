@@ -5,6 +5,7 @@ from livekit import agents
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, RoomInputOptions
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai
+from openai.types.beta.realtime.session import TurnDetection
 import requests
 
 logger = logging.getLogger("voice-agent")
@@ -149,18 +150,29 @@ async def entrypoint(ctx: agents.JobContext):
     }
     
     voice = voice_mapping.get(config.get("voiceModel", "alloy"), "alloy")
-    # Convert temperature from percentage (0-100) to decimal (0.6-1.2)
+    # Convert temperature from percentage (0-100) to valid range (0.6-1.2) as per OpenAI docs
     temp_raw = config.get("temperature", 80)
-    temperature = max(0.6, min(1.2, float(temp_raw) / 100.0 * 0.6 + 0.6))
+    temperature = max(0.6, min(1.2, 0.6 + (float(temp_raw) / 100.0) * 0.6))
     
     logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
-    # Create OpenAI Realtime model session following official documentation
+    # Configure turn detection for better voice interaction
+    turn_detection = TurnDetection(
+        type="server_vad",
+        threshold=0.5,
+        prefix_padding_ms=300,
+        silence_duration_ms=500,
+        create_response=True,
+        interrupt_response=True,
+    )
+
+    # Use OpenAI Realtime API as specified in documentation
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
+            model="gpt-4o-realtime-preview",
             voice=voice,
             temperature=temperature,
-            model="gpt-4o-realtime-preview"
+            turn_detection=turn_detection,
         )
     )
 
@@ -171,12 +183,12 @@ async def entrypoint(ctx: agents.JobContext):
     
     await ctx.connect()
     
-    # Generate initial greeting as per LiveKit documentation
+    # Generate initial greeting using generate_reply as per documentation
     await session.generate_reply(
         instructions="Greet the user and offer your assistance."
     )
     
-    logger.info("OpenAI Realtime agent is running and ready for voice interactions")
+    logger.info("OpenAI Realtime API agent is running and ready for voice interactions")
 
 
 if __name__ == "__main__":
