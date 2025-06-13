@@ -50,34 +50,27 @@ class GiveMeTheMicAgent(Agent):
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
-        try:
-            import asyncio
-            greeting = "Hello! I'm your music assistant ready to help you today!"
-            logger.info(f"Attempting TTS synthesis for greeting: {greeting}")
-            
-            # Add timeout to TTS synthesis to prevent hanging
-            await asyncio.wait_for(
-                self.session.say(greeting, allow_interruptions=True),
-                timeout=10.0
-            )
-            logger.info("TTS greeting synthesis completed successfully")
-            
-        except asyncio.TimeoutError:
-            logger.error("TTS synthesis timed out after 10 seconds")
-            # Try shorter fallback message
+        
+        # Schedule greeting after a delay to allow session to fully initialize
+        import asyncio
+        
+        async def delayed_greeting():
+            await asyncio.sleep(1.0)  # Wait for session stabilization
             try:
-                await asyncio.wait_for(
-                    self.session.say("Hello! How can I help with music today?"),
-                    timeout=5.0
-                )
-                logger.info("Short fallback TTS completed")
-            except Exception as e3:
-                logger.error(f"All TTS attempts failed: {str(e3)}")
-        except Exception as e:
-            logger.error(f"TTS synthesis failed with error: {str(e)}")
-            logger.error(f"Error type: {type(e).__name__}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
+                logger.info("Starting delayed TTS greeting...")
+                await self.session.say("Hello! I'm your music assistant. How can I help you today?")
+                logger.info("TTS greeting completed successfully")
+            except Exception as e:
+                logger.error(f"TTS greeting failed: {str(e)}")
+                # Try again with shorter message
+                try:
+                    await self.session.say("Hi there!")
+                    logger.info("Short greeting completed")
+                except Exception as e2:
+                    logger.error(f"All greeting attempts failed: {str(e2)}")
+        
+        # Start greeting task without blocking session initialization
+        asyncio.create_task(delayed_greeting())
 
     @function_tool
     async def get_general_info(self):
@@ -209,11 +202,23 @@ async def entrypoint(ctx: JobContext):
         vad=silero.VAD.load(),
     )
     
+    # Start session with agent instance
+    agent_instance = GiveMeTheMicAgent(config)
     await session.start(
-        agent=GiveMeTheMicAgent(config),
+        agent=agent_instance,
         room=ctx.room,
     )
     logger.info("STT-LLM-TTS pipeline session started successfully")
+    
+    # Keep session alive to ensure TTS completion
+    import asyncio
+    try:
+        # Wait indefinitely to keep agent alive
+        await asyncio.create_task(asyncio.Event().wait())
+    except asyncio.CancelledError:
+        logger.info("Agent session cancelled, shutting down gracefully")
+    except Exception as e:
+        logger.error(f"Agent session error: {e}")
     
     logger.info("Give Me the Mic agent is running and ready for voice interactions")
 
