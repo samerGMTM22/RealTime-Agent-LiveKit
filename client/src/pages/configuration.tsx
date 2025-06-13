@@ -17,14 +17,14 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const AGENT_CATEGORIES = [
-  { value: 'youtube-assistant', label: 'YouTube Channel Assistant', description: 'Specialized for YouTube channel management and audience engagement' },
+  { value: 'voice-assistant', label: 'Voice Assistant', description: 'General purpose voice assistant for various tasks and inquiries' },
   { value: 'customer-service', label: 'Customer Service Agent', description: 'Handle customer inquiries, support tickets, and general assistance' },
   { value: 'real-estate', label: 'Real Estate Agent', description: 'Property information, market insights, and client guidance' },
   { value: 'fitness-coach', label: 'Fitness & Wellness Coach', description: 'Health advice, workout plans, and wellness guidance' },
   { value: 'sales-assistant', label: 'Sales Assistant', description: 'Lead qualification, product information, and sales support' },
   { value: 'educational-tutor', label: 'Educational Tutor', description: 'Learning support, explanations, and educational guidance' },
   { value: 'technical-support', label: 'Technical Support', description: 'IT help, troubleshooting, and technical guidance' },
-  { value: 'general-assistant', label: 'General Assistant', description: 'Versatile AI assistant for various tasks and inquiries' }
+  { value: 'custom', label: 'Custom Assistant', description: 'Create your own custom voice assistant configuration' }
 ];
 
 const VOICE_MODELS = [
@@ -113,9 +113,9 @@ export default function Configuration() {
   useEffect(() => {
     if (activeAgent && typeof activeAgent === 'object') {
       const agent = activeAgent as any;
-      setAgentName(agent.name || "Give Me the Mic Assistant");
-      setAgentCategory(agent.type || "youtube-assistant");
-      setSystemPrompt(agent.systemPrompt || getDefaultPrompt("youtube-assistant"));
+      setAgentName(agent.name || "Voice Assistant");
+      setAgentCategory(agent.type || "voice-assistant");
+      setSystemPrompt(agent.systemPrompt || getDefaultPrompt("voice-assistant"));
       setVoiceModel(agent.voiceModel || "coral");
       setResponseLength(agent.responseLength || "moderate");
       setTemperature([agent.temperature || 70]);
@@ -169,7 +169,6 @@ export default function Configuration() {
           openai: { enabled: true, status: status.openai === 'connected' ? 'connected' as const : 'error' as const }
         },
         extras: {
-          youtube: { enabled: prev.extras.youtube.enabled, status: status.youtube === 'active' ? 'connected' as const : 'error' as const },
           mcp: { enabled: prev.extras.mcp.enabled, status: 'disconnected' as const }
         }
       }));
@@ -178,9 +177,8 @@ export default function Configuration() {
 
   function getDefaultPrompt(category: string): string {
     const prompts: Record<string, string> = {
-      'youtube-assistant': `You are a helpful voice AI assistant for the "Give Me the Mic" YouTube channel. 
-You help users learn about the channel's content, music-related topics, and provide assistance.
-The channel has 484 subscribers and 249 videos focusing on music and entertainment.
+      'voice-assistant': `You are a helpful voice AI assistant. 
+You assist users with general questions and tasks, provide helpful information, and engage in natural conversations.
 Keep responses conversational, helpful, and engaging.`,
       'customer-service': `You are a professional customer service agent. Your role is to assist customers with their inquiries, resolve issues, and provide helpful information about products and services. Maintain a friendly, patient, and solution-oriented approach.`,
       'real-estate': `You are a knowledgeable real estate agent assistant. Help clients with property information, market insights, neighborhood details, and guide them through the buying or selling process. Provide accurate, helpful information while being professional and trustworthy.`,

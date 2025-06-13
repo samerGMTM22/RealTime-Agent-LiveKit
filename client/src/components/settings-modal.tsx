@@ -203,16 +203,7 @@ Keep responses conversational, helpful, and engaging.`
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  YouTube Data API
-                </label>
-                <div className="flex items-center space-x-3 glass-card p-3 rounded-lg">
-                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                  <span className="text-sm">Channel access configured</span>
-                  <Badge variant="secondary" className="ml-auto">Ready</Badge>
-                </div>
-              </div>
+
             </div>
           </TabsContent>
 
