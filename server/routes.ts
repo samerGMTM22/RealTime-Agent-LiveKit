@@ -649,7 +649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Perform actual connection test
       const connectionResult = await testMcpServerConnection(server);
       
-      await storage.updateMcpServer(id, { 
+      const updatedServer = await storage.updateMcpServer(id, { 
         connectionStatus: connectionResult.success ? "connected" : "error",
         metadata: {
           ...(server.metadata || {}),
@@ -659,7 +659,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      const updatedServer = await storage.updateMcpServer(id, {});
       res.json(updatedServer);
     } catch (error) {
       console.error("Error connecting to MCP server:", error);

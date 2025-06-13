@@ -49,18 +49,19 @@ interface DataSource {
   name: string;
   url?: string;
   config: Record<string, any>;
-  status: 'connected' | 'disconnected' | 'error';
+  status: 'connected' | 'disconnected' | 'error' | 'testing';
+  metadata?: {
+    responseTime?: number;
+    lastTestResult?: any;
+    lastTestTime?: string;
+    [key: string]: any;
+  };
 }
 
 export default function Configuration() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("agent");
-  const [mcpServers, setMcpServers] = useState<Array<{
-    id: string;
-    name: string;
-    url: string;
-    status: 'connected' | 'disconnected' | 'error' | 'testing';
-  }>>([]);
+  const [mcpServers, setMcpServers] = useState<DataSource[]>([]);
   const [newMcpServer, setNewMcpServer] = useState({ name: '', url: '' });
   
   // Agent configuration state
@@ -140,7 +141,10 @@ export default function Configuration() {
         id: server.id.toString(), // Ensure ID is string for frontend
         name: server.name,
         url: server.url,
-        status: server.status || 'disconnected'
+        status: server.connectionStatus || 'disconnected',
+        metadata: server.metadata || {},
+        type: 'mcp' as const,
+        config: {}
       }));
       setMcpServers(servers);
     } else {
@@ -258,7 +262,11 @@ Keep responses conversational, helpful, and engaging.`,
     onSuccess: (data, serverId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
       setMcpServers(prev => prev.map(server => 
-        server.id === serverId ? { ...server, status: 'connected' as const } : server
+        server.id === serverId ? { 
+          ...server, 
+          status: 'connected' as const,
+          metadata: { ...server.metadata, ...data.metadata }
+        } : server
       ));
     },
     onError: (error, serverId) => {
