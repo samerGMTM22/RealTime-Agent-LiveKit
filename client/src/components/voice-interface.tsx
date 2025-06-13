@@ -24,27 +24,10 @@ export default function VoiceInterface({ activeAgent, sessionId, onSessionStart 
 
   const handleStartSession = async () => {
     try {
-      // Check microphone permissions before starting
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        alert('Your browser does not support microphone access. Please use a modern browser.');
-        return;
-      }
-
-      // Test microphone access
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(track => track.stop());
-        console.log('Microphone test successful');
-      } catch (err) {
-        alert('Please allow microphone access to use voice features.');
-        return;
-      }
-
       const newSessionId = await startSession(activeAgent?.id || 1);
       onSessionStart(newSessionId);
     } catch (error) {
       console.error("Failed to start voice session:", error);
-      alert(`Failed to start voice session: ${error.message}`);
     }
   };
 
@@ -124,7 +107,7 @@ export default function VoiceInterface({ activeAgent, sessionId, onSessionStart 
             <Play className="h-5 w-5 text-green-400" />
             <span>Start Session</span>
           </Button>
-
+          
           <Button
             onClick={stopSession}
             disabled={!isConnected}
@@ -134,7 +117,7 @@ export default function VoiceInterface({ activeAgent, sessionId, onSessionStart 
             <Square className="h-5 w-5 text-red-400" />
             <span>Stop</span>
           </Button>
-
+          
           <Button
             onClick={toggleMute}
             disabled={!isConnected}

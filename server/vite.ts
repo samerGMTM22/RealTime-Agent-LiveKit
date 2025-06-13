@@ -20,6 +20,12 @@ export function log(message: string, source = "express") {
 }
 
 export async function setupVite(app: Express, server: Server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true,
+  };
+
   const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
@@ -30,15 +36,7 @@ export async function setupVite(app: Express, server: Server) {
         process.exit(1);
       },
     },
-    server: { 
-      middlewareMode: true,
-      host: "0.0.0.0",
-      hmr: {
-        port: 5000,
-        host: "0.0.0.0",
-        server: server
-      }
-    },
+    server: serverOptions,
     appType: "custom",
   });
 
@@ -78,11 +76,7 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath, {
-    maxAge: '1d',
-    etag: true,
-    lastModified: true
-  }));
+  app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {

@@ -45,7 +45,7 @@ export default function Dashboard() {
                     const services = [];
                     if (status.livekit === 'online') services.push('LiveKit');
                     if (status.openai === 'connected') services.push('OpenAI');
-                    if (status.mcp === 'connected') services.push('MCP');
+                    if (status.youtube === 'active') services.push('YouTube');
                     return services.length > 0 ? `${services.length} Services Active` : 'Disconnected';
                   })()
                 ) : 'Checking...'}

@@ -337,7 +337,7 @@ Always prioritize patient care and follow medical practice protocols.`,
 };
 
 export function getBusinessTemplate(type: string): BusinessTemplate {
-  return BUSINESS_TEMPLATES[type] || BUSINESS_TEMPLATES['music-coach'];
+  return BUSINESS_TEMPLATES[type] || BUSINESS_TEMPLATES['youtube-channel-assistant'];
 }
 
 export function createCustomAgent(

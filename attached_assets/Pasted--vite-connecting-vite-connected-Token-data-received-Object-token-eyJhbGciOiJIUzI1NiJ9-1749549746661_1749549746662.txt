@@ -1,0 +1,25 @@
+[vite] connecting...
+[vite] connected.
+Token data received: 
+Object {token: "eyJhbGciOiJIUzI1NiJ9.eyJ2aWRlbyI6eyJyb29tSm9pbiI6dHJ1ZSwicm9vbSI6InZvaWNlX2FnZW50X3Nlc3Npb25fMTc0OT…"}
+Failed to connect to LiveKit room: 
+ReferenceError {}
+
+at t.value (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Failed to start voice session: 
+ReferenceError {}
+
+at t.value (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Failed to start voice session: 
+ReferenceError {}
+
+at t.value (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://ac5771f8-5f69-4b83-872b-ab020ab69162-00-1j1chqgccikwf.kirk.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400

@@ -16,7 +16,7 @@ import { z } from "zod";
 async function startAIAgent(roomName: string) {
   try {
     console.log(`Starting Python LiveKit agent for room: ${roomName}`);
-
+    
     // Start the Python LiveKit agent process with proper CLI parameters
     const agentProcess = spawn('python', [
       'agent.py', 
@@ -46,7 +46,7 @@ async function startAIAgent(roomName: string) {
     });
 
     console.log(`Python LiveKit agent started for room ${roomName}`);
-
+    
   } catch (error) {
     console.error('Failed to start Python agent:', error);
     throw error;
@@ -54,8 +54,7 @@ async function startAIAgent(roomName: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const server = createServer(app);
-
+  
   // Agent configuration endpoints
   app.get("/api/agent-configs", async (req, res) => {
     try {
@@ -85,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(id)) {
         return res.status(400).json({ error: "Invalid agent config ID" });
       }
-
+      
       const config = await storage.getAgentConfig(id);
       if (!config) {
         return res.status(404).json({ error: "Agent configuration not found" });
@@ -117,11 +116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const validatedData = insertAgentConfigSchema.partial().parse(req.body);
       const config = await storage.updateAgentConfig(id, validatedData);
-
+      
       if (!config) {
         return res.status(404).json({ error: "Agent configuration not found" });
       }
-
+      
       res.json(config);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -138,13 +137,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { type, customizations } = req.body;
       const template = getAgentTemplate(type);
       const userId = 1; // Default user for demo
-
+      
       const configData = createAgentConfigFromTemplate(template, userId, customizations);
       const config = await storage.createAgentConfig({
         ...configData,
         settings: configData.settings || {}
       });
-
+      
       res.status(201).json(config);
     } catch (error) {
       console.error("Error creating agent config from template:", error);
@@ -160,13 +159,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/livekit/token", async (req, res) => {
     try {
       const { roomName, participantName } = req.body;
-
+      
       if (!roomName || !participantName) {
         return res.status(400).json({ error: "Room name and participant name are required" });
       }
 
       const token = await liveKitService.createAccessToken(roomName, participantName);
-
+      
       // Start AI agent for this room
       if (participantName === 'user') {
         setTimeout(async () => {
@@ -177,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }, 1000);
       }
-
+      
       res.json({ token });
     } catch (error) {
       console.error("Error creating LiveKit token:", error);
@@ -188,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/livekit/rooms", async (req, res) => {
     try {
       const { roomName, maxParticipants } = req.body;
-
+      
       if (!roomName) {
         return res.status(400).json({ error: "Room name is required" });
       }
@@ -215,7 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/voice/start-session", async (req, res) => {
     try {
       const { agentConfigId } = req.body;
-
+      
       if (!agentConfigId) {
         return res.status(400).json({ error: "Agent config ID is required" });
       }
@@ -226,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create LiveKit room
       const room = await liveKitService.createRoom(roomName, 2);
-
+      
       // Generate access token for the user
       const token = await liveKitService.createAccessToken(roomName, 'user');
 
@@ -256,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/voice/process", async (req, res) => {
     try {
       const { message, agentConfigId, sessionId } = req.body;
-
+      
       if (!message || !agentConfigId) {
         return res.status(400).json({ error: "Message and agent config ID are required" });
       }
@@ -302,13 +301,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/voice/synthesize", async (req, res) => {
     try {
       const { text, voice = 'alloy', speed = 1.0 } = req.body;
-
+      
       if (!text) {
         return res.status(400).json({ error: "Text is required" });
       }
 
       const audioBuffer = await openaiService.generateVoiceResponse(text, { voice, speed });
-
+      
       res.set({
         'Content-Type': 'audio/mpeg',
         'Content-Length': audioBuffer.length.toString()
@@ -376,7 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/scrape", async (req, res) => {
     try {
       const { url, maxDepth = 2 } = req.body;
-
+      
       if (!url) {
         return res.status(400).json({ error: "URL is required" });
       }
@@ -395,7 +394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/mcp/execute", async (req, res) => {
     try {
       const { tool, query } = req.body;
-
+      
       if (!tool || !query) {
         return res.status(400).json({ 
           success: false, 
@@ -467,7 +466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('POST /api/mcp/servers - Request body:', req.body);
       const { name, url } = req.body;
-
+      
       if (!name || !url) {
         console.log('Missing name or URL:', { name, url });
         return res.status(400).json({ error: "Name and URL are required" });
@@ -487,7 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         url,
         status: initialStatus
       });
-
+      
       console.log('MCP server created successfully:', server);
       res.status(201).json(server);
     } catch (error) {
@@ -499,10 +498,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/mcp/servers/:id/connect", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-
+      
       // Update server status to testing first
       await storage.updateMcpServer(id, { status: "testing" });
-
+      
       // Simulate connection test (in real implementation, you'd test the WebSocket connection)
       setTimeout(async () => {
         try {
@@ -514,7 +513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateMcpServer(id, { status: "error" });
         }
       }, 2000);
-
+      
       const server = await storage.updateMcpServer(id, { status: "testing" });
       res.json(server);
     } catch (error) {
@@ -538,7 +537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const removed = await storage.deleteMcpServer(id);
-
+      
       if (!removed) {
         return res.status(404).json({ error: "MCP server not found" });
       }
@@ -579,7 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const servers = mcpManager.getAllServers();
           servers.forEach(server => mcpManager.disconnectServer(server.id));
         }
-
+        
         res.json({
           service,
           enabled,
@@ -594,5 +593,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  return server;
+  const httpServer = createServer(app);
+  return httpServer;
 }

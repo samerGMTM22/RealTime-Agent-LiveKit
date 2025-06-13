@@ -1,0 +1,1089 @@
+
+> rest-express@1.0.0 dev
+9:54:57 AM [express] serving on port 5000s
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+9:54:59 AM [express] GET /api/agent-configs/active 200 in 86ms :: {"id":1,"userId":1,"name":"My YouT…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635700169,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:00 AM [express] GET /api/status 200 in 283ms :: {"livekit":"online","openai":"connected","youtu…
+9:55:00 AM [express] GET /api/mcp/servers 200 in 267ms :: [{"id":6,"userId":1,"name":"test server","…
+9:55:03 AM [express] GET /api/agent-configs/active 304 in 68ms :: {"id":1,"userId":1,"name":"My YouT…
+9:55:03 AM [express] GET /api/mcp/servers 304 in 64ms :: [{"id":6,"userId":1,"name":"test server","u…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635703294,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:03 AM [express] GET /api/status 200 in 93ms :: {"livekit":"online","openai":"connected","youtub…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635713835,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:13 AM [express] GET /api/status 200 in 256ms :: {"livekit":"online","openai":"connected","youtu…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635718810,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:18 AM [express] GET /api/status 200 in 166ms :: {"livekit":"online","openai":"connected","youtu…
+9:55:18 AM [express] GET /api/mcp/servers 304 in 246ms :: [{"id":6,"userId":1,"name":"test server","…
+9:55:18 AM [express] GET /api/agent-configs/active 304 in 246ms :: {"id":1,"userId":1,"name":"My You…
+9:55:21 AM [express] GET /api/mcp/servers 304 in 62ms :: [{"id":6,"userId":1,"name":"test server","u…
+9:55:23 AM [express] GET /api/mcp/servers 304 in 60ms :: [{"id":6,"userId":1,"name":"test server","u…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635729975,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:29 AM [express] GET /api/status 200 in 179ms :: {"livekit":"online","openai":"connected","youtu…
+POST /api/mcp/servers - Request body: {
+  name: 'internet acces',
+  url: 'https://n8n.srv755489.hstgr.cloud/mcp/43a3ec6f-728e-489b-9456-45f9d41750b7/sse'
+}
+Invalid URL format: https://n8n.srv755489.hstgr.cloud/mcp/43a3ec6f-728e-489b-9456-45f9d41750b7/sse
+9:55:32 AM [express] POST /api/mcp/servers 400 in 1ms :: {"error":"URL must be a WebSocket URL (ws:/…
+POST /api/mcp/servers - Request body: {
+  name: 'internet acces',
+  url: 'https://n8n.srv755489.hstgr.cloud/mcp/43a3ec6f-728e-489b-9456-45f9d41750b7/sse'
+}
+Invalid URL format: https://n8n.srv755489.hstgr.cloud/mcp/43a3ec6f-728e-489b-9456-45f9d41750b7/sse
+9:55:38 AM [express] POST /api/mcp/servers 400 in 0ms :: {"error":"URL must be a WebSocket URL (ws:/…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635740429,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:40 AM [express] GET /api/status 200 in 193ms :: {"livekit":"online","openai":"connected","youtu…
+9:55:41 AM [express] GET /api/mcp/servers 304 in 248ms :: [{"id":6,"userId":1,"name":"test server","…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635744197,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:44 AM [express] GET /api/status 200 in 92ms :: {"livekit":"online","openai":"connected","youtub…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635754671,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:54 AM [express] GET /api/status 200 in 192ms :: {"livekit":"online","openai":"connected","youtu…
+9:55:59 AM [express] GET /api/agent-configs/active 304 in 244ms :: {"id":1,"userId":1,"name":"My You…
+9:55:59 AM [express] GET /api/mcp/servers 304 in 239ms :: [{"id":6,"userId":1,"name":"test server","…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635759445,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:55:59 AM [express] GET /api/status 200 in 258ms :: {"livekit":"online","openai":"connected","youtu…
+Error fetching YouTube channel info: GaxiosError: The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.
+    at Gaxios._request (/home/runner/workspace/node_modules/gaxios/src/gaxios.ts:209:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async YouTubeService.getChannelInfo (/home/runner/workspace/server/lib/youtube.ts:43:32)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:368:29) {
+  config: {
+    url: URL {
+      href: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      origin: 'https://youtube.googleapis.com',
+      protocol: 'https:',
+      username: '',
+      password: '',
+      host: 'youtube.googleapis.com',
+      hostname: 'youtube.googleapis.com',
+      port: '',
+      pathname: '/youtube/v3/search',
+      search: '?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      searchParams: URLSearchParams {
+        'part' => 'snippet',
+        'q' => 'GiveMeTheMic22',
+        'type' => 'channel',
+        'maxResults' => '10',
+        'key' => 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk' },
+      hash: ''
+    },
+    method: 'GET',
+    apiVersion: '',
+    userAgentDirectives: [ [Object] ],
+    paramsSerializer: [Function (anonymous)],
+    headers: Headers {
+      'accept-encoding': 'gzip',
+      'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+      'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+    },
+    params: {
+      part: [Array],
+      q: 'GiveMeTheMic22',
+      type: [Array],
+      maxResults: 10,
+      key: 'AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk'
+    },
+    validateStatus: [Function (anonymous)],
+    retry: true,
+    responseType: 'unknown',
+    errorRedactor: [Function: defaultErrorRedactor],
+    retryConfig: {
+      currentRetryAttempt: 0,
+      retry: 3,
+      httpMethodsToRetry: [Array],
+      noResponseRetries: 2,
+      retryDelayMultiplier: 2,
+      timeOfFirstRequest: 1749635765137,
+      totalTimeout: 9007199254740991,
+      maxRetryDelay: 9007199254740991,
+      statusCodesToRetry: [Array]
+    }
+  },
+  response: Response {
+    size: 0,
+    data: { error: [Object] },
+    config: {
+      url: URL {},
+      method: 'GET',
+      apiVersion: '',
+      userAgentDirectives: [Array],
+      paramsSerializer: [Function (anonymous)],
+      headers: Headers {
+        'accept-encoding': 'gzip',
+        'user-agent': 'google-api-nodejs-client/8.0.2-rc.0 (gzip)',
+        'x-goog-api-client': 'gdcl/8.0.2-rc.0 gl-node/20.18.1'
+      },
+      params: [Object],
+      validateStatus: [Function (anonymous)],
+      retry: true,
+      responseType: 'unknown',
+      errorRedactor: [Function: defaultErrorRedactor]
+    },
+    [Symbol(Body internals)]: {
+      body: [Gunzip],
+      stream: [Gunzip],
+      boundary: null,
+      disturbed: true,
+      error: null
+    },
+    [Symbol(Response internals)]: {
+      type: 'default',
+      url: 'https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=GiveMeTheMic22&type=channel&maxResults=10&key=AIzaSyAUtRMRLQ32LNd2Tg2BoYqCpOf1iB970tk',
+      status: 403,
+      statusText: 'Forbidden',
+      headers: [Object],
+      counter: 0,
+      highWaterMark: 16384
+    }
+  },
+  code: 403,
+  status: 403,
+  error: undefined,
+  [Symbol(gaxios-gaxios-error)]: '7.0.0-rc.6',
+  [cause]: {
+    message: 'The request cannot be completed because you have exceeded your <a href="/youtube/v3/getting-started#quota">quota</a>.',
+    code: 403,
+    status: 'Forbidden',
+    errors: [ [Object] ]
+  }
+}
+9:56:05 AM [express] GET /api/status 200 in 181ms :: {"livekit":"online","openai":"connected","youtu…

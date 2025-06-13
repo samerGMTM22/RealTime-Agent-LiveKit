@@ -81,6 +81,7 @@ export default function Configuration() {
       openai: { enabled: boolean; status: 'connected' | 'error' };
     };
     extras: {
+      youtube: { enabled: boolean; status: 'connected' | 'error' };
       mcp: { enabled: boolean; status: 'disconnected' | 'connected' | 'error' };
     };
   }>({
@@ -89,7 +90,8 @@ export default function Configuration() {
       openai: { enabled: true, status: 'connected' }
     },
     extras: {
-      mcp: { enabled: true, status: 'disconnected' }
+      youtube: { enabled: true, status: 'connected' },
+      mcp: { enabled: false, status: 'disconnected' }
     }
   });
 
@@ -169,7 +171,8 @@ export default function Configuration() {
           openai: { enabled: true, status: status.openai === 'connected' ? 'connected' as const : 'error' as const }
         },
         extras: {
-          mcp: { enabled: prev.extras.mcp.enabled, status: status.mcp === 'connected' ? 'connected' as const : 'disconnected' as const }
+          youtube: { enabled: prev.extras.youtube.enabled, status: status.youtube === 'active' ? 'connected' as const : 'error' as const },
+          mcp: { enabled: prev.extras.mcp.enabled, status: 'disconnected' as const }
         }
       }));
     }
@@ -712,13 +715,11 @@ Keep responses conversational, helpful, and engaging.`,
                 <CardDescription>Optional services that can be enabled or disabled</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {Object.entries(services.extras)
-                  .filter(([service]) => service === 'mcp')
-                  .map(([service, config]) => (
+                {Object.entries(services.extras).map(([service, config]) => (
                   <div key={service} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
                     <div className="flex items-center space-x-4">
                       <div>
-                        <h3 className="font-medium">MCP</h3>
+                        <h3 className="font-medium capitalize">{service}</h3>
                         <p className="text-sm text-gray-400">
                           Model Context Protocol servers for external tool integration
                         </p>
