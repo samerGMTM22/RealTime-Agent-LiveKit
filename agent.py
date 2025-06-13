@@ -28,16 +28,31 @@ async def get_agent_config(room_name: str):
         if response.status_code == 200:
             config = response.json()
             logger.info(f"Fetched config from database: {config['name']}")
+            
+            # Also fetch MCP servers for this agent
+            try:
+                mcp_response = requests.get(f'http://localhost:5000/api/mcp/servers', timeout=5)
+                if mcp_response.status_code == 200:
+                    mcp_servers = mcp_response.json()
+                    config['mcp_servers'] = mcp_servers
+                    logger.info(f"Loaded {len(mcp_servers)} MCP servers for agent")
+                else:
+                    config['mcp_servers'] = []
+            except Exception as mcp_error:
+                logger.warning(f"Could not load MCP servers: {mcp_error}")
+                config['mcp_servers'] = []
+                
             return config
     except Exception as e:
         logger.error(f"Error fetching agent config: {e}")
     
     # Fallback configuration
     return {
-        "systemPrompt": "You are a helpful voice AI assistant that provides music guidance and advice. You help with music practice, techniques, and general music education. Use MCP tools for current information when needed.",
+        "systemPrompt": "You are a helpful voice AI assistant that provides music guidance and advice. You help with music practice, techniques, and general music education.",
         "voiceModel": "alloy",
         "temperature": 80,
-        "responseLength": "medium"
+        "responseLength": "medium",
+        "mcp_servers": []
     }
 
 
@@ -118,26 +133,50 @@ class GiveMeTheMicAgent(Agent):
         Args:
             query: The search query to find current information
         """
+        logger.info(f"Performing web search for: {query}")
         
-        logger.info(f"Searching web for: {query}")
+        # Get MCP servers from config
+        mcp_servers = self.config.get('mcp_servers', [])
+        
+        # Check if we have any MCP servers configured
+        if not mcp_servers:
+            return "No MCP servers are currently configured. Please add MCP servers in the configuration to enable web search and other external tools."
+        
+        # Find internet access MCP server
+        internet_server = None
+        for server in mcp_servers:
+            server_name = server.get('name', '').lower()
+            if 'internet' in server_name or 'web' in server_name:
+                internet_server = server
+                break
+        
+        if not internet_server:
+            available_servers = [s.get('name', 'Unknown') for s in mcp_servers]
+            return f"No internet-capable MCP server found. Available servers: {', '.join(available_servers)}. Please configure an internet access MCP server."
         
         try:
             # Make API call to MCP tools for web search
             response = requests.post('http://localhost:5000/api/mcp/execute', 
-                                   json={'tool': 'web_search', 'query': query}, 
+                                   json={
+                                       'server_id': internet_server.get('id'),
+                                       'tool': 'web_search', 
+                                       'query': query
+                                   }, 
                                    timeout=15)
             
             if response.status_code == 200:
                 data = response.json()
                 if data.get('success') and data.get('results'):
                     return f"Search results for '{query}': {data['results']}"
+                else:
+                    return f"Web search completed but no results found for '{query}'. The MCP server '{internet_server.get('name')}' may need configuration."
             
-            logger.warning("MCP web search unavailable")
-            return "I don't currently have access to web search capabilities. Please ensure MCP tools are properly configured."
+            logger.warning(f"MCP web search failed with status {response.status_code}")
+            return f"Web search failed through MCP server '{internet_server.get('name')}'. Please check the server configuration and connection."
             
         except Exception as e:
             logger.error(f"Error accessing MCP tools: {e}")
-            return "I'm unable to perform web searches right now. The MCP integration may need to be configured."
+            return f"I'm unable to perform web searches right now. Error connecting to MCP server '{internet_server.get('name', 'Unknown')}'."
 
 
 
@@ -171,22 +210,26 @@ async def entrypoint(ctx: JobContext):
     # Connect to the room first
     await ctx.connect()
 
-    # Create session with hybrid voice pipeline approach
+    # Initialize agent instance
+    agent = GiveMeTheMicAgent(config)
+    
+    # Create session with correct LiveKit API patterns
     try:
-        # Try OpenAI Realtime API first
+        # Use OpenAI Realtime API with proper configuration
+        realtime_model = openai.realtime.RealtimeModel(
+            voice=voice,
+            temperature=temperature,
+        )
+        
         session = AgentSession(
-            llm=openai.realtime.RealtimeModel(
-                voice=voice,
-                temperature=temperature,
-                model="gpt-4o-realtime-preview"
-            ),
+            llm=realtime_model,
         )
         logger.info("Attempting OpenAI Realtime API connection")
         
+        # Start session with proper agent and room configuration
         await session.start(
-            agent=GiveMeTheMicAgent(config),
+            agent=agent,
             room=ctx.room,
-            room_input_options=RoomInputOptions(),
         )
         logger.info("OpenAI Realtime API session started successfully")
         
@@ -194,17 +237,19 @@ async def entrypoint(ctx: JobContext):
         logger.error(f"OpenAI Realtime API failed: {e}")
         logger.info("Falling back to STT-LLM-TTS pipeline")
         
-        # Fallback to STT-LLM-TTS pipeline for more reliable voice interaction
+        # Fallback to STT-LLM-TTS pipeline 
         session = AgentSession(
             stt=openai.STT(model="whisper-1"),
-            llm=openai.LLM(model="gpt-4o-mini"),
+            llm=openai.LLM(
+                model="gpt-4o-mini",
+                temperature=temperature,
+            ),
             tts=openai.TTS(voice=voice),
         )
         
         await session.start(
-            agent=GiveMeTheMicAgent(config),
+            agent=agent,
             room=ctx.room,
-            room_input_options=RoomInputOptions(),
         )
         logger.info("STT-LLM-TTS pipeline session started successfully")
     
