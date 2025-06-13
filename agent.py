@@ -50,8 +50,9 @@ class GiveMeTheMicAgent(Agent):
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
-        await self.session.generate_reply(
-            instructions="Greet the user warmly and introduce yourself as the Give Me the Mic assistant. Ask how you can help them with music today."
+        await self.session.say(
+            "Hello! I'm your Give Me the Mic music assistant. I can help you with music practice, vocal techniques, songwriting, and answer any music-related questions. What would you like to work on today?",
+            allow_interruptions=True
         )
 
     @function_tool
@@ -194,4 +195,10 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
+    import sys
+    from livekit.agents.cli import cli
+    
+    # Override CLI arguments to disable HTTP server
+    sys.argv.extend(['--no-debug', '--host', '127.0.0.1', '--port', '0'])
+    
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
