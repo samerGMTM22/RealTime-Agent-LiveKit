@@ -2,7 +2,7 @@ import logging
 from dotenv import load_dotenv
 
 from livekit import agents, rtc
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli, AutoSubscribe
+from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, llm, AgentSession, Agent
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
@@ -130,12 +130,23 @@ class Assistant(Agent):
 
 
 
-async def entrypoint(ctx: agents.JobContext):
-    """Main entry point for the LiveKit agent."""
-    logger.info(f"Starting agent for room: {ctx.room.name}")
+async def entrypoint(ctx: JobContext):
+    """Main entry point for the LiveKit agent following expert guidelines."""
+    logger.info(f"Agent started for room: {ctx.room.name}")
     
-    # Connect to room first
+    # Connect to room with audio-only subscription
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    
+    # Ensure audio track subscription as recommended by expert
+    @ctx.room.on("track_published")
+    def on_track_published(publication: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant):
+        if publication.kind == "audio":
+            publication.set_subscribed(True)
+            logger.info(f"Subscribed to audio track from {participant.identity}")
+    
+    # Wait for a participant to join
+    participant = await ctx.wait_for_participant()
+    logger.info(f"Participant joined: {participant.identity}")
     
     # Get agent configuration from database
     config = await get_agent_config(ctx.room.name)
@@ -154,16 +165,14 @@ async def entrypoint(ctx: agents.JobContext):
     
     voice = voice_mapping.get(config.get("voiceModel", "alloy"), "alloy")
     temp_raw = config.get("temperature", 80)
+    realtime_temp = max(0.6, min(1.2, 0.6 + (float(temp_raw) / 100.0) * 0.6))
     
-    logger.info(f"Voice: {voice}, Temperature: {temp_raw}%")
+    logger.info(f"Voice: {voice}, Temperature: {realtime_temp}")
 
-    # Try Realtime API first, fallback to STT-LLM-TTS
     try:
         logger.info("Attempting OpenAI Realtime API")
-        # Convert temperature to valid range (0.6-1.2) for Realtime API
-        realtime_temp = max(0.6, min(1.2, 0.6 + (float(temp_raw) / 100.0) * 0.6))
         
-        # Create session with Realtime API
+        # Create AgentSession with Realtime API
         session = AgentSession(
             llm=openai.realtime.RealtimeModel(
                 model="gpt-4o-realtime-preview",
@@ -181,9 +190,9 @@ async def entrypoint(ctx: agents.JobContext):
             agent=Assistant(config),
         )
         
-        # Test with initial greeting
+        # Generate initial greeting
         await session.generate_reply(
-            instructions="Greet the user and offer your assistance."
+            instructions="Greet the user warmly and offer your assistance."
         )
         
         logger.info("OpenAI Realtime API agent started successfully")
@@ -192,10 +201,10 @@ async def entrypoint(ctx: agents.JobContext):
         logger.error(f"Realtime API failed: {e}")
         logger.info("Falling back to STT-LLM-TTS pipeline")
         
-        # Convert temperature for standard LLM (0.0-2.0 range)
+        # Convert temperature for standard LLM
         llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
         
-        # Create STT-LLM-TTS pipeline using AgentSession
+        # Create STT-LLM-TTS pipeline as fallback
         session = AgentSession(
             vad=silero.VAD.load(),
             stt=openai.STT(model="whisper-1"),

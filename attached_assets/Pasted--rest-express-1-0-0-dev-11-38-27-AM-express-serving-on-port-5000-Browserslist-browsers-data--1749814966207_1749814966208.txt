@@ -1,0 +1,61 @@
+
+> rest-express@1.0.0 dev
+11:38:27 AM [express] serving on port 5000
+Browserslist: browsers data (caniuse-lite) is 8 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+11:38:30 AM [express] GET /api/agent-configs/active 304 in 74ms :: {"id":1,"userId":1,"name":"My YouT…
+11:38:30 AM [express] GET /api/status 200 in 305ms :: {"livekit":"online","openai":"connected","mcp":…
+11:38:36 AM [express] GET /api/agent-configs/active 304 in 59ms :: {"id":1,"userId":1,"name":"My YouT…
+11:38:36 AM [express] GET /api/status 200 in 219ms :: {"livekit":"online","openai":"connected","mcp":…
+11:39:06 AM [express] GET /api/status 200 in 445ms :: {"livekit":"online","openai":"connected","mcp":…
+11:39:08 AM [express] POST /api/livekit/rooms 201 in 771ms :: {"sid":"RM_D497hAXZ5VZF","name":"voice_…
+11:39:08 AM [express] POST /api/livekit/token 200 in 1ms :: {"token":"eyJhbGciOiJIUzI1NiJ9.eyJ2aWRlby…
+11:39:08 AM [express] GET /api/livekit/url 304 in 0ms :: {"url":"wss://test-project-eg4kodos.livekit.…
+Starting Python LiveKit agent for room: voice_agent_session_1749814744745_9kjegluq1
+Python LiveKit agent started for room voice_agent_session_1749814744745_9kjegluq1
+11:39:10 AM [express] GET /api/conversations 200 in 9ms
+Agent stdout: {"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.0.23", "rtc-version": "1.0.8", "timestamp": "2025-06-13T11:39:11.269740+00:00"}
+{"message": "preloading plugins", "level": "INFO", "name": "livekit.agents", "packages": ["livekit.plugins.openai", "livekit.plugins.silero"], "timestamp": "2025-06-13T11:39:11.269918+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 14992, "timestamp": "2025-06-13T11:39:13.408468+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 14994, "timestamp": "2025-06-13T11:39:13.429186+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 14996, "timestamp": "2025-06-13T11:39:13.429579+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 14998, "timestamp": "2025-06-13T11:39:13.499593+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 14992, "elapsed_time": 0.23, "timestamp": "2025-06-13T11:39:13.637276+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 14996, "elapsed_time": 0.25, "timestamp": "2025-06-13T11:39:13.681196+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 14994, "elapsed_time": 0.33, "timestamp": "2025-06-13T11:39:13.755736+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 14998, "elapsed_time": 0.29, "timestamp": "2025-06-13T11:39:13.791580+00:00"}
+
+Agent stdout: {"message": "see tracing information at http://localhost:8081/debug", "level": "INFO", "name": "livekit.agents", "timestamp": "2025-06-13T11:39:13.792546+00:00"}
+
+Agent stdout: {"message": "registered worker", "level": "INFO", "name": "livekit.agents", "id": "AW_HNNoSVvZmhkE", "url": "wss://test-project-eg4kodos.livekit.cloud", "region": "US West", "protocol": 16, "timestamp": "2025-06-13T11:39:13.982583+00:00"}
+
+Agent stdout: {"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_yHKyC5jiKBpv", "dispatch_id": "", "room_name": "voice_agent_session_1749814744745_9kjegluq1", "agent_name": "", "resuming": false, "timestamp": "2025-06-13T11:39:14.036028+00:00"}
+
+Agent stdout: {"message": "Starting agent for room: voice_agent_session_1749814744745_9kjegluq1", "level": "INFO", "name": "voice-agent", "pid": 14992, "job_id": "AJ_yHKyC5jiKBpv", "timestamp": "2025-06-13T11:39:14.073916+00:00"}
+
+Agent stdout: {"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 15019, "timestamp": "2025-06-13T11:39:14.168810+00:00"}
+
+Agent stdout: {"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 15019, "elapsed_time": 0.11, "timestamp": "2025-06-13T11:39:14.283090+00:00"}
+
+11:39:14 AM [express] GET /api/agent-configs/1 200 in 61ms :: {"id":1,"userId":1,"name":"My YouTube A…
+Agent stdout: {"message": "Fetched config from database: My YouTube Agent", "level": "INFO", "name": "voice-agent", "pid": 14992, "job_id": "AJ_yHKyC5jiKBpv", "timestamp": "2025-06-13T11:39:14.627210+00:00"}
+
+Agent stdout: {"message": "Using agent config: My YouTube Agent", "level": "INFO", "name": "voice-agent", "pid": 14992, "job_id": "AJ_yHKyC5jiKBpv", "timestamp": "2025-06-13T11:39:14.627778+00:00"}
+
+Agent stdout: {"message": "Voice: coral, Temperature: 70%", "level": "INFO", "name": "voice-agent", "pid": 14992, "job_id": "AJ_yHKyC5jiKBpv", "timestamp": "2025-06-13T11:39:14.627861+00:00"}
+
+Agent stdout: {"message": "Attempting OpenAI Realtime API", "level": "INFO", "name": "voice-agent", "pid": 14992, "job_id": "AJ_yHKyC5jiKBpv", "timestamp": "2025-06-13T11:39:14.627929+00:00"}
+
+Agent stdout: {"message": "OpenAI Realtime API agent started successfully", "level": "INFO", "name": "voice-agent", "pid": 14992, "job_id": "AJ_yHKyC5jiKBpv", "timestamp": "2025-06-13T11:39:17.722004+00:00"}
+
+11:39:37 AM [express] GET /api/status 200 in 431ms :: {"livekit":"online","openai":"connected","mcp":…
+11:41:40 AM [express] GET /api/status 200 in 2911ms :: {"livekit":"online","openai":"connected","mcp"…
+11:42:13 AM [express] GET /api/status 200 in 2414ms :: {"livekit":"online","openai":"connected","mcp"…
