@@ -12,7 +12,7 @@ export const agentConfigs = pgTable("agent_configs", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id),
   name: text("name").notNull(),
-  type: text("type").notNull(), // 'youtube-assistant', 'customer-service', 'real-estate', 'custom'
+  type: text("type").notNull(), // 'voice-assistant', 'customer-service', 'real-estate', 'custom'
   systemPrompt: text("system_prompt").notNull(),
   personality: text("personality").notNull().default("friendly"),
   voiceModel: text("voice_model").notNull().default("alloy"),

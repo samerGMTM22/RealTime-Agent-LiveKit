@@ -492,7 +492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: 1, // Default user
         name,
         url,
-        status: initialStatus
+        connectionStatus: initialStatus
       });
       
       console.log('MCP server created successfully:', server);

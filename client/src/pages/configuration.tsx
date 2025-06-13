@@ -65,7 +65,7 @@ export default function Configuration() {
   
   // Agent configuration state
   const [agentName, setAgentName] = useState("");
-  const [agentCategory, setAgentCategory] = useState("youtube-assistant");
+  const [agentCategory, setAgentCategory] = useState("voice-assistant");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [voiceModel, setVoiceModel] = useState("coral");
   const [responseLength, setResponseLength] = useState("moderate");
@@ -81,7 +81,6 @@ export default function Configuration() {
       openai: { enabled: boolean; status: 'connected' | 'error' };
     };
     extras: {
-      youtube: { enabled: boolean; status: 'connected' | 'error' };
       mcp: { enabled: boolean; status: 'disconnected' | 'connected' | 'error' };
     };
   }>({
@@ -90,7 +89,6 @@ export default function Configuration() {
       openai: { enabled: true, status: 'connected' }
     },
     extras: {
-      youtube: { enabled: true, status: 'connected' },
       mcp: { enabled: false, status: 'disconnected' }
     }
   });
