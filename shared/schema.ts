@@ -50,10 +50,14 @@ export const mcpServers = pgTable("mcp_servers", {
   userId: integer("user_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
   url: text("url").notNull(),
-  status: text("status").default("disconnected"), // 'connected', 'disconnected', 'error', 'testing'
+  description: text("description"),
+  apiKey: text("api_key"),
+  isActive: boolean("is_active").default(true),
+  connectionStatus: text("connection_status").default("disconnected"), // 'connected', 'disconnected', 'error', 'testing'
   capabilities: jsonb("capabilities").default([]),
   tools: jsonb("tools").default([]),
   lastConnected: timestamp("last_connected"),
+  metadata: jsonb("metadata").default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
