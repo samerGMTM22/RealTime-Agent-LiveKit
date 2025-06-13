@@ -63,7 +63,7 @@ async def get_agent_config(room_name: str):
 class GiveMeTheMicAgent(Agent):
     def __init__(self, config: dict) -> None:
         system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
-        super().__init__()
+        super().__init__(instructions=system_prompt)
         self.config = config
         self.system_prompt = system_prompt
 
@@ -212,11 +212,11 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
-    # Connect to the room first
-    await ctx.connect()
-
     # Initialize agent instance with system prompt
     agent = GiveMeTheMicAgent(config)
+    
+    # Connect to the room
+    await ctx.connect()
     
     # Create session with proper VAD and streaming configuration
     try:
@@ -231,10 +231,6 @@ async def entrypoint(ctx: JobContext):
                 llm=realtime_model,
             )
             logger.info("Attempting OpenAI Realtime API connection")
-            
-            # Configure the system prompt for the realtime model
-            if hasattr(realtime_model, 'set_instructions'):
-                realtime_model.set_instructions(agent.system_prompt)
             
             # Start session with proper agent and room configuration
             await session.start(
