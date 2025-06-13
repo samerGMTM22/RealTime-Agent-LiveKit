@@ -219,19 +219,23 @@ async def entrypoint(ctx: JobContext):
     # Create session with hybrid voice pipeline approach
     try:
         # Try OpenAI Realtime API first
-        session_config = {
-            "llm": openai.realtime.RealtimeModel(
-                voice=voice,
-                temperature=temperature,
-                model="gpt-4o-realtime-preview"
-            )
-        }
-        
-        # Only add MCP servers if available
         if MCP_AVAILABLE and mcp_servers:
-            session_config["mcp_servers"] = mcp_servers
-            
-        session = AgentSession(**session_config)
+            session = AgentSession(
+                llm=openai.realtime.RealtimeModel(
+                    voice=voice,
+                    temperature=temperature,
+                    model="gpt-4o-realtime-preview"
+                ),
+                mcp_servers=mcp_servers,
+            )
+        else:
+            session = AgentSession(
+                llm=openai.realtime.RealtimeModel(
+                    voice=voice,
+                    temperature=temperature,
+                    model="gpt-4o-realtime-preview"
+                ),
+            )
         logger.info("Attempting OpenAI Realtime API connection")
         
         await session.start(
@@ -246,17 +250,19 @@ async def entrypoint(ctx: JobContext):
         logger.info("Falling back to STT-LLM-TTS pipeline")
         
         # Fallback to STT-LLM-TTS pipeline for more reliable voice interaction
-        fallback_session_config = {
-            "stt": openai.STT(model="whisper-1"),
-            "llm": openai.LLM(model="gpt-4o-mini"),
-            "tts": openai.TTS(voice=voice),
-        }
-        
-        # Only add MCP servers if available
         if MCP_AVAILABLE and mcp_servers:
-            fallback_session_config["mcp_servers"] = mcp_servers
-            
-        session = AgentSession(**fallback_session_config)
+            session = AgentSession(
+                stt=openai.STT(model="whisper-1"),
+                llm=openai.LLM(model="gpt-4o-mini"),
+                tts=openai.TTS(voice=voice),
+                mcp_servers=mcp_servers,
+            )
+        else:
+            session = AgentSession(
+                stt=openai.STT(model="whisper-1"),
+                llm=openai.LLM(model="gpt-4o-mini"),
+                tts=openai.TTS(voice=voice),
+            )
         
         await session.start(
             agent=GiveMeTheMicAgent(config),
