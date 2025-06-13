@@ -3,8 +3,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
 import logging
-from .storage import storage, InsertMcpServer
-from .mcp_manager import MCPManager
+from storage import storage, InsertMcpServer
+from mcp_manager import MCPManager
 from pydantic import BaseModel
 
 logger = logging.getLogger("mcp_routes")

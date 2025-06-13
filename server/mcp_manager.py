@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime
-from .mcp_client import MCPServer, MCPServerStdio, MCPServerHttp
+from mcp_client import MCPServer, MCPServerStdio, MCPServerHttp
 from storage import IStorage, McpServer
 
 logger = logging.getLogger("mcp_manager")

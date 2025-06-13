@@ -9,9 +9,10 @@ import requests
 import os
 import sys
 sys.path.append('./server')
-from mcp_manager import MCPManager
-from mcp_tools import MCPToolsIntegration
-from storage import DatabaseStorage
+# Temporarily disable MCP imports to fix agent startup
+# from mcp_manager import MCPManager
+# from mcp_tools import MCPToolsIntegration
+# from storage import DatabaseStorage
 
 logger = logging.getLogger("voice-agent")
 load_dotenv()
@@ -51,24 +52,8 @@ class Assistant(Agent):
 
     async def initialize_mcp(self, user_id: int = 1):
         """Initialize MCP servers and tools for this agent"""
-        try:
-            # Initialize MCP manager with database storage
-            storage = DatabaseStorage()
-            self.mcp_manager = MCPManager(storage)
-            
-            # Load and connect MCP servers for the user
-            await self.mcp_manager.initialize_user_servers(user_id)
-            
-            # Initialize MCP tools integration
-            self.mcp_tools_integration = MCPToolsIntegration(self.mcp_manager)
-            
-            # Build and add MCP tools to agent
-            mcp_tools = await self.mcp_tools_integration.build_livekit_tools()
-            if mcp_tools:
-                logger.info(f"Added {len(mcp_tools)} MCP tools to agent")
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize MCP: {e}")
+        # Temporarily disabled MCP to fix agent startup
+        logger.info("MCP initialization temporarily disabled")
 
     @function_tool
     async def get_general_info(self):
