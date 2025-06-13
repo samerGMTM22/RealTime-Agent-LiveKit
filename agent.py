@@ -122,16 +122,19 @@ class Assistant(Agent):
                         if "error" not in result:
                             return result.get("content", "Search completed successfully")
             
-            # Fallback to Express API
+            # Force Express API call for debugging
+            logger.info(f"Making Express API call for search: {query}")
             response = requests.post('http://localhost:5000/api/mcp/execute', 
                                    json={"tool": "search", "params": {"query": query}}, 
                                    timeout=10)
+            logger.info(f"Express API response status: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
+                logger.info(f"Express API response data: {data}")
                 if data.get("success"):
                     return data.get("result", "Search completed")
                 else:
-                    return "Web search is currently unavailable. Please check MCP server connections."
+                    return f"Search failed: {data.get('error', 'Unknown error')}"
                     
         except Exception as e:
             logger.error(f"Error in web search: {e}")
@@ -183,41 +186,7 @@ class Assistant(Agent):
         else:
             return "No external tools currently available. I can assist with general inquiries using my knowledge."
 
-    @function_tool
-    async def search_web(self, query: str):
-        """Search the web for current information using MCP internet access tools.
-        
-        Args:
-            query: The search query to find current information
-        """
-        
-        logger.info(f"Searching web for: {query}")
-        
-        try:
-            # Try to use MCP web search tool if available
-            if self.mcp_manager and self.mcp_manager.connected_servers:
-                # Find internet access server
-                for server_id, server in self.mcp_manager.connected_servers.items():
-                    if "internet" in server.name.lower() or "web" in server.name.lower():
-                        result = await self.mcp_manager.call_tool(server_id, "search", {"query": query})
-                        if "error" not in result:
-                            return result.get("content", "Search completed successfully")
-                
-            # Fallback to Express API
-            response = requests.post('http://localhost:5000/api/mcp/execute', 
-                                   json={"tool": "search", "params": {"query": query}}, 
-                                   timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("success"):
-                    return data.get("result", "Search completed")
-                else:
-                    logger.warning("MCP web search unavailable")
-                    return "Web search is currently unavailable. Please check MCP server connections."
-                    
-        except Exception as e:
-            logger.error(f"Error accessing MCP tools: {e}")
-            return "Web search is currently unavailable. Please check MCP server connections."
+
 
 
 async def entrypoint(ctx: JobContext):
