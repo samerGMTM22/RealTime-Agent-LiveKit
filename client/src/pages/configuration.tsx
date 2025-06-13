@@ -639,7 +639,14 @@ Keep responses conversational, helpful, and engaging.`,
                             <span className="text-sm text-gray-400">Testing...</span>
                           </div>
                         ) : (
-                          getStatusIcon(server.status)
+                          <div className="flex items-center space-x-1">
+                            {getStatusIcon(server.status)}
+                            {server.metadata?.responseTime && (
+                              <span className="text-xs text-gray-400">
+                                ({server.metadata.responseTime}ms)
+                              </span>
+                            )}
+                          </div>
                         )}
                         <Button
                           variant="ghost"

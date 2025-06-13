@@ -12,6 +12,66 @@ import { voiceAgentManager } from "./lib/voice-agent";
 import { mcpManager } from "./lib/mcp-client";
 import { z } from "zod";
 
+// MCP Health Monitor - runs periodic checks on all servers
+class MCPHealthMonitor {
+  private intervalId: NodeJS.Timeout | null = null;
+  private isRunning: boolean = false;
+
+  start() {
+    if (this.isRunning) return;
+    
+    this.isRunning = true;
+    console.log("Starting MCP health monitor...");
+    
+    // Run health check every 30 seconds
+    this.intervalId = setInterval(async () => {
+      await this.performHealthCheck();
+    }, 30000);
+    
+    // Run initial health check
+    this.performHealthCheck();
+  }
+
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.isRunning = false;
+    console.log("MCP health monitor stopped");
+  }
+
+  private async performHealthCheck() {
+    try {
+      const mcpServers = await storage.getMcpServersByUserId(1);
+      
+      for (const server of mcpServers) {
+        if (!server.isActive) continue;
+        
+        const healthResult = await testMcpServerConnection(server);
+        const newStatus = healthResult.success ? 'connected' : 'error';
+        
+        // Only update if status changed
+        if (server.connectionStatus !== newStatus) {
+          await storage.updateMcpServer(server.id, {
+            connectionStatus: newStatus,
+            metadata: {
+              ...(server.metadata || {}),
+              lastHealthCheck: new Date().toISOString(),
+              healthCheckResult: healthResult
+            }
+          });
+          console.log(`MCP server ${server.name} status changed to: ${newStatus}`);
+        }
+      }
+    } catch (error) {
+      console.error("Health check error:", error);
+    }
+  }
+}
+
+const mcpHealthMonitor = new MCPHealthMonitor();
+
 // MCP Server Connection Testing
 async function testMcpServerConnection(server: any): Promise<{ success: boolean; error?: string; responseTime?: number }> {
   const startTime = Date.now();
@@ -114,6 +174,8 @@ async function startAIAgent(roomName: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Start MCP health monitoring
+  mcpHealthMonitor.start();
   
   // Agent configuration endpoints
   app.get("/api/agent-configs", async (req, res) => {
@@ -495,19 +557,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status.livekit = 'error';
       }
 
-      // MCP status - check if servers are configured and connected
+      // MCP status - enhanced health check logic
       try {
         const mcpServers = await storage.getMcpServersByUserId(1);
         const connectedServers = mcpServers.filter(s => s.connectionStatus === 'connected');
+        const errorServers = mcpServers.filter(s => s.connectionStatus === 'error');
         
-        if (connectedServers.length > 0) {
-          status.mcp = 'connected';
-        } else if (mcpServers.length > 0) {
-          status.mcp = 'disconnected';
+        if (mcpServers.length === 0) {
+          status.mcp = 'ready'; // No servers configured
+        } else if (connectedServers.length === mcpServers.length) {
+          status.mcp = 'connected'; // All servers connected
+        } else if (connectedServers.length > 0) {
+          status.mcp = 'connected'; // At least one server connected
+        } else if (errorServers.length > 0) {
+          status.mcp = 'error'; // Has servers but all in error state
         } else {
-          status.mcp = 'ready';
+          status.mcp = 'disconnected'; // Has servers but none connected
         }
       } catch (error) {
+        console.error("MCP status check error:", error);
         status.mcp = 'error';
       }
 
