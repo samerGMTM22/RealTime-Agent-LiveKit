@@ -1,5 +1,4 @@
 import logging
-import os
 import asyncio
 from typing import Annotated
 from dotenv import load_dotenv
@@ -8,7 +7,8 @@ from livekit.agents import (
     JobContext,
     WorkerOptions,
     cli,
-    voice_assistant,
+    AgentSession,
+    Agent,
 )
 from livekit.plugins import openai
 from livekit.agents.llm import function_tool
@@ -145,6 +145,20 @@ async def search_web(query: Annotated[str, "The search query to find current inf
         return "I'm unable to perform web searches right now. The MCP integration may need to be configured."
 
 
+class GiveMeTheMicAgent(Agent):
+    def __init__(self, config: dict):
+        system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
+        super().__init__(instructions=system_prompt)
+        self.config = config
+
+    async def on_enter(self):
+        """Called when the agent enters the session - generates initial greeting"""
+        logger.info("Agent entering session, generating initial greeting")
+        await self.session.generate_reply(
+            instructions="Greet the user warmly and introduce yourself as the Give Me the Mic assistant. Ask how you can help them with music today."
+        )
+
+
 async def entrypoint(ctx: JobContext):
     """Main entry point for the LiveKit agent."""
     logger.info(f"Starting agent for room: {ctx.room.name}")
@@ -183,37 +197,59 @@ async def entrypoint(ctx: JobContext):
     # Connect to the room
     await ctx.connect()
 
-    # Create voice assistant with proper configuration
+    # Create agent session with proper configuration
     try:
-        logger.info("Starting voice assistant with OpenAI Realtime API")
+        logger.info("Attempting OpenAI Realtime API connection")
         
-        # Create the assistant with realtime model
-        assistant = voice_assistant.VoiceAssistant(
-            vad=openai.VAD(),
-            stt=openai.STT(model="whisper-1"),
-            llm=openai.LLM(
-                model="gpt-4o-mini",
+        # Try OpenAI Realtime API first
+        session = AgentSession(
+            llm=openai.realtime.RealtimeModel(
+                voice=voice,
                 temperature=temperature,
+                model="gpt-4o-realtime-preview"
             ),
-            tts=openai.TTS(voice=voice),
         )
         
-        # Add function tools to the LLM
-        assistant.llm.register_function(get_general_info)
-        assistant.llm.register_function(get_music_tips)
-        assistant.llm.register_function(suggest_learning_resources)
-        assistant.llm.register_function(search_web)
+        logger.info("OpenAI Realtime API session created")
         
-        # Start the assistant
-        assistant.start(ctx.room)
-        logger.info("Voice assistant started successfully")
+        # Create agent with function tools
+        agent = GiveMeTheMicAgent(config)
         
-        # Generate initial greeting
-        await assistant.say("Hello! I'm your Give Me the Mic voice assistant. I'm here to help you with music practice, techniques, and guidance. How can I assist you with your musical journey today?")
+        await session.start(
+            agent=agent,
+            room=ctx.room,
+        )
+        
+        logger.info("OpenAI Realtime API session started successfully")
         
     except Exception as e:
-        logger.error(f"Voice assistant failed to start: {e}")
-        raise
+        logger.error(f"OpenAI Realtime API failed: {e}")
+        logger.info("Falling back to STT-LLM-TTS pipeline")
+        
+        # Fallback to STT-LLM-TTS pipeline
+        try:
+            session = AgentSession(
+                stt=openai.STT(model="whisper-1"),
+                llm=openai.LLM(
+                    model="gpt-4o-mini",
+                    temperature=temperature,
+                ),
+                tts=openai.TTS(voice=voice),
+            )
+            
+            # Create agent with function tools
+            agent = GiveMeTheMicAgent(config)
+            
+            await session.start(
+                agent=agent,
+                room=ctx.room,
+            )
+            
+            logger.info("STT-LLM-TTS pipeline session started successfully")
+            
+        except Exception as fallback_e:
+            logger.error(f"Fallback pipeline also failed: {fallback_e}")
+            raise
     
     logger.info("Give Me the Mic agent is running and ready for voice interactions")
 
