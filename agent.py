@@ -50,10 +50,21 @@ class GiveMeTheMicAgent(Agent):
     async def on_enter(self):
         """Called when the agent enters the session - generates initial greeting"""
         logger.info("Agent entering session, generating initial greeting")
-        await self.session.say(
-            "Hello! I'm your Give Me the Mic music assistant. I can help you with music practice, vocal techniques, songwriting, and answer any music-related questions. What would you like to work on today?",
-            allow_interruptions=True
-        )
+        try:
+            greeting = "Hello! I'm your Give Me the Mic music assistant. I can help you with music practice, vocal techniques, songwriting, and answer any music-related questions. What would you like to work on today?"
+            logger.info(f"Attempting TTS synthesis for greeting: {greeting[:50]}...")
+            
+            await self.session.say(greeting, allow_interruptions=True)
+            logger.info("TTS greeting synthesis completed successfully")
+            
+        except Exception as e:
+            logger.error(f"TTS synthesis failed: {str(e)}")
+            # Fallback: try without interruptions
+            try:
+                await self.session.say("Hello! I'm your music assistant. How can I help you today?")
+                logger.info("Fallback TTS synthesis completed")
+            except Exception as e2:
+                logger.error(f"Fallback TTS also failed: {str(e2)}")
 
     @function_tool
     async def get_general_info(self):
@@ -195,22 +206,35 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    # Monkey patch to disable HTTP server before worker initialization
-    from livekit.agents import worker
+    import asyncio
+    import signal
+    import sys
+    from livekit.agents import Worker
     
-    # Override HTTPServer.start to prevent port binding
-    original_start = None
-    if hasattr(worker.Worker, '_http_server'):
-        class MockHTTPServer:
-            async def start(self):
-                pass
-            async def stop(self):
-                pass
+    async def main():
+        """Direct worker implementation bypassing CLI and HTTP server"""
+        worker = Worker(entrypoint=entrypoint)
         
-        # Replace HTTP server with mock
-        def mock_init_http_server(self):
-            self._http_server = MockHTTPServer()
+        def signal_handler():
+            worker.shutdown()
         
-        worker.Worker._init_http_server = mock_init_http_server
+        # Register signal handlers for graceful shutdown
+        if sys.platform != "win32":
+            loop = asyncio.get_event_loop()
+            for sig in (signal.SIGTERM, signal.SIGINT):
+                loop.add_signal_handler(sig, signal_handler)
+        
+        logger.info("Starting LiveKit worker without HTTP debug server")
+        
+        try:
+            await worker.run()
+        except KeyboardInterrupt:
+            logger.info("Worker interrupted by user")
+        except Exception as e:
+            logger.error(f"Worker error: {e}")
+            raise
+        finally:
+            await worker.aclose()
     
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    # Run worker directly without CLI to avoid HTTP server conflicts
+    asyncio.run(main())
