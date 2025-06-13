@@ -1,3 +1,4 @@
+
 import logging
 from dotenv import load_dotenv
 
@@ -7,10 +8,13 @@ from livekit.agents import (
     JobContext,
     WorkerOptions,
     cli,
-    RoomInputOptions,
+    llm,
+    stt,
+    tts,
+    vad,
 )
 from livekit.agents.llm import function_tool
-from livekit.plugins import openai
+from livekit.plugins import openai, silero
 import requests
 
 logger = logging.getLogger("voice-agent")
@@ -181,8 +185,6 @@ class GiveMeTheMicAgent(Agent):
             return f"I'm unable to perform web searches right now. Error connecting to MCP server '{internet_server.get('name', 'Unknown')}'."
 
 
-
-
 async def entrypoint(ctx: JobContext):
     """Main entry point for the LiveKit agent."""
     logger.info(f"Starting agent for room: {ctx.room.name}")
@@ -215,43 +217,48 @@ async def entrypoint(ctx: JobContext):
     # Initialize agent instance
     agent = GiveMeTheMicAgent(config)
     
-    # Create session with correct LiveKit API patterns
+    # Create session with proper VAD and streaming configuration
     try:
-        # Use OpenAI Realtime API with proper configuration
-        realtime_model = openai.realtime.RealtimeModel(
-            voice=voice,
-            temperature=temperature,
-            instructions=config.get("systemPrompt", "You are a helpful voice AI assistant."),
-            turn_detection=openai.realtime.ServerVAD(
-                threshold=0.5,
-                prefix_padding_ms=300,
-                silence_duration_ms=500,
-            ),
-        )
-        
-        session = AgentSession(
-            llm=realtime_model,
-        )
-        logger.info("Attempting OpenAI Realtime API connection")
-        
-        # Start session with proper agent and room configuration
-        await session.start(
-            agent=agent,
-            room=ctx.room,
-        )
-        logger.info("OpenAI Realtime API session started successfully")
-        
-        # Add debug logging for agent audio capabilities
-        logger.info(f"Agent can publish audio: {session.agent_participant.can_publish}")
-        logger.info(f"Agent participant identity: {session.agent_participant.identity}")
-        
+        # Try OpenAI Realtime API first (without ServerVAD which doesn't exist)
+        try:
+            realtime_model = openai.realtime.RealtimeModel(
+                voice=voice,
+                temperature=temperature,
+                instructions=config.get("systemPrompt", "You are a helpful voice AI assistant."),
+            )
+            
+            session = AgentSession(
+                llm=realtime_model,
+            )
+            logger.info("Attempting OpenAI Realtime API connection")
+            
+            # Start session with proper agent and room configuration
+            await session.start(
+                agent=agent,
+                room=ctx.room,
+            )
+            logger.info("OpenAI Realtime API session started successfully")
+            
+        except Exception as realtime_error:
+            logger.error(f"OpenAI Realtime API failed: {realtime_error}")
+            raise realtime_error
+            
     except Exception as e:
         logger.error(f"OpenAI Realtime API failed: {e}")
-        logger.info("Falling back to STT-LLM-TTS pipeline")
+        logger.info("Falling back to STT-LLM-TTS pipeline with VAD")
         
-        # Fallback to STT-LLM-TTS pipeline 
+        # Fallback to STT-LLM-TTS pipeline with proper VAD configuration
         session = AgentSession(
-            stt=openai.STT(model="whisper-1"),
+            # Add Silero VAD for voice activity detection
+            vad=silero.VAD.load(
+                min_silence_duration=0.5,  # 500ms of silence to stop
+                min_speaking_duration=0.3,  # 300ms to start speaking
+            ),
+            # Use streaming STT with adapter
+            stt=stt.StreamAdapter(
+                stt=openai.STT(model="whisper-1"),
+                vad=silero.VAD.load(),
+            ),
             llm=openai.LLM(
                 model="gpt-4o-mini",
                 temperature=temperature,
@@ -263,7 +270,7 @@ async def entrypoint(ctx: JobContext):
             agent=agent,
             room=ctx.room,
         )
-        logger.info("STT-LLM-TTS pipeline session started successfully")
+        logger.info("STT-LLM-TTS pipeline session started successfully with VAD")
     
     logger.info("Give Me the Mic agent is running and ready for voice interactions")
 

@@ -52,34 +52,76 @@ export function useLiveKit() {
           audioElement.autoplay = true;
           audioElement.volume = 1.0;
           audioElement.playsInline = true;
+          audioElement.muted = false;
           
           // Set audio element attributes for better compatibility
           audioElement.setAttribute('playsinline', 'true');
           audioElement.setAttribute('webkit-playsinline', 'true');
+          audioElement.setAttribute('controls', 'false');
           
-          // Append to body first, then try to play
-          document.body.appendChild(audioElement);
+          // Create a hidden container for audio elements
+          let audioContainer = document.getElementById('livekit-audio-container');
+          if (!audioContainer) {
+            audioContainer = document.createElement('div');
+            audioContainer.id = 'livekit-audio-container';
+            audioContainer.style.position = 'absolute';
+            audioContainer.style.left = '-9999px';
+            audioContainer.style.visibility = 'hidden';
+            document.body.appendChild(audioContainer);
+          }
           
-          // Try to play immediately
-          const playPromise = audioElement.play();
-          if (playPromise !== undefined) {
-            playPromise.then(() => {
-              console.log('Audio started playing successfully');
-            }).catch((error) => {
-              console.warn('Audio autoplay failed, user interaction required:', error);
+          // Append to audio container
+          audioContainer.appendChild(audioElement);
+          
+          // Force audio context initialization and resume
+          const initializeAudio = async () => {
+            try {
+              // Create audio context if it doesn't exist
+              if (!(window as any).audioContext) {
+                (window as any).audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+              }
+              
+              const audioContext = (window as any).audioContext;
+              if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+                console.log('Audio context resumed');
+              }
+              
+              // Try to play the audio
+              const playPromise = audioElement.play();
+              if (playPromise !== undefined) {
+                await playPromise;
+                console.log('Audio started playing successfully');
+              }
+            } catch (error) {
+              console.warn('Audio initialization failed:', error);
+              
               // Store element for manual play on user interaction
               (window as any).pendingAudio = audioElement;
               
-              // Try to enable audio on next user click
-              const enableAudio = () => {
-                audioElement.play().then(() => {
+              // Add click handler to enable audio
+              const enableAudio = async () => {
+                try {
+                  const audioContext = (window as any).audioContext;
+                  if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                  }
+                  await audioElement.play();
                   console.log('Audio enabled after user interaction');
                   document.removeEventListener('click', enableAudio);
-                }).catch(console.error);
+                  document.removeEventListener('touchstart', enableAudio);
+                } catch (playError) {
+                  console.error('Failed to play audio after user interaction:', playError);
+                }
               };
+              
               document.addEventListener('click', enableAudio, { once: true });
-            });
-          }
+              document.addEventListener('touchstart', enableAudio, { once: true });
+            }
+          };
+          
+          // Initialize audio immediately
+          initializeAudio();
         }
       });
 
