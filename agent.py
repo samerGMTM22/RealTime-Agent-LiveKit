@@ -14,12 +14,92 @@ from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, llm, A
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
+import time
 
 # Import simplified MCP integration 
 from mcp_integration.simple_client import SimpleMCPManager
 
+# Global MCP manager to be accessible by function tools
+_mcp_manager = None
+
 logger = logging.getLogger("voice-agent")
 load_dotenv()
+
+# Define function tools at module level (expert's recommendation)
+@function_tool
+async def search_web(query: str) -> str:
+    """Search the web for current information using MCP internet access tools."""
+    logger.info(f"FUNCTION ACTUALLY EXECUTED: search_web({query})")
+    execution_time = time.time()
+    
+    try:
+        global _mcp_manager
+        if _mcp_manager:
+            # Try to execute via MCP manager
+            for server_id, client in _mcp_manager.connected_servers.items():
+                if "internet" in client.name.lower():
+                    result = await _mcp_manager.call_tool(server_id, "search", {"query": query})
+                    if "error" not in result:
+                        logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP search successful")
+                        return result.get("content", "Search completed successfully")
+        
+        # Fallback to Express API
+        logger.info(f"Making Express API call for search: {query}")
+        response = requests.post('http://localhost:5000/api/mcp/execute', 
+                               json={"tool": "search", "params": {"query": query}}, 
+                               timeout=10)
+        logger.info(f"Express API response status: {response.status_code}")
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"Express API response data: {data}")
+            if data.get("success"):
+                logger.info(f"FUNCTION COMPLETED at {execution_time}: Express API successful")
+                return data.get("result", "Search completed")
+            else:
+                return f"Search failed: {data.get('error', 'Unknown error')}"
+        else:
+            return "Search service unavailable"
+            
+    except Exception as e:
+        logger.error(f"Error in web search: {e}")
+        return f"Search failed: {str(e)}"
+
+@function_tool
+async def send_email(to: str, subject: str, body: str) -> str:
+    """Send an email via Zapier MCP integration."""
+    logger.info(f"FUNCTION ACTUALLY EXECUTED: send_email(to={to}, subject={subject})")
+    execution_time = time.time()
+    
+    try:
+        global _mcp_manager
+        if _mcp_manager:
+            # Try to execute via MCP manager
+            for server_id, client in _mcp_manager.connected_servers.items():
+                if "zapier" in client.name.lower() or "email" in client.name.lower():
+                    result = await _mcp_manager.call_tool(server_id, "send_email", 
+                                                       {"to": to, "subject": subject, "body": body})
+                    if "error" not in result:
+                        logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP email successful")
+                        return "Email sent successfully via MCP"
+        
+        # Fallback to Express API
+        logger.info(f"Making Express API call for email: {to}")
+        response = requests.post('http://localhost:5000/api/mcp/execute', 
+                               json={"tool": "send_email", "params": {"to": to, "subject": subject, "body": body}}, 
+                               timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("success"):
+                logger.info(f"FUNCTION COMPLETED at {execution_time}: Express API email successful")
+                return "Email sent successfully"
+            else:
+                return f"Email send failed: {data.get('error', 'Unknown error')}"
+        else:
+            return "Email service unavailable"
+            
+    except Exception as e:
+        logger.error(f"Error in email send: {e}")
+        return f"Email send failed: {str(e)}"
 
 
 async def get_agent_config(room_name: str):
@@ -51,57 +131,6 @@ class Assistant(Agent):
         system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
         super().__init__(instructions=system_prompt)
         self.config = config
-        self.mcp_manager = None
-        self.mcp_tools_integration = None
-        self.mcp_tools = []
-
-    async def initialize_mcp(self, user_id: int = 1):
-        """Initialize MCP servers with error handling and graceful degradation"""
-        try:
-            logger.info("Initializing MCP integration...")
-            
-            # Create simplified MCP manager 
-            self.mcp_manager = SimpleMCPManager()
-            
-            # Load and connect MCP servers for user
-            mcp_servers = await self.mcp_manager.initialize_user_servers(user_id)
-            
-            if mcp_servers:
-                logger.info(f"Connected to {len(self.mcp_manager.connected_servers)} MCP servers")
-                
-                # Get available tools and register them as function tools
-                tools = await self.mcp_manager.get_all_tools()
-                if tools:
-                    self.mcp_tools = tools
-                    # Register MCP tools as proper function tools
-                    self._register_mcp_tools(tools)
-                    logger.info(f"Loaded and registered {len(tools)} MCP tools")
-                else:
-                    logger.info("No MCP tools available from servers")
-            else:
-                logger.info("No MCP servers connected")
-            
-            return mcp_servers
-            
-        except Exception as e:
-            logger.error(f"MCP initialization failed: {e}")
-            # Agent continues without MCP tools - this is graceful degradation
-            return []
-
-    def _register_mcp_tools(self, tools):
-        """Register MCP tools as LiveKit function tools"""
-        for tool in tools:
-            tool_name = tool["name"]
-            server_id = tool["server_id"]
-            
-            logger.info(f"Registering MCP tool: {tool_name} from server {tool['server_name']}")
-            
-            # Store MCP tool mapping for later use
-            if not hasattr(self, '_mcp_tool_mapping'):
-                self._mcp_tool_mapping = {}
-            self._mcp_tool_mapping[tool_name] = server_id
-            
-        logger.info(f"Stored {len(self._mcp_tool_mapping)} MCP tool mappings")
 
     # Define MCP tools as proper class methods with function_tool decorator
     @function_tool
