@@ -10,7 +10,7 @@ from livekit.agents import (
     RoomInputOptions,
 )
 from livekit.agents.llm import function_tool
-from livekit.plugins import openai
+from livekit.plugins import openai, silero
 import requests
 
 logger = logging.getLogger("voice-agent")
@@ -171,45 +171,37 @@ async def entrypoint(ctx: JobContext):
     # Connect to the room first
     await ctx.connect()
 
-    # Create session with hybrid voice pipeline approach
-    try:
-        # Try OpenAI Realtime API first
-        session = AgentSession(
-            llm=openai.realtime.RealtimeModel(
-                voice=voice,
-                temperature=temperature,
-                model="gpt-4o-realtime-preview"
-            ),
-        )
-        logger.info("Attempting OpenAI Realtime API connection")
-        
-        await session.start(
-            agent=GiveMeTheMicAgent(config),
-            room=ctx.room,
-            room_input_options=RoomInputOptions(),
-        )
-        logger.info("OpenAI Realtime API session started successfully")
-        
-    except Exception as e:
-        logger.error(f"OpenAI Realtime API failed: {e}")
-        logger.info("Falling back to STT-LLM-TTS pipeline")
-        
-        # Fallback to STT-LLM-TTS pipeline for more reliable voice interaction
-        session = AgentSession(
-            stt=openai.STT(model="whisper-1"),
-            llm=openai.LLM(model="gpt-4o-mini"),
-            tts=openai.TTS(voice=voice),
-        )
-        
-        await session.start(
-            agent=GiveMeTheMicAgent(config),
-            room=ctx.room,
-            room_input_options=RoomInputOptions(),
-        )
-        logger.info("STT-LLM-TTS pipeline session started successfully")
+    # Use STT-LLM-TTS pipeline for reliable voice interaction
+    logger.info("Starting STT-LLM-TTS pipeline for voice interaction")
+    
+    session = AgentSession(
+        stt=openai.STT(model="whisper-1"),
+        llm=openai.LLM(
+            model="gpt-4o",
+            temperature=temperature,
+        ),
+        tts=openai.TTS(voice=voice),
+        vad=silero.VAD.load(),
+    )
+    
+    await session.start(
+        agent=GiveMeTheMicAgent(config),
+        room=ctx.room,
+    )
+    logger.info("STT-LLM-TTS pipeline session started successfully")
     
     logger.info("Give Me the Mic agent is running and ready for voice interactions")
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    # Configure worker options to avoid port conflicts
+    import os
+    import random
+    
+    # Use random port for debug server to avoid conflicts
+    debug_port = random.randint(8082, 8999)
+    os.environ["LIVEKIT_AGENTS_DEBUG_PORT"] = str(debug_port)
+    
+    cli.run_app(WorkerOptions(
+        entrypoint_fnc=entrypoint
+    ))
