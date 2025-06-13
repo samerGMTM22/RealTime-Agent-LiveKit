@@ -6,6 +6,8 @@ requires-python = ">=3.11"
 dependencies = [
     "livekit-agents[openai]>=1.0.23",
     "livekit-plugins-silero>=1.0.23",
+    "pydantic-ai>=0.2.18",
     "python-dotenv>=1.1.0",
     "requests>=2.32.4",
+    "websockets>=15.0.1",
 ]

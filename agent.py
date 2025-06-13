@@ -7,6 +7,11 @@ from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
 import os
+import sys
+sys.path.append('./server')
+from mcp_manager import MCPManager
+from mcp_tools import MCPToolsIntegration
+from storage import DatabaseStorage
 
 logger = logging.getLogger("voice-agent")
 load_dotenv()
