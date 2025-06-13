@@ -1,13 +1,14 @@
 import logging
 import os
 import asyncio
+from typing import Annotated
 from dotenv import load_dotenv
 
 from livekit.agents import (
     JobContext,
     WorkerOptions,
     cli,
-    VoiceAssistant,
+    voice_assistant,
 )
 from livekit.plugins import openai
 from livekit.agents.llm import function_tool
@@ -16,8 +17,8 @@ import requests
 logger = logging.getLogger("voice-agent")
 load_dotenv()
 
-# Store MCP client globally for function tools
-mcp_client = None
+# Store MCP servers globally for function tools
+mcp_servers_config = []
 
 async def get_agent_config(room_name: str):
     """Fetch agent configuration from the database based on room name."""
@@ -61,47 +62,6 @@ async def get_mcp_servers():
     return []
 
 
-async def initialize_mcp_client(server_configs):
-    """Initialize MCP client with server configurations."""
-    global mcp_client
-    
-    if not server_configs:
-        logger.info("No MCP server configurations found")
-        return None
-    
-    try:
-        # Import MCP functionality
-        from livekit.agents.mcp import MCPClient
-        
-        # Create MCP client instance
-        mcp_client = MCPClient()
-        
-        # Add server configurations
-        for server_config in server_configs:
-            server_name = server_config.get('name', 'Unknown')
-            server_url = server_config.get('url', '')
-            
-            if not server_url:
-                logger.warning(f"No URL provided for MCP server: {server_name}")
-                continue
-            
-            # Add server to client
-            await mcp_client.add_server(server_name, server_url)
-            logger.info(f"Added MCP server: {server_name}")
-        
-        # Initialize the client
-        await mcp_client.initialize()
-        logger.info("MCP client initialized successfully")
-        return mcp_client
-        
-    except ImportError:
-        logger.warning("MCP package not available - MCP features disabled")
-        return None
-    except Exception as e:
-        logger.error(f"Failed to initialize MCP client: {e}")
-        return None
-
-
 @function_tool
 async def get_general_info():
     """Provides general information about music and voice coaching services."""
@@ -118,12 +78,8 @@ async def get_general_info():
 
 
 @function_tool
-async def get_music_tips(topic: str):
-    """Provides music-related advice and tips for various topics like singing, recording, instruments, performance, etc.
-    
-    Args:
-        topic: The music topic to provide advice about (e.g., singing, recording, guitar, performance)
-    """
+async def get_music_tips(topic: Annotated[str, "The music topic to provide advice about"]):
+    """Provides music-related advice and tips for various topics like singing, recording, instruments, performance, etc."""
     
     logger.info(f"Providing music tips for topic: {topic}")
     
@@ -141,12 +97,8 @@ async def get_music_tips(topic: str):
 
 
 @function_tool
-async def suggest_learning_resources(interest: str):
-    """Suggests learning resources and practice approaches for musical interests.
-    
-    Args:
-        interest: The user's musical interest or area they want to learn about
-    """
+async def suggest_learning_resources(interest: Annotated[str, "The user's musical interest or area they want to learn about"]):
+    """Suggests learning resources and practice approaches for musical interests."""
     
     logger.info(f"Suggesting learning resources for interest: {interest}")
     
@@ -163,32 +115,33 @@ async def suggest_learning_resources(interest: str):
 
 
 @function_tool
-async def search_web(query: str):
-    """Search the web for current information using MCP internet access tools.
-    
-    Args:
-        query: The search query to find current information
-    """
+async def search_web(query: Annotated[str, "The search query to find current information"]):
+    """Search the web for current information using MCP internet access tools."""
     
     logger.info(f"Searching web for: {query}")
     
-    global mcp_client
+    global mcp_servers_config
     
-    if not mcp_client:
-        logger.warning("MCP client not available")
+    if not mcp_servers_config:
+        logger.warning("MCP servers not configured")
         return "I don't currently have access to web search capabilities. Please ensure MCP tools are properly configured."
     
     try:
-        # Use MCP client to perform web search
-        result = await mcp_client.call_tool("web_search", {"query": query})
+        # Make API call to MCP tools for web search
+        response = requests.post('http://localhost:5000/api/mcp/execute', 
+                               json={'tool': 'web_search', 'query': query}, 
+                               timeout=15)
         
-        if result and result.get('success'):
-            return f"Search results for '{query}': {result.get('content', 'No results found')}"
-        else:
-            return f"Unable to search for '{query}' at this time."
-            
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and data.get('results'):
+                return f"Search results for '{query}': {data['results']}"
+        
+        logger.warning("MCP web search unavailable")
+        return "I don't currently have access to web search capabilities. Please ensure MCP tools are properly configured."
+        
     except Exception as e:
-        logger.error(f"Error using MCP web search: {e}")
+        logger.error(f"Error accessing MCP tools: {e}")
         return "I'm unable to perform web searches right now. The MCP integration may need to be configured."
 
 
@@ -218,12 +171,12 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {temperature}")
 
-    # Initialize MCP client
+    # Initialize MCP servers
+    global mcp_servers_config
     mcp_servers_config = await get_mcp_servers()
-    mcp_client_instance = await initialize_mcp_client(mcp_servers_config)
     
-    if mcp_client_instance:
-        logger.info("MCP client ready for use")
+    if mcp_servers_config:
+        logger.info(f"MCP servers ready for use: {len(mcp_servers_config)} servers")
     else:
         logger.info("Agent will run without MCP servers")
 
@@ -232,41 +185,10 @@ async def entrypoint(ctx: JobContext):
 
     # Create voice assistant with proper configuration
     try:
-        # Try OpenAI Realtime API first
-        logger.info("Attempting OpenAI Realtime API connection")
+        logger.info("Starting voice assistant with OpenAI Realtime API")
         
-        assistant = VoiceAssistant(
-            vad=ctx.proc.userdata.get("vad", openai.realtime.RealtimeVAD()),
-            stt=openai.realtime.RealtimeSTT(),
-            llm=openai.realtime.RealtimeLLM(
-                model="gpt-4o-realtime-preview",
-                voice=voice,
-                temperature=temperature,
-                instructions=config.get("systemPrompt", "You are a helpful voice AI assistant."),
-            ),
-            tts=openai.realtime.RealtimeTTS(),
-            fnc_ctx=openai.realtime.FunctionContext(),
-        )
-        
-        # Add function tools
-        assistant.llm.register_function(get_general_info)
-        assistant.llm.register_function(get_music_tips)
-        assistant.llm.register_function(suggest_learning_resources)
-        assistant.llm.register_function(search_web)
-        
-        # Start the assistant
-        assistant.start(ctx.room)
-        logger.info("OpenAI Realtime API session started successfully")
-        
-        # Generate initial greeting
-        await assistant.say("Hello! I'm your Give Me the Mic voice assistant. I'm here to help you with music practice, techniques, and guidance. How can I assist you with your musical journey today?")
-        
-    except Exception as e:
-        logger.error(f"OpenAI Realtime API failed: {e}")
-        logger.info("Falling back to STT-LLM-TTS pipeline")
-        
-        # Fallback to STT-LLM-TTS pipeline
-        assistant = VoiceAssistant(
+        # Create the assistant with realtime model
+        assistant = voice_assistant.VoiceAssistant(
             vad=openai.VAD(),
             stt=openai.STT(model="whisper-1"),
             llm=openai.LLM(
@@ -276,7 +198,7 @@ async def entrypoint(ctx: JobContext):
             tts=openai.TTS(voice=voice),
         )
         
-        # Add function tools
+        # Add function tools to the LLM
         assistant.llm.register_function(get_general_info)
         assistant.llm.register_function(get_music_tips)
         assistant.llm.register_function(suggest_learning_resources)
@@ -284,10 +206,14 @@ async def entrypoint(ctx: JobContext):
         
         # Start the assistant
         assistant.start(ctx.room)
-        logger.info("STT-LLM-TTS pipeline session started successfully")
+        logger.info("Voice assistant started successfully")
         
         # Generate initial greeting
         await assistant.say("Hello! I'm your Give Me the Mic voice assistant. I'm here to help you with music practice, techniques, and guidance. How can I assist you with your musical journey today?")
+        
+    except Exception as e:
+        logger.error(f"Voice assistant failed to start: {e}")
+        raise
     
     logger.info("Give Me the Mic agent is running and ready for voice interactions")
 
