@@ -283,13 +283,9 @@ async def entrypoint(ctx: JobContext):
     try:
         logger.info("Attempting OpenAI Realtime API")
         
-        # Create assistant
+        # Create assistant - function tools are automatically registered via @function_tool decorator
         assistant = Assistant(config)
-        
-        # Add module-level function tools to assistant
-        assistant.add_function(search_web)
-        assistant.add_function(send_email)
-        logger.info("Module-level function tools added to assistant")
+        logger.info("Assistant created with module-level function tools")
         
         # Create AgentSession with Realtime API
         session = AgentSession(
