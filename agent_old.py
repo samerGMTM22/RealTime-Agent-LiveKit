@@ -41,7 +41,7 @@ async def get_agent_config(room_name: str):
     
     # Fallback configuration
     return {
-        "systemPrompt": "You are a helpful AI assistant.",
+        "systemPrompt": "You are a helpful voice AI assistant that provides music guidance and advice. You help with music practice, techniques, and general music education. Use MCP tools for current information when needed.",
         "voiceModel": "alloy",
         "temperature": 80,
         "responseLength": "medium"
@@ -70,18 +70,17 @@ class Assistant(Agent):
             mcp_servers = await self.mcp_manager.initialize_user_servers(user_id)
             
             if mcp_servers:
-                logger.info(f"Found {len(mcp_servers)} MCP servers")
                 # Build tools from MCP servers
                 tools = await MCPToolsIntegration.build_livekit_tools(
                     self.mcp_manager.connected_servers
                 )
                 
                 if tools:
-                    # Store MCP tools separately since agent tools are read-only
+                    # Add MCP tools to agent - tools list is read-only, so we'll store them separately
                     self.mcp_tools = tools
                     logger.info(f"Loaded {len(tools)} MCP tools")
                 else:
-                    logger.info("No MCP tools available from servers")
+                    logger.info("No MCP tools available")
             else:
                 logger.info("No MCP servers connected")
             
@@ -96,7 +95,7 @@ class Assistant(Agent):
     async def get_available_tools(self):
         """Lists available MCP tools and capabilities."""
         
-        logger.info("Checking available MCP tools")
+        logger.info("Listing available MCP tools")
         
         if self.mcp_manager and self.mcp_manager.connected_servers:
             tools_info = []
@@ -104,11 +103,54 @@ class Assistant(Agent):
                 tools_info.append(f"- {server.name}: Connected and available")
             
             if self.mcp_tools:
-                tools_info.append(f"- {len(self.mcp_tools)} tools loaded from MCP servers")
+                tools_info.append(f"- {len(self.mcp_tools)} additional tools loaded")
             
-            return "Available external tools:\n" + "\n".join(tools_info)
+            return "Available tools:\n" + "\n".join(tools_info)
         else:
             return "No external tools currently available. I can assist with general inquiries using my knowledge."
+
+    @function_tool
+    async def get_music_tips(self, topic: str):
+        """Provides music-related advice and tips for various topics like singing, recording, instruments, performance, etc.
+        
+        Args:
+            topic: The music topic to provide advice about (e.g., singing, recording, guitar, performance)
+        """
+        
+        logger.info(f"Providing music tips for topic: {topic}")
+        
+        music_tips = {
+            "singing": "Practice proper breathing techniques, warm up your voice before singing, stay hydrated, and record yourself to hear areas for improvement.",
+            "recording": "Use a good quality microphone, record in a quiet space with minimal echo, and monitor your audio levels to avoid clipping.",
+            "guitar": "Start with basic chords, practice regularly even if just for 15 minutes daily, and use a metronome to develop timing.",
+            "performance": "Practice performing in front of others, connect with your audience through eye contact and emotion, and prepare thoroughly to build confidence.",
+            "piano": "Focus on proper hand posture, start with scales and simple songs, and practice both hands separately before combining them.",
+            "drums": "Start with basic beats, use a metronome to develop timing, and practice rudiments to build coordination."
+        }
+        
+        tip = music_tips.get(topic.lower(), f"For {topic}, focus on consistent practice, proper technique, and listening to professionals in that area.")
+        return f"Music tip for {topic}: {tip}"
+
+    @function_tool
+    async def suggest_learning_resources(self, interest: str):
+        """Suggests learning resources and practice approaches for musical interests.
+        
+        Args:
+            interest: The user's musical interest or area they want to learn about
+        """
+        
+        logger.info(f"Suggesting learning resources for interest: {interest}")
+        
+        suggestions = {
+            "vocal": "Focus on breath control exercises, scales practice, and recording yourself to track progress. Consider working with a vocal coach.",
+            "recording": "Start with basic home recording setups - a good USB microphone, audio interface, and DAW software like Reaper or Pro Tools.",
+            "performance": "Practice performing for friends and family first, work on stage presence, and consider joining local open mic nights.",
+            "songwriting": "Study song structures, practice writing lyrics daily, and analyze songs you admire to understand composition techniques.",
+            "instruments": "Establish consistent daily practice routines, use metronomes for timing, and consider online tutorials or local teachers."
+        }
+        
+        suggestion = suggestions.get(interest.lower(), f"For {interest}, focus on consistent practice, proper technique, and connecting with other musicians in your area.")
+        return f"Learning suggestion: {suggestion}"
 
     @function_tool
     async def search_web(self, query: str):
@@ -121,30 +163,24 @@ class Assistant(Agent):
         logger.info(f"Searching web for: {query}")
         
         try:
-            # Try to use MCP web search tool if available
-            if self.mcp_manager and self.mcp_manager.connected_servers:
-                # Find internet access server
-                for server_id, server in self.mcp_manager.connected_servers.items():
-                    if "internet" in server.name.lower() or "web" in server.name.lower():
-                        result = await self.mcp_manager.call_tool(server_id, "search", {"query": query})
-                        if "error" not in result:
-                            return result.get("content", "Search completed successfully")
-                
-            # Fallback to Express API
+            # Make API call to MCP tools for web search
             response = requests.post('http://localhost:5000/api/mcp/execute', 
-                                   json={"tool": "search", "params": {"query": query}}, 
-                                   timeout=10)
+                                   json={'tool': 'web_search', 'query': query}, 
+                                   timeout=15)
+            
             if response.status_code == 200:
                 data = response.json()
-                if data.get("success"):
-                    return data.get("result", "Search completed")
-                else:
-                    logger.warning("MCP web search unavailable")
-                    return "Web search is currently unavailable. Please check MCP server connections."
-                    
+                if data.get('success') and data.get('results'):
+                    return f"Search results for '{query}': {data['results']}"
+            
+            logger.warning("MCP web search unavailable")
+            return "I don't currently have access to web search capabilities. Please ensure MCP tools are properly configured."
+            
         except Exception as e:
             logger.error(f"Error accessing MCP tools: {e}")
-            return "Web search is currently unavailable. Please check MCP server connections."
+            return "I'm unable to perform web searches right now. The MCP integration may need to be configured."
+
+
 
 
 async def entrypoint(ctx: JobContext):
@@ -198,12 +234,6 @@ async def entrypoint(ctx: JobContext):
     try:
         logger.info("Attempting OpenAI Realtime API")
         
-        # Create assistant and start MCP initialization asynchronously
-        assistant = Assistant(config)
-        
-        # Start MCP initialization in background (non-blocking)
-        mcp_task = asyncio.create_task(assistant.initialize_mcp(user_id=1))
-        
         # Create AgentSession with Realtime API
         session = AgentSession(
             llm=openai.realtime.RealtimeModel(
@@ -217,6 +247,12 @@ async def entrypoint(ctx: JobContext):
             max_endpointing_delay=6.0,
         )
 
+        # Create assistant and start MCP initialization asynchronously
+        assistant = Assistant(config)
+        
+        # Start MCP initialization in background (non-blocking)
+        mcp_task = asyncio.create_task(assistant.initialize_mcp(user_id=1))
+        
         await session.start(
             room=ctx.room,
             agent=assistant,
@@ -247,24 +283,25 @@ async def entrypoint(ctx: JobContext):
         # Convert temperature for standard LLM
         llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
         
-        # Create assistant for fallback
-        assistant = Assistant(config)
-        
         # Create STT-LLM-TTS pipeline as fallback
         session = AgentSession(
             vad=silero.VAD.load(),
             stt=openai.STT(model="whisper-1"),
-            llm=openai.LLM(model="gpt-4o", temperature=llm_temp),
-            tts=openai.TTS(model="tts-1", voice=voice),
+            llm=openai.LLM(model="gpt-4o-mini", temperature=llm_temp),
+            tts=openai.TTS(voice=voice),
+            allow_interruptions=True,
+            min_interruption_duration=0.5,
+            min_endpointing_delay=0.5,
+            max_endpointing_delay=6.0,
         )
 
         await session.start(
-            room=ctx.room, 
-            agent=assistant
+            room=ctx.room,
+            agent=Assistant(config),
         )
         
-        logger.info("STT-LLM-TTS pipeline started successfully")
+        logger.info("STT-LLM-TTS pipeline agent started successfully")
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))

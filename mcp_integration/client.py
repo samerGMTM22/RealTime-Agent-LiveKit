@@ -74,7 +74,7 @@ class MCPServerHttp(MCPServer):
         
     async def disconnect(self):
         """Disconnect from HTTP MCP server"""
-        if self.session:
+        if self.session and not self.session.closed:
             await self.session.close()
             self.session = None
         self.connected = False
