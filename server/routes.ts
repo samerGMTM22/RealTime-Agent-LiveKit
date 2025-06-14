@@ -611,6 +611,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // MCP tool call endpoint for dynamic agent
+  app.post("/api/mcp/call-tool", async (req, res) => {
+    try {
+      const { server_id, tool_name, params } = req.body;
+      
+      if (!server_id || !tool_name) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Server ID and tool name are required" 
+        });
+      }
+
+      // Get the specific MCP server
+      const mcpServers = await storage.getMcpServersByUserId(1);
+      const server = mcpServers.find(s => s.id === server_id);
+      
+      if (!server) {
+        return res.status(404).json({ 
+          success: false, 
+          error: `MCP server with ID ${server_id} not found` 
+        });
+      }
+
+      if (!server.isActive) {
+        return res.json({ 
+          success: false, 
+          error: `MCP server ${server.name} is not active` 
+        });
+      }
+
+      // Make the MCP tool call
+      try {
+        const mcpRequest = {
+          jsonrpc: "2.0",
+          id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          method: "tools/call",
+          params: {
+            name: tool_name,
+            arguments: params || {}
+          }
+        };
+
+        const response = await fetch(server.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+          },
+          body: JSON.stringify(mcpRequest),
+          signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          
+          if (result.error) {
+            return res.json({
+              success: false,
+              error: result.error.message || "MCP server returned an error",
+              server: server.name
+            });
+          }
+
+          // Handle different MCP response formats
+          let content = "Tool execution completed";
+          if (result.result) {
+            if (typeof result.result === 'string') {
+              content = result.result;
+            } else if (Array.isArray(result.result)) {
+              content = result.result.map(item => 
+                typeof item === 'string' ? item : 
+                item.text || item.content || JSON.stringify(item)
+              ).join('\n');
+            } else if (result.result.content) {
+              content = result.result.content;
+            } else if (result.result.text) {
+              content = result.result.text;
+            } else {
+              content = JSON.stringify(result.result);
+            }
+          }
+
+          return res.json({
+            success: true,
+            result: content,
+            server: server.name,
+            tool: tool_name
+          });
+        } else {
+          return res.json({
+            success: false,
+            error: `HTTP ${response.status}: ${response.statusText}`,
+            server: server.name
+          });
+        }
+      } catch (fetchError) {
+        console.error(`Error calling tool ${tool_name} on server ${server.name}:`, fetchError);
+        return res.json({
+          success: false,
+          error: fetchError.message || "Failed to call MCP server",
+          server: server.name
+        });
+      }
+      
+    } catch (error) {
+      console.error("Error in MCP call-tool endpoint:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Internal server error" 
+      });
+    }
+  });
+
   // System status endpoint
   app.get("/api/status", async (req, res) => {
     try {
