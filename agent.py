@@ -16,8 +16,8 @@ from livekit.plugins import openai, silero
 import requests
 import time
 
-# Import simplified MCP integration 
-from mcp_integration.simple_client import SimpleMCPManager
+# Import real MCP integration 
+from mcp_integration.real_mcp_client import RealMCPManager
 
 # Global MCP manager to be accessible by function tools
 _mcp_manager = None
@@ -36,12 +36,12 @@ async def search_web(query: str) -> str:
         global _mcp_manager
         if _mcp_manager:
             # Try to execute via MCP manager
-            for server_id, client in _mcp_manager.connected_servers.items():
-                if "internet" in client.name.lower():
+            for server_name, client in _mcp_manager.clients.items():
+                if "internet" in server_name.lower():
                     # Try different MCP tool names for web search
-                    for tool_name in ["search_web", "search", "web_search", "google_search"]:
-                        result = await _mcp_manager.call_tool(server_id, tool_name, {"query": query})
-                        if result.get("status") == "success" and "error" not in result:
+                    for tool_name in ["search_web", "search", "web_search", "brave_web_search"]:
+                        result = await _mcp_manager.execute_tool(server_name, tool_name, {"query": query})
+                        if result.get("success") and "error" not in result:
                             logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
                             return result.get("content", "Search completed successfully")
                         elif "content" in result and "error" not in result:
@@ -79,13 +79,13 @@ async def send_email(to: str, subject: str, body: str) -> str:
         global _mcp_manager
         if _mcp_manager:
             # Try to execute via MCP manager
-            for server_id, client in _mcp_manager.connected_servers.items():
-                if "zapier" in client.name.lower() or "email" in client.name.lower():
+            for server_name, client in _mcp_manager.clients.items():
+                if "zapier" in server_name.lower() or "email" in server_name.lower():
                     # Try different MCP tool names for email
                     for tool_name in ["send_email", "create_draft", "send_draft_email", "email_send"]:
-                        result = await _mcp_manager.call_tool(server_id, tool_name, 
+                        result = await _mcp_manager.execute_tool(server_name, tool_name, 
                                                            {"to": to, "subject": subject, "body": body})
-                        if result.get("status") == "success" and "error" not in result:
+                        if result.get("success") and "error" not in result:
                             logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
                             return result.get("content", "Email sent successfully via MCP")
                         elif "content" in result and "error" not in result:
@@ -203,12 +203,19 @@ async def entrypoint(ctx: JobContext):
     # Initialize global MCP manager for module-level function tools
     global _mcp_manager
     logger.info("Initializing MCP integration...")
-    _mcp_manager = SimpleMCPManager()
+    _mcp_manager = RealMCPManager()
     
     try:
         mcp_servers = await _mcp_manager.initialize_user_servers(user_id=1)
         connected_count = len([s for s in mcp_servers if s.get("status") == "connected"])
         logger.info(f"Connected to {connected_count} MCP servers")
+        
+        for server in mcp_servers:
+            if server.get("status") == "connected":
+                logger.info(f"MCP server '{server['name']}' connected with tools: {server.get('tools', [])}")
+            else:
+                logger.warning(f"MCP server '{server['name']}' failed: {server.get('error', 'Unknown error')}")
+                
     except Exception as e:
         logger.error(f"Failed to initialize MCP servers: {e}")
         _mcp_manager = None
@@ -275,6 +282,23 @@ async def entrypoint(ctx: JobContext):
         )
         
         logger.info("STT-LLM-TTS pipeline started successfully")
+    
+    # Cleanup function to disconnect MCP servers
+    async def cleanup():
+        global _mcp_manager
+        if _mcp_manager:
+            try:
+                await _mcp_manager.disconnect_all()
+                logger.info("MCP servers disconnected successfully")
+            except Exception as e:
+                logger.error(f"Error disconnecting MCP servers: {e}")
+    
+    # Register cleanup for when the agent shuts down
+    try:
+        import atexit
+        atexit.register(lambda: asyncio.create_task(cleanup()))
+    except Exception as e:
+        logger.warning(f"Could not register cleanup handler: {e}")
 
 
 if __name__ == "__main__":
