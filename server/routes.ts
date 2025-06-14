@@ -548,29 +548,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Execute search using the server's API
               const searchQuery = params?.query || params?.q || "";
               if (searchQuery) {
-                // Make request to MCP server
-                const response = await fetch(server.url, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
-                  },
-                  body: JSON.stringify({
-                    method: "tools/call",
-                    params: {
-                      name: "search",
-                      arguments: { query: searchQuery }
-                    }
-                  })
-                });
+                // Handle different MCP server protocols
+                if (server.url.includes('/sse')) {
+                  // For SSE-based MCP servers (like N8N), first get the session endpoint
+                  try {
+                    // Get the SSE endpoint to retrieve the messages URL
+                    const sseResponse = await fetch(server.url, {
+                      method: 'GET',
+                      headers: {
+                        'Accept': 'text/event-stream',
+                        ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+                      }
+                    });
 
-                if (response.ok) {
-                  const result = await response.json();
-                  return res.json({
-                    success: true,
-                    result: result.result || result.content || "Search completed",
-                    server: server.name
+                    if (sseResponse.ok) {
+                      const sseData = await sseResponse.text();
+                      const endpointMatch = sseData.match(/data: (\/mcp\/[^?]+\/messages\?sessionId=[^\n]+)/);
+                      
+                      if (endpointMatch) {
+                        const messagesUrl = new URL(endpointMatch[1], server.url).toString();
+                        
+                        // Now make the actual MCP JSON-RPC call to the messages endpoint
+                        const mcpRequest = {
+                          jsonrpc: "2.0",
+                          id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                          method: "tools/call",
+                          params: {
+                            name: "search",
+                            arguments: { query: searchQuery }
+                          }
+                        };
+
+                        const mcpResponse = await fetch(messagesUrl, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+                          },
+                          body: JSON.stringify(mcpRequest)
+                        });
+
+                        if (mcpResponse.ok) {
+                          const result = await mcpResponse.json();
+                          if (result.result) {
+                            let content = "Search completed";
+                            if (typeof result.result === 'string') {
+                              content = result.result;
+                            } else if (Array.isArray(result.result)) {
+                              content = result.result.map(item => 
+                                typeof item === 'string' ? item : 
+                                item.text || item.content || JSON.stringify(item)
+                              ).join('\n');
+                            } else if (result.result.content) {
+                              content = result.result.content;
+                            } else {
+                              content = JSON.stringify(result.result);
+                            }
+                            
+                            return res.json({
+                              success: true,
+                              result: content,
+                              server: server.name
+                            });
+                          }
+                        } else {
+                          console.error(`MCP messages endpoint error: ${mcpResponse.status} ${mcpResponse.statusText}`);
+                        }
+                      } else {
+                        console.error(`Could not extract messages endpoint from SSE response: ${sseData}`);
+                      }
+                    } else {
+                      console.error(`SSE endpoint error: ${sseResponse.status} ${sseResponse.statusText}`);
+                    }
+                  } catch (fetchError) {
+                    console.error(`MCP server error for ${server.name}:`, fetchError);
+                  }
+                } else {
+                  // For standard HTTP MCP servers
+                  const response = await fetch(server.url, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+                    },
+                    body: JSON.stringify({
+                      method: "tools/call",
+                      params: {
+                        name: "search",
+                        arguments: { query: searchQuery }
+                      }
+                    })
                   });
+
+                  if (response.ok) {
+                    const result = await response.json();
+                    return res.json({
+                      success: true,
+                      result: result.result || result.content || "Search completed",
+                      server: server.name
+                    });
+                  }
                 }
               }
             }
@@ -643,70 +721,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Make the MCP tool call
       try {
-        const mcpRequest = {
-          jsonrpc: "2.0",
-          id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          method: "tools/call",
-          params: {
-            name: tool_name,
-            arguments: params || {}
-          }
-        };
+        // Handle different MCP server protocols
+        if (server.url.includes('/sse')) {
+          // For SSE-based MCP servers (like N8N), first get the session endpoint
+          const sseResponse = await fetch(server.url, {
+            method: 'GET',
+            headers: {
+              'Accept': 'text/event-stream',
+              ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+            }
+          });
 
-        const response = await fetch(server.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
-          },
-          body: JSON.stringify(mcpRequest),
-          signal: AbortSignal.timeout(15000) // 15 second timeout
-        });
+          if (sseResponse.ok) {
+            const sseData = await sseResponse.text();
+            const endpointMatch = sseData.match(/data: (\/mcp\/[^?]+\/messages\?sessionId=[^\n]+)/);
+            
+            if (endpointMatch) {
+              const messagesUrl = new URL(endpointMatch[1], server.url).toString();
+              
+              // Now make the actual MCP JSON-RPC call to the messages endpoint
+              const mcpRequest = {
+                jsonrpc: "2.0",
+                id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                method: "tools/call",
+                params: {
+                  name: tool_name,
+                  arguments: params || {}
+                }
+              };
 
-        if (response.ok) {
-          const result = await response.json();
-          
-          if (result.error) {
+              const mcpResponse = await fetch(messagesUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+                },
+                body: JSON.stringify(mcpRequest),
+                signal: AbortSignal.timeout(15000) // 15 second timeout
+              });
+
+              if (mcpResponse.ok) {
+                const result = await mcpResponse.json();
+                
+                if (result.error) {
+                  return res.json({
+                    success: false,
+                    error: result.error.message || "MCP server returned an error",
+                    server: server.name
+                  });
+                }
+
+                // Handle different MCP response formats
+                let content = "Tool execution completed";
+                if (result.result) {
+                  if (typeof result.result === 'string') {
+                    content = result.result;
+                  } else if (Array.isArray(result.result)) {
+                    content = result.result.map((item: any) => 
+                      typeof item === 'string' ? item : 
+                      item.text || item.content || JSON.stringify(item)
+                    ).join('\n');
+                  } else if (result.result.content) {
+                    content = result.result.content;
+                  } else if (result.result.text) {
+                    content = result.result.text;
+                  } else {
+                    content = JSON.stringify(result.result);
+                  }
+                }
+
+                return res.json({
+                  success: true,
+                  result: content,
+                  server: server.name,
+                  tool: tool_name
+                });
+              } else {
+                return res.json({
+                  success: false,
+                  error: `MCP messages endpoint error: ${mcpResponse.status} ${mcpResponse.statusText}`,
+                  server: server.name
+                });
+              }
+            } else {
+              return res.json({
+                success: false,
+                error: "Could not extract messages endpoint from SSE response",
+                server: server.name
+              });
+            }
+          } else {
             return res.json({
               success: false,
-              error: result.error.message || "MCP server returned an error",
+              error: `SSE endpoint error: ${sseResponse.status} ${sseResponse.statusText}`,
               server: server.name
             });
           }
-
-          // Handle different MCP response formats
-          let content = "Tool execution completed";
-          if (result.result) {
-            if (typeof result.result === 'string') {
-              content = result.result;
-            } else if (Array.isArray(result.result)) {
-              content = result.result.map(item => 
-                typeof item === 'string' ? item : 
-                item.text || item.content || JSON.stringify(item)
-              ).join('\n');
-            } else if (result.result.content) {
-              content = result.result.content;
-            } else if (result.result.text) {
-              content = result.result.text;
-            } else {
-              content = JSON.stringify(result.result);
-            }
-          }
-
-          return res.json({
-            success: true,
-            result: content,
-            server: server.name,
-            tool: tool_name
-          });
         } else {
-          return res.json({
-            success: false,
-            error: `HTTP ${response.status}: ${response.statusText}`,
-            server: server.name
+          // For standard HTTP MCP servers
+          const mcpRequest = {
+            jsonrpc: "2.0",
+            id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            method: "tools/call",
+            params: {
+              name: tool_name,
+              arguments: params || {}
+            }
+          };
+
+          const response = await fetch(server.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+            },
+            body: JSON.stringify(mcpRequest),
+            signal: AbortSignal.timeout(15000) // 15 second timeout
           });
+
+          if (response.ok) {
+            const result = await response.json();
+            
+            if (result.error) {
+              return res.json({
+                success: false,
+                error: result.error.message || "MCP server returned an error",
+                server: server.name
+              });
+            }
+
+            // Handle different MCP response formats
+            let content = "Tool execution completed";
+            if (result.result) {
+              if (typeof result.result === 'string') {
+                content = result.result;
+              } else if (Array.isArray(result.result)) {
+                content = result.result.map((item: any) => 
+                  typeof item === 'string' ? item : 
+                  item.text || item.content || JSON.stringify(item)
+                ).join('\n');
+              } else if (result.result.content) {
+                content = result.result.content;
+              } else if (result.result.text) {
+                content = result.result.text;
+              } else {
+                content = JSON.stringify(result.result);
+              }
+            }
+
+            return res.json({
+              success: true,
+              result: content,
+              server: server.name,
+              tool: tool_name
+            });
+          } else {
+            return res.json({
+              success: false,
+              error: `HTTP ${response.status}: ${response.statusText}`,
+              server: server.name
+            });
+          }
         }
-      } catch (fetchError) {
+      } catch (fetchError: any) {
         console.error(`Error calling tool ${tool_name} on server ${server.name}:`, fetchError);
         return res.json({
           success: false,
