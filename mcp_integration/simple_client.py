@@ -38,7 +38,11 @@ class SimpleMCPClient:
             return {"error": "Server not connected"}
             
         try:
-            # Prepare MCP JSON-RPC request
+            # Handle SSE-based MCP servers (like N8N)
+            if '/sse' in self.url:
+                return self._handle_sse_mcp_call(tool_name, params)
+            
+            # Prepare MCP JSON-RPC request for standard servers
             mcp_request = {
                 "jsonrpc": "2.0",
                 "id": f"req_{hash(f'{tool_name}_{params}')}",
@@ -117,6 +121,171 @@ class SimpleMCPClient:
             
         except Exception as e:
             logger.error(f"Error calling tool {tool_name} on {self.name}: {e}")
+            return {"error": str(e)}
+    
+    def _handle_sse_mcp_call(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle SSE-based MCP server calls (like N8N) with concurrent session management"""
+        import threading
+        import queue
+        import time
+        
+        try:
+            # Use a queue to communicate between threads
+            result_queue = queue.Queue()
+            messages_url = None
+            sse_response = None
+            
+            def sse_reader():
+                nonlocal messages_url, sse_response
+                try:
+                    # Establish SSE connection
+                    sse_headers = {
+                        "Accept": "text/event-stream",
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive"
+                    }
+                    
+                    if self.api_key:
+                        sse_headers["Authorization"] = f"Bearer {self.api_key}"
+                    
+                    logger.info(f"Establishing SSE connection to {self.url}")
+                    
+                    sse_response = requests.get(
+                        self.url,
+                        headers=sse_headers,
+                        stream=True,
+                        timeout=30
+                    )
+                    
+                    if sse_response.status_code == 200:
+                        # Read SSE stream to find session endpoint
+                        for line in sse_response.iter_lines(decode_unicode=True):
+                            if line and line.startswith('data: ') and '/messages?sessionId=' in line:
+                                endpoint_path = line[6:].strip()
+                                from urllib.parse import urljoin
+                                messages_url = urljoin(self.url, endpoint_path)
+                                result_queue.put(("endpoint_found", messages_url))
+                                break
+                            elif line and line.startswith('data: ') and line != 'data: ':
+                                # Log other SSE data for debugging
+                                logger.info(f"SSE data: {line}")
+                        
+                        # Keep connection alive for a short time
+                        time.sleep(2)
+                    else:
+                        result_queue.put(("error", f"SSE connection failed: {sse_response.status_code}"))
+                        
+                except Exception as e:
+                    result_queue.put(("error", str(e)))
+                finally:
+                    if sse_response:
+                        sse_response.close()
+            
+            # Start SSE reader in background thread
+            sse_thread = threading.Thread(target=sse_reader, daemon=True)
+            sse_thread.start()
+            
+            # Wait for endpoint or error
+            try:
+                event_type, event_data = result_queue.get(timeout=10)
+                
+                if event_type == "endpoint_found":
+                    messages_url = event_data
+                    logger.info(f"Got session endpoint: {messages_url}")
+                    
+                    # Make the MCP JSON-RPC call immediately while session is active
+                    mcp_request = {
+                        "jsonrpc": "2.0",
+                        "id": f"req_{hash(f'{tool_name}_{params}')}",
+                        "method": "tools/call",
+                        "params": {
+                            "name": tool_name,
+                            "arguments": params
+                        }
+                    }
+                    
+                    mcp_headers = {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    }
+                    
+                    if self.api_key:
+                        mcp_headers["Authorization"] = f"Bearer {self.api_key}"
+                    
+                    logger.info(f"Making MCP call to session endpoint: {messages_url}")
+                    logger.info(f"MCP request: {mcp_request}")
+                    
+                    mcp_response = requests.post(
+                        messages_url,
+                        json=mcp_request,
+                        headers=mcp_headers,
+                        timeout=8
+                    )
+                    
+                    logger.info(f"MCP session response status: {mcp_response.status_code}")
+                    logger.info(f"MCP session response: {mcp_response.text[:500]}")
+                    
+                    if mcp_response.status_code == 200:
+                        try:
+                            result = mcp_response.json()
+                            if "result" in result:
+                                mcp_result = result["result"]
+                                if isinstance(mcp_result, dict) and "content" in mcp_result:
+                                    return {
+                                        "content": mcp_result["content"],
+                                        "status": "success"
+                                    }
+                                elif isinstance(mcp_result, list):
+                                    content_parts = []
+                                    for item in mcp_result:
+                                        if isinstance(item, dict) and "text" in item:
+                                            content_parts.append(item["text"])
+                                        elif isinstance(item, str):
+                                            content_parts.append(item)
+                                    return {
+                                        "content": "\n".join(content_parts) if content_parts else str(mcp_result),
+                                        "status": "success"
+                                    }
+                                else:
+                                    return {
+                                        "content": str(mcp_result),
+                                        "status": "success"
+                                    }
+                            else:
+                                return {
+                                    "error": "No result in MCP response",
+                                    "status": "error"
+                                }
+                        except Exception as parse_error:
+                            logger.error(f"Failed to parse MCP response: {parse_error}")
+                            return {
+                                "error": f"Invalid JSON response: {mcp_response.text[:200]}",
+                                "status": "error"
+                            }
+                    else:
+                        return {
+                            "error": f"MCP session call failed: {mcp_response.status_code} {mcp_response.text}",
+                            "status": "error"
+                        }
+                elif event_type == "error":
+                    return {
+                        "error": event_data,
+                        "status": "error"
+                    }
+                else:
+                    return {
+                        "error": "Unknown SSE event type",
+                        "status": "error"
+                    }
+                    
+            except queue.Empty:
+                return {
+                    "error": "SSE connection timeout - no session endpoint received",
+                    "status": "error"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error in SSE MCP call for {tool_name}: {e}")
             return {"error": str(e)}
 
 
