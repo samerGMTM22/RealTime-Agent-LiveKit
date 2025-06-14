@@ -203,6 +203,13 @@ async def entrypoint(ctx: JobContext):
     # Initialize global MCP manager for module-level function tools
     global _mcp_manager
     logger.info("Initializing MCP integration...")
+    
+    # Check for MCP API keys
+    brave_key = os.environ.get("BRAVE_API_KEY")
+    zapier_key = os.environ.get("ZAPIER_API_KEY")
+    logger.info(f"MCP Environment - BRAVE_API_KEY: {'SET' if brave_key else 'NOT SET'}")
+    logger.info(f"MCP Environment - ZAPIER_API_KEY: {'SET' if zapier_key else 'NOT SET'}")
+    
     _mcp_manager = RealMCPManager()
     
     try:

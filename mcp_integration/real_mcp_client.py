@@ -16,8 +16,8 @@ class MCPServer:
     id: str
     name: str
     command: str
-    args: List[str] = None
-    env: Dict[str, str] = None
+    args: Optional[List[str]] = None
+    env: Optional[Dict[str, str]] = None
     
 class MCPClient:
     """Handles communication with a single MCP server via stdio"""
@@ -222,23 +222,25 @@ class RealMCPManager:
         servers = []
         
         # Brave Search MCP server
-        if os.environ.get("BRAVE_API_KEY"):
+        brave_api_key = os.environ.get("BRAVE_API_KEY")
+        if brave_api_key:
             servers.append(MCPServer(
                 id="brave-search",
                 name="internet access",
                 command="npx",
                 args=["-y", "@modelcontextprotocol/server-brave-search"],
-                env={"BRAVE_API_KEY": os.environ.get("BRAVE_API_KEY")}
+                env={"BRAVE_API_KEY": brave_api_key}
             ))
         
         # Zapier MCP server
-        if os.environ.get("ZAPIER_API_KEY"):
+        zapier_api_key = os.environ.get("ZAPIER_API_KEY")
+        if zapier_api_key:
             servers.append(MCPServer(
                 id="zapier",
                 name="Zapier send draft email",
                 command="npx",
                 args=["-y", "@modelcontextprotocol/server-zapier"],
-                env={"ZAPIER_API_KEY": os.environ.get("ZAPIER_API_KEY")}
+                env={"ZAPIER_API_KEY": zapier_api_key}
             ))
         
         if not servers:
