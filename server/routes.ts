@@ -315,6 +315,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const room = await liveKitService.createRoom(roomName, maxParticipants);
+      
+      // DO NOT start agent automatically here - only when explicitly requested
       res.status(201).json(room);
     } catch (error) {
       console.error("Error creating LiveKit room:", error);
