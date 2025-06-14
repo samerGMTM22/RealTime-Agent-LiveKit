@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { liveKitService } from "./lib/livekit";
 import { openaiService } from "./lib/openai";
+import { n8nMCPProxy } from "./mcp_proxy";
 
 import { webScraperService } from "./lib/scraper";
 import { getAgentTemplate, createAgentConfigFromTemplate } from "./config/agent-config";
@@ -550,116 +551,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (searchQuery) {
                 // Handle different MCP server protocols
                 if (server.url.includes('/sse')) {
-                  // For SSE-based MCP servers, establish proper session-based connection
+                  // For SSE-based MCP servers (like N8N), use the dedicated proxy
                   try {
-                    // First, initiate SSE connection to get session endpoint
-                    const sseResponse = await fetch(server.url, {
-                      method: 'GET',
-                      headers: {
-                        'Accept': 'text/event-stream',
-                        'Cache-Control': 'no-cache',
-                        'Connection': 'keep-alive',
-                        ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
-                      },
-                      signal: AbortSignal.timeout(5000)
-                    });
-
-                    if (sseResponse.ok && sseResponse.body) {
-                      const reader = sseResponse.body.getReader();
-                      const decoder = new TextDecoder();
-                      
-                      try {
-                        let buffer = '';
-                        let messagesUrl = '';
-                        
-                        // Read the SSE stream to find the session endpoint
-                        while (true) {
-                          const { done, value } = await reader.read();
-                          if (done) break;
-                          
-                          buffer += decoder.decode(value, { stream: true });
-                          
-                          // Look for endpoint data in SSE format
-                          const lines = buffer.split('\n');
-                          for (const line of lines) {
-                            if (line.startsWith('data: ') && line.includes('/messages?sessionId=')) {
-                              const endpointPath = line.substring(6).trim();
-                              messagesUrl = new URL(endpointPath, server.url).toString();
-                              break;
-                            }
-                          }
-                          
-                          if (messagesUrl) break;
-                        }
-                        
-                        reader.cancel();
-                        
-                        if (messagesUrl) {
-                          // Now make the MCP JSON-RPC call to the session endpoint
-                          const mcpRequest = {
-                            jsonrpc: "2.0",
-                            id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                            method: "tools/call",
-                            params: {
-                              name: "search",
-                              arguments: { query: searchQuery }
-                            }
-                          };
-
-                          const mcpResponse = await fetch(messagesUrl, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                              'Accept': 'application/json',
-                              ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
-                            },
-                            body: JSON.stringify(mcpRequest),
-                            signal: AbortSignal.timeout(8000)
-                          });
-
-                          if (mcpResponse.ok) {
-                            const responseText = await mcpResponse.text();
-                            try {
-                              const result = JSON.parse(responseText);
-                              if (result.result) {
-                                let content = "Search completed";
-                                if (typeof result.result === 'string') {
-                                  content = result.result;
-                                } else if (Array.isArray(result.result)) {
-                                  content = result.result.map((item: any) => 
-                                    typeof item === 'string' ? item : 
-                                    item.text || item.content || JSON.stringify(item)
-                                  ).join('\n');
-                                } else if (result.result.content) {
-                                  content = result.result.content;
-                                } else {
-                                  content = JSON.stringify(result.result);
-                                }
-                                
-                                return res.json({
-                                  success: true,
-                                  result: content,
-                                  server: server.name
-                                });
-                              }
-                            } catch (parseError) {
-                              console.error(`Failed to parse MCP response: ${responseText}`);
-                            }
-                          } else {
-                            const errorText = await mcpResponse.text();
-                            console.error(`MCP call failed: ${mcpResponse.status} ${errorText}`);
-                          }
-                        } else {
-                          console.error(`Could not extract session endpoint from SSE stream`);
-                        }
-                      } finally {
-                        reader.cancel();
-                      }
+                    const proxyResult = await n8nMCPProxy.callN8NTool(
+                      server.url,
+                      "search", 
+                      { query: searchQuery },
+                      server.apiKey
+                    );
+                    
+                    if (proxyResult.success) {
+                      return res.json({
+                        success: true,
+                        result: proxyResult.result,
+                        server: server.name
+                      });
                     } else {
-                      console.error(`SSE connection failed: ${sseResponse.status}`);
+                      console.error(`N8N MCP proxy error: ${proxyResult.error}`);
                     }
-                  } catch (fetchError) {
-                    console.error(`MCP server error for ${server.name}:`, fetchError);
+                  } catch (proxyError) {
+                    console.error(`MCP proxy error for ${server.name}:`, proxyError);
                   }
                 } else {
                   // For standard HTTP MCP servers
