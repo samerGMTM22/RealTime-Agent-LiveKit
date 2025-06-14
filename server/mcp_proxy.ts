@@ -8,6 +8,51 @@ export class N8NMCPProxy {
     lastActivity: number;
   }>();
 
+  async discoverN8NTools(serverUrl: string, apiKey?: string): Promise<string[]> {
+    try {
+      const connection = await this.createN8NConnection(serverUrl, apiKey);
+      if (!connection || !connection.messagesUrl) {
+        throw new Error('Failed to establish N8N MCP session for tool discovery');
+      }
+      
+      const listToolsRequest = {
+        jsonrpc: "2.0",
+        id: `req_${Date.now()}_tools`,
+        method: "tools/list",
+        params: {}
+      };
+      
+      const headers: any = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+      
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+      
+      const response = await fetch(connection.messagesUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(listToolsRequest)
+      });
+      
+      if (response.ok) {
+        const result: any = await response.json();
+        if (result.result && result.result.tools) {
+          const toolNames = result.result.tools.map((tool: any) => tool.name);
+          console.log(`N8N MCP Proxy: Discovered tools: ${toolNames.join(', ')}`);
+          return toolNames;
+        }
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('N8N MCP tool discovery failed:', error);
+      return [];
+    }
+  }
+
   async callN8NTool(serverUrl: string, toolName: string, params: any, apiKey?: string): Promise<any> {
     try {
       console.log(`N8N MCP Proxy: Calling tool ${toolName} on ${serverUrl}`);

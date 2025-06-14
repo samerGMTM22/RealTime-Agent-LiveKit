@@ -553,12 +553,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (server.url.includes('/sse')) {
                   // For SSE-based MCP servers (like N8N), use the dedicated proxy
                   try {
-                    const proxyResult = await n8nMCPProxy.callN8NTool(
-                      server.url,
-                      "search", 
-                      { query: searchQuery },
-                      server.apiKey
+                    // First discover available tools on the N8N MCP server
+                    const availableTools = await n8nMCPProxy.discoverN8NTools(server.url, server.apiKey);
+                    
+                    if (availableTools.length === 0) {
+                      console.log(`N8N MCP proxy: No tools discovered for ${server.name}`);
+                      // Fall back to trying common search tool names
+                      const searchTools = ['search', 'web_search', 'google_search', 'internet_search', 'search_web'];
+                      availableTools.push(...searchTools);
+                    }
+                    
+                    let proxyResult = null;
+                    
+                    // Try the discovered tools, prioritizing those that contain 'search'
+                    const searchTools = availableTools.filter(tool => 
+                      tool.toLowerCase().includes('search') || 
+                      tool.toLowerCase().includes('web') || 
+                      tool.toLowerCase().includes('internet')
                     );
+                    
+                    const toolsToTry = searchTools.length > 0 ? searchTools : availableTools;
+                    
+                    for (const toolToTry of toolsToTry) {
+                      proxyResult = await n8nMCPProxy.callN8NTool(
+                        server.url,
+                        toolToTry, 
+                        { query: searchQuery },
+                        server.apiKey
+                      );
+                      
+                      if (proxyResult.success) {
+                        console.log(`N8N MCP proxy success with tool: ${toolToTry}`);
+                        break;
+                      } else {
+                        console.log(`N8N MCP proxy failed with tool ${toolToTry}: ${proxyResult.error}`);
+                      }
+                    }
                     
                     if (proxyResult.success) {
                       return res.json({
