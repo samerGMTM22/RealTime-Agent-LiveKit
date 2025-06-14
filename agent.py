@@ -127,9 +127,13 @@ async def get_agent_config(room_name: str):
 
 
 class Assistant(Agent):
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict, tools: list = None) -> None:
         system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
-        super().__init__(instructions=system_prompt)
+        # Pass tools to parent Agent constructor
+        super().__init__(
+            instructions=system_prompt,
+            tools=tools or []  # Pass the tools here!
+        )
         self.config = config
 
     # Define MCP tools as proper class methods with function_tool decorator
@@ -283,8 +287,11 @@ async def entrypoint(ctx: JobContext):
     try:
         logger.info("Attempting OpenAI Realtime API")
         
-        # Create assistant - function tools are automatically registered via @function_tool decorator
-        assistant = Assistant(config)
+        # Create assistant with function tools passed to constructor
+        assistant = Assistant(
+            config=config, 
+            tools=[search_web, send_email]  # Pass the module-level function tools here
+        )
         logger.info("Assistant created with module-level function tools")
         
         # Create AgentSession with Realtime API
@@ -293,7 +300,6 @@ async def entrypoint(ctx: JobContext):
                 model="gpt-4o-realtime-preview",
                 voice=voice,
                 temperature=realtime_temp,
-                instructions=config.get("systemPrompt", "You are a helpful assistant."),
             ),
             allow_interruptions=True,
             min_interruption_duration=0.5,
@@ -320,8 +326,11 @@ async def entrypoint(ctx: JobContext):
         # Convert temperature for standard LLM
         llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
         
-        # Create assistant for fallback
-        assistant = Assistant(config)
+        # Create assistant for fallback with function tools
+        assistant = Assistant(
+            config=config,
+            tools=[search_web, send_email]
+        )
         
         # Create STT-LLM-TTS pipeline as fallback
         session = AgentSession(

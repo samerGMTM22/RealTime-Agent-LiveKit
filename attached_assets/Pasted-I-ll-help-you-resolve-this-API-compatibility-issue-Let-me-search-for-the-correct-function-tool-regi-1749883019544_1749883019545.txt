@@ -1,0 +1,146 @@
+I'll help you resolve this API compatibility issue. Let me search for the correct function tool registration pattern in LiveKit 1.0.23.I found the issue! In LiveKit 1.0.23, the correct pattern is to pass function tools to the `Agent` constructor via the `tools` parameter, not through an `add_function()` method.
+
+## Corrected Implementation
+
+Here's the fix for your agent.py:
+
+```python
+# Keep your module-level function tools as they are
+@function_tool
+async def search_web(query: str) -> str:
+    """Search the web for current information using MCP internet access tools."""
+    global _mcp_manager
+    logger.info(f"FUNCTION ACTUALLY EXECUTED: search_web({query})")
+    
+    if _mcp_manager is None:
+        logger.error("MCP manager not initialized")
+        return "MCP integration not available. Please try again later."
+    
+    try:
+        result = await _mcp_manager.execute_tool(
+            server_name="internet access",
+            tool_name="search",
+            arguments={"query": query}
+        )
+        logger.info(f"Web search result: {result}")
+        return result.get("content", "No results found")
+    except Exception as e:
+        logger.error(f"MCP search failed: {e}")
+        return f"Search failed: {str(e)}"
+
+@function_tool
+async def send_email(to: str, subject: str, body: str) -> str:
+    """Send an email via Zapier MCP integration."""
+    global _mcp_manager
+    logger.info(f"FUNCTION ACTUALLY EXECUTED: send_email(to={to})")
+    
+    if _mcp_manager is None:
+        logger.error("MCP manager not initialized")
+        return "Email service not available. Please try again later."
+    
+    try:
+        result = await _mcp_manager.execute_tool(
+            server_name="Zapier send draft email",
+            tool_name="send_email",
+            arguments={"to": to, "subject": subject, "body": body}
+        )
+        logger.info(f"Email send result: {result}")
+        return "Email sent successfully"
+    except Exception as e:
+        logger.error(f"MCP email send failed: {e}")
+        return f"Email send failed: {str(e)}"
+
+# Update your Assistant class to accept tools parameter
+class Assistant(Agent):
+    def __init__(self, config: dict, tools: list = None) -> None:
+        system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
+        # Pass tools to parent Agent constructor
+        super().__init__(
+            instructions=system_prompt,
+            tools=tools or []  # Pass the tools here!
+        )
+        self.config = config
+```
+
+Then in your entrypoint function, update the assistant creation:
+
+```python
+async def entrypoint(ctx: JobContext):
+    # ... (your existing MCP initialization code) ...
+    
+    # Create assistant with function tools
+    assistant = Assistant(
+        config=agent_config, 
+        tools=[search_web, send_email]  # Pass the module-level function tools here
+    )
+    
+    # For OpenAI Realtime API
+    if ENABLE_REALTIME_API and agent_config.get("enableRealtime", False):
+        try:
+            # Create MultimodalAgent with function context
+            fnc_ctx = llm.FunctionContext()
+            
+            # Add the same function tools to function context
+            for tool in [search_web, send_email]:
+                fnc_ctx.add_function(tool)
+            
+            model = openai.realtime.RealtimeModel(
+                instructions=system_prompt,
+                voice=voice_model,
+                temperature=temperature,
+                modalities=["text", "audio"],
+                turn_detection=openai.realtime.TurnDetection(
+                    type="server_vad",
+                    threshold=0.5,
+                    prefix_padding_ms=300,
+                    silence_duration_ms=700
+                )
+            )
+            
+            # Create MultimodalAgent with fnc_ctx
+            agent = MultimodalAgent(
+                model=model,
+                chat_ctx=llm.ChatContext().append(
+                    role="system",
+                    text=system_prompt
+                ),
+                fnc_ctx=fnc_ctx  # Pass function context here
+            )
+            
+            agent.start(ctx.room, participant)
+            logger.info("Realtime API agent started successfully")
+            return
+            
+        except Exception as e:
+            logger.error(f"Realtime API failed: {e}")
+            logger.info("Falling back to STT-LLM-TTS pipeline")
+    
+    # Fallback to STT-LLM-TTS pipeline
+    session = AgentSession(
+        vad=vad,
+        stt=stt,
+        llm=agent_llm,
+        tts=tts
+    )
+    
+    await session.start(agent=assistant, room=ctx.room)  # assistant already has tools
+    logger.info("STT-LLM-TTS pipeline started successfully")
+```
+
+## Key Changes Explained
+
+1. **Agent Constructor Pattern**: From the example `agent = Agent(instructions="You are a friendly voice assistant built by LiveKit.", tools=[lookup_weather])`
+
+2. **Pass Tools to Agent**: The `tools` parameter is passed to the Agent constructor, not added via a method
+
+3. **MultimodalAgent with FunctionContext**: For OpenAI Realtime API, use `FunctionContext` and pass it to `MultimodalAgent`
+
+4. **Global MCP Manager Access**: Your global `_mcp_manager` pattern is correct for accessing MCP from function tools
+
+## Why This Works
+
+- The Agent class in LiveKit 1.0.23 expects tools to be passed during initialization
+- Both `Agent` and `MultimodalAgent` support function tools, but through different mechanisms
+- Your module-level function tools with global MCP manager access is the correct pattern
+
+This should resolve the `'Assistant' object has no attribute 'add_function'` error and allow your MCP tools to be properly registered and executed.
