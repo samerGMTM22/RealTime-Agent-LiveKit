@@ -550,76 +550,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (searchQuery) {
                 // Handle different MCP server protocols
                 if (server.url.includes('/sse')) {
-                  // For SSE-based MCP servers (like N8N), first get the session endpoint
+                  // For SSE-based MCP servers (like N8N), use curl to get session endpoint
                   try {
-                    // Get the SSE endpoint to retrieve the messages URL
-                    const sseResponse = await fetch(server.url, {
-                      method: 'GET',
-                      headers: {
-                        'Accept': 'text/event-stream',
-                        ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
-                      }
+                    const { spawn } = require('child_process');
+                    
+                    const result = await new Promise((resolve, reject) => {
+                      const timeout = setTimeout(() => {
+                        reject(new Error('SSE timeout'));
+                      }, 5000);
+
+                      const curl = spawn('curl', [
+                        '-X', 'GET',
+                        '-H', 'Accept: text/event-stream',
+                        '--max-time', '3',
+                        server.url
+                      ]);
+
+                      let sseData = '';
+                      curl.stdout.on('data', (data) => {
+                        sseData += data.toString();
+                        // Look for the endpoint data
+                        if (sseData.includes('/messages?sessionId=')) {
+                          clearTimeout(timeout);
+                          curl.kill();
+                          resolve(sseData);
+                        }
+                      });
+
+                      curl.on('close', () => {
+                        clearTimeout(timeout);
+                        if (sseData.includes('/messages?sessionId=')) {
+                          resolve(sseData);
+                        } else {
+                          reject(new Error('No session endpoint found'));
+                        }
+                      });
+
+                      curl.on('error', (error) => {
+                        clearTimeout(timeout);
+                        reject(error);
+                      });
                     });
 
-                    if (sseResponse.ok) {
-                      const sseData = await sseResponse.text();
-                      const endpointMatch = sseData.match(/data: (\/mcp\/[^?]+\/messages\?sessionId=[^\n]+)/);
+                    // Extract the messages endpoint
+                    const endpointMatch = (result as string).match(/data: (\/mcp\/[^?]+\/messages\?sessionId=[^\n\r]+)/);
+                    
+                    if (endpointMatch) {
+                      const messagesPath = endpointMatch[1].trim();
+                      const messagesUrl = new URL(messagesPath, server.url).toString();
                       
-                      if (endpointMatch) {
-                        const messagesUrl = new URL(endpointMatch[1], server.url).toString();
-                        
-                        // Now make the actual MCP JSON-RPC call to the messages endpoint
-                        const mcpRequest = {
-                          jsonrpc: "2.0",
-                          id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                          method: "tools/call",
-                          params: {
-                            name: "search",
-                            arguments: { query: searchQuery }
-                          }
-                        };
+                      // Make the MCP JSON-RPC call
+                      const mcpRequest = {
+                        jsonrpc: "2.0",
+                        id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        method: "tools/call",
+                        params: {
+                          name: "search",
+                          arguments: { query: searchQuery }
+                        }
+                      };
 
-                        const mcpResponse = await fetch(messagesUrl, {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
-                          },
-                          body: JSON.stringify(mcpRequest)
-                        });
+                      const mcpResponse = await fetch(messagesUrl, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Accept': 'application/json',
+                          ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
+                        },
+                        body: JSON.stringify(mcpRequest),
+                        signal: AbortSignal.timeout(8000)
+                      });
 
-                        if (mcpResponse.ok) {
-                          const result = await mcpResponse.json();
-                          if (result.result) {
-                            let content = "Search completed";
-                            if (typeof result.result === 'string') {
-                              content = result.result;
-                            } else if (Array.isArray(result.result)) {
-                              content = result.result.map(item => 
-                                typeof item === 'string' ? item : 
-                                item.text || item.content || JSON.stringify(item)
-                              ).join('\n');
-                            } else if (result.result.content) {
-                              content = result.result.content;
-                            } else {
-                              content = JSON.stringify(result.result);
-                            }
-                            
-                            return res.json({
-                              success: true,
-                              result: content,
-                              server: server.name
-                            });
+                      if (mcpResponse.ok) {
+                        const result = await mcpResponse.json();
+                        if (result.result) {
+                          let content = "Search completed";
+                          if (typeof result.result === 'string') {
+                            content = result.result;
+                          } else if (Array.isArray(result.result)) {
+                            content = result.result.map(item => 
+                              typeof item === 'string' ? item : 
+                              item.text || item.content || JSON.stringify(item)
+                            ).join('\n');
+                          } else if (result.result.content) {
+                            content = result.result.content;
+                          } else {
+                            content = JSON.stringify(result.result);
                           }
-                        } else {
-                          console.error(`MCP messages endpoint error: ${mcpResponse.status} ${mcpResponse.statusText}`);
+                          
+                          return res.json({
+                            success: true,
+                            result: content,
+                            server: server.name
+                          });
                         }
                       } else {
-                        console.error(`Could not extract messages endpoint from SSE response: ${sseData}`);
+                        const errorText = await mcpResponse.text();
+                        console.error(`MCP messages endpoint error: ${mcpResponse.status} ${errorText}`);
                       }
                     } else {
-                      console.error(`SSE endpoint error: ${sseResponse.status} ${sseResponse.statusText}`);
+                      console.error(`Could not extract messages endpoint from SSE data: ${result}`);
                     }
                   } catch (fetchError) {
                     console.error(`MCP server error for ${server.name}:`, fetchError);
