@@ -33,33 +33,87 @@ class SimpleMCPClient:
         logger.info(f"Disconnected from MCP server {self.name}")
     
     def call_tool(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Call a tool on the MCP server using requests"""
+        """Call a tool on the MCP server using actual HTTP requests"""
         if not self.connected:
             return {"error": "Server not connected"}
             
         try:
-            headers = {"Content-Type": "application/json"}
+            # Prepare MCP JSON-RPC request
+            mcp_request = {
+                "jsonrpc": "2.0",
+                "id": f"req_{hash(f'{tool_name}_{params}')}",
+                "method": "tools/call",
+                "params": {
+                    "name": tool_name,
+                    "arguments": params
+                }
+            }
+            
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+            
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
+            
+            logger.info(f"Making MCP call to {self.url} with tool {tool_name}")
+            logger.info(f"MCP request: {mcp_request}")
+            
+            # Make actual HTTP request to MCP server
+            response = requests.post(
+                self.url, 
+                json=mcp_request, 
+                headers=headers, 
+                timeout=10
+            )
+            
+            logger.info(f"MCP server response status: {response.status_code}")
+            logger.info(f"MCP server response: {response.text[:500]}")
+            
+            if response.status_code == 200:
+                result = response.json()
                 
-            # For search tools on internet access server
-            if tool_name == "search" and "internet" in self.name.lower():
-                query = params.get("query", "")
-                if query:
-                    # Simulate successful search response
+                # Handle MCP JSON-RPC response format
+                if "result" in result:
+                    mcp_result = result["result"]
+                    if isinstance(mcp_result, dict) and "content" in mcp_result:
+                        return {
+                            "content": mcp_result["content"],
+                            "status": "success"
+                        }
+                    elif isinstance(mcp_result, list) and len(mcp_result) > 0:
+                        # Handle array of content blocks
+                        content_parts = []
+                        for item in mcp_result:
+                            if isinstance(item, dict) and "text" in item:
+                                content_parts.append(item["text"])
+                            elif isinstance(item, str):
+                                content_parts.append(item)
+                        return {
+                            "content": "\n".join(content_parts) if content_parts else str(mcp_result),
+                            "status": "success"
+                        }
+                    else:
+                        return {
+                            "content": str(mcp_result),
+                            "status": "success"
+                        }
+                elif "error" in result:
                     return {
-                        "content": f"Search results for '{query}': Found relevant information from web sources.",
+                        "error": result["error"].get("message", "MCP server error"),
+                        "status": "error"
+                    }
+                else:
+                    return {
+                        "content": str(result),
                         "status": "success"
                     }
-            
-            # For email tools on Zapier server
-            elif tool_name == "send_email" and "zapier" in self.name.lower():
+            else:
                 return {
-                    "content": "Email functionality is available via Zapier integration",
-                    "status": "success"
+                    "error": f"HTTP {response.status_code}: {response.text}",
+                    "status": "error"
                 }
-            
-            return {"content": f"Tool {tool_name} executed on {self.name}", "status": "success"}
             
         except Exception as e:
             logger.error(f"Error calling tool {tool_name} on {self.name}: {e}")

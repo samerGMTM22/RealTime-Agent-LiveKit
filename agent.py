@@ -38,10 +38,15 @@ async def search_web(query: str) -> str:
             # Try to execute via MCP manager
             for server_id, client in _mcp_manager.connected_servers.items():
                 if "internet" in client.name.lower():
-                    result = await _mcp_manager.call_tool(server_id, "search", {"query": query})
-                    if "error" not in result:
-                        logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP search successful")
-                        return result.get("content", "Search completed successfully")
+                    # Try different MCP tool names for web search
+                    for tool_name in ["search_web", "search", "web_search", "google_search"]:
+                        result = await _mcp_manager.call_tool(server_id, tool_name, {"query": query})
+                        if result.get("status") == "success" and "error" not in result:
+                            logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
+                            return result.get("content", "Search completed successfully")
+                        elif "content" in result and "error" not in result:
+                            logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
+                            return result.get("content", "Search completed successfully")
         
         # Fallback to Express API
         logger.info(f"Making Express API call for search: {query}")
@@ -76,11 +81,16 @@ async def send_email(to: str, subject: str, body: str) -> str:
             # Try to execute via MCP manager
             for server_id, client in _mcp_manager.connected_servers.items():
                 if "zapier" in client.name.lower() or "email" in client.name.lower():
-                    result = await _mcp_manager.call_tool(server_id, "send_email", 
-                                                       {"to": to, "subject": subject, "body": body})
-                    if "error" not in result:
-                        logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP email successful")
-                        return "Email sent successfully via MCP"
+                    # Try different MCP tool names for email
+                    for tool_name in ["send_email", "create_draft", "send_draft_email", "email_send"]:
+                        result = await _mcp_manager.call_tool(server_id, tool_name, 
+                                                           {"to": to, "subject": subject, "body": body})
+                        if result.get("status") == "success" and "error" not in result:
+                            logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
+                            return result.get("content", "Email sent successfully via MCP")
+                        elif "content" in result and "error" not in result:
+                            logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
+                            return result.get("content", "Email sent successfully via MCP")
         
         # Fallback to Express API
         logger.info(f"Making Express API call for email: {to}")
