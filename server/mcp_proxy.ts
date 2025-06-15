@@ -59,12 +59,12 @@ export class N8NMCPProxy {
         const responseText = await response.text();
         console.log(`N8N MCP Proxy: Raw response:`, responseText.substring(0, 200));
 
-        // Handle N8N "Accepted" responses - implement polling for actual results
+        // Handle N8N "Accepted" responses - wait for actual results via SSE events
         if (responseText === "Accepted" || response.status === 202) {
-          console.log(`N8N MCP Proxy: N8N workflow accepted the request - polling for results...`);
+          console.log(`N8N MCP Proxy: N8N workflow accepted the request - waiting for SSE result events...`);
           
-          // Poll for results with exponential backoff
-          const result = await this.pollForResults(connection.messagesUrl, requestId, apiKey);
+          // Wait for results via SSE connection events
+          const result = await this.waitForSSEResults(connection, requestId);
           
           if (result) {
             return { 
@@ -74,7 +74,7 @@ export class N8NMCPProxy {
           } else {
             return {
               success: false,
-              error: "Timeout waiting for tool execution results"
+              error: "Timeout waiting for tool execution results via SSE"
             };
           }
         }
@@ -121,94 +121,48 @@ export class N8NMCPProxy {
     return { success: false, error: 'No valid response from MCP server' };
   }
 
-  private async pollForResults(messagesUrl: string, requestId: string, apiKey?: string): Promise<any> {
-    const maxAttempts = 10;
-    const baseDelay = 500; // Start with 500ms
-    
-    console.log(`N8N MCP Proxy: Starting polling for request ${requestId}`);
-    
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const delay = baseDelay * Math.pow(1.5, attempt); // Exponential backoff
-      await new Promise(resolve => setTimeout(resolve, delay));
+  private async waitForSSEResults(connection: any, requestId: string): Promise<any> {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        console.log(`N8N MCP Proxy: SSE result timeout for ${requestId}`);
+        resolve(null);
+      }, 25000); // 25 second timeout
       
-      try {
-        // Query for the result using the request ID
-        const resultRequest = {
-          jsonrpc: "2.0",
-          id: `poll_${requestId}`,
-          method: "tools/result",
-          params: { requestId }
-        };
-        
-        const headers: any = {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        };
-        if (apiKey) {
-          headers['Authorization'] = `Bearer ${apiKey}`;
-        }
-        
-        console.log(`N8N MCP Proxy: Polling attempt ${attempt + 1}/${maxAttempts} for ${requestId}`);
-        
-        const response = await fetch(messagesUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(resultRequest),
-          signal: AbortSignal.timeout(5000) // 5-second timeout per poll
-        });
-        
-        if (response.ok) {
-          const responseText = await response.text();
+      // Set up result handler for this specific request
+      const resultHandler = (event: any) => {
+        try {
+          const data = JSON.parse(event.data || '{}');
           
-          try {
-            const result = JSON.parse(responseText);
+          // Check if this event is for our request
+          if (data.id === requestId || data.requestId === requestId) {
+            console.log(`N8N MCP Proxy: Got SSE result for ${requestId}:`, JSON.stringify(data).substring(0, 200));
             
-            // Check if we got a completed result
-            if (result.result && result.result.status === 'completed') {
-              console.log(`N8N MCP Proxy: Got completed result for ${requestId}`);
-              return result.result.content;
-            }
+            clearTimeout(timeout);
             
-            // Check if result has content directly (alternative response format)
-            if (result.result && typeof result.result === 'string') {
-              console.log(`N8N MCP Proxy: Got direct result for ${requestId}`);
-              return result.result;
-            }
-            
-            // Check for error status
-            if (result.result && result.result.status === 'error') {
-              console.error(`N8N MCP Proxy: Tool execution failed for ${requestId}: ${result.result.error}`);
-              return null;
-            }
-            
-            // If status is still 'running' or 'pending', continue polling
-            if (result.result && ['running', 'pending', 'processing'].includes(result.result.status)) {
-              console.log(`N8N MCP Proxy: Tool still ${result.result.status} for ${requestId}, continuing to poll...`);
-              continue;
-            }
-            
-          } catch (parseError) {
-            // If response is not JSON but successful, treat as result
-            if (responseText && responseText !== "Accepted" && responseText.length > 10) {
-              console.log(`N8N MCP Proxy: Got text result for ${requestId}`);
-              return responseText;
+            // Extract result content
+            if (data.result) {
+              resolve(data.result);
+            } else if (data.content) {
+              resolve(data.content);
+            } else if (typeof data === 'string') {
+              resolve(data);
+            } else {
+              resolve(JSON.stringify(data));
             }
           }
-        } else if (response.status === 404) {
-          // Request ID not found yet, continue polling
-          console.log(`N8N MCP Proxy: Request ${requestId} not found yet, continuing to poll...`);
-          continue;
-        } else {
-          console.error(`N8N MCP Proxy: Polling failed with status ${response.status} for ${requestId}`);
+        } catch (error) {
+          console.error(`N8N MCP Proxy: Error parsing SSE result for ${requestId}:`, error);
         }
-        
-      } catch (error) {
-        console.error(`N8N MCP Proxy: Polling attempt ${attempt + 1} failed for ${requestId}:`, error);
-      }
-    }
-    
-    console.log(`N8N MCP Proxy: Polling timeout for ${requestId} after ${maxAttempts} attempts`);
-    return null;
+      };
+      
+      // Listen for various event types that might contain results
+      connection.eventSource.addEventListener('message', resultHandler);
+      connection.eventSource.addEventListener('result', resultHandler);
+      connection.eventSource.addEventListener('data', resultHandler);
+      connection.eventSource.addEventListener('response', resultHandler);
+      
+      console.log(`N8N MCP Proxy: Waiting for SSE result events for ${requestId}`);
+    });
   }
   
   private getOrCreateConnection(serverUrl: string, apiKey?: string): Promise<{ eventSource: EventSource; messagesUrl: string; lastActivity: number; }> {
