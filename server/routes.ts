@@ -553,40 +553,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (server.url.includes('/sse')) {
                   // For SSE-based MCP servers (like N8N), use the dedicated proxy
                   try {
-                    // First discover available tools on the N8N MCP server
-                    const availableTools = await n8nMCPProxy.discoverN8NTools(server.url, server.apiKey);
-                    
-                    if (availableTools.length === 0) {
-                      console.log(`N8N MCP proxy: No tools discovered for ${server.name}`);
-                      // Fall back to trying common search tool names
-                      const searchTools = ['search', 'web_search', 'google_search', 'internet_search', 'search_web'];
-                      availableTools.push(...searchTools);
-                    }
+                    // Use specific N8N tool name - this should match the "Internal Name" in your N8N workflow
+                    // Common N8N MCP tool names for search functionality
+                    const n8nToolNames = [
+                      'execute_web_search',    // Common internal name
+                      'web_search',           // Alternative name
+                      'search',               // Simple name
+                      'internet_search',      // Descriptive name
+                      'mcp_search'            // MCP-specific name
+                    ];
                     
                     let proxyResult = null;
                     
-                    // Try the discovered tools, prioritizing those that contain 'search'
-                    const searchTools = availableTools.filter(tool => 
-                      tool.toLowerCase().includes('search') || 
-                      tool.toLowerCase().includes('web') || 
-                      tool.toLowerCase().includes('internet')
-                    );
-                    
-                    const toolsToTry = searchTools.length > 0 ? searchTools : availableTools;
-                    
-                    for (const toolToTry of toolsToTry) {
+                    // Try each potential N8N tool name
+                    for (const toolName of n8nToolNames) {
+                      console.log(`N8N MCP proxy: Trying tool name '${toolName}'`);
+                      
                       proxyResult = await n8nMCPProxy.callN8NTool(
                         server.url,
-                        toolToTry, 
+                        toolName, 
                         { query: searchQuery },
-                        server.apiKey
+                        server.apiKey || undefined
                       );
                       
                       if (proxyResult.success) {
-                        console.log(`N8N MCP proxy success with tool: ${toolToTry}`);
+                        console.log(`N8N MCP proxy success with tool: ${toolName}`);
                         break;
                       } else {
-                        console.log(`N8N MCP proxy failed with tool ${toolToTry}: ${proxyResult.error}`);
+                        console.log(`N8N MCP proxy failed with tool ${toolName}: ${proxyResult.error}`);
+                        // Continue trying other tool names
                       }
                     }
                     
