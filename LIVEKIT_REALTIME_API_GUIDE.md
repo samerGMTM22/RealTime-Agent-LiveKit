@@ -360,9 +360,52 @@ class Assistant(Agent):
         self.config = config
 
     @function_tool
-    async def get_general_info(self):
-        """Provides general information about services."""
-        return f"I'm {self.config.get('name', 'your AI assistant')} and I'm here to help you with any questions you have."
+    async def search_web(self, query: str) -> str:
+        """Search the web for current information using enhanced MCP integration."""
+        logger.info(f"Executing web search: {query}")
+        try:
+            # Use enhanced MCP proxy with result polling
+            response = requests.post('http://localhost:5000/api/mcp/execute', 
+                                   json={"serverId": 9, "tool": "execute_web_search", "params": {"query": query}}, 
+                                   timeout=35)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success"):
+                    result = data.get("result", "")
+                    return self.format_search_results(result)
+            
+            return f"Search initiated for '{query}' but results are pending."
+            
+        except Exception as e:
+            logger.error(f"Search error: {e}")
+            return f"Unable to complete search for '{query}' at this time."
+    
+    def format_search_results(self, result: str) -> str:
+        """Format search results for optimal voice output."""
+        try:
+            import json
+            if result.startswith('{') or result.startswith('['):
+                data = json.loads(result)
+                if isinstance(data, list):
+                    formatted = "Here's what I found: "
+                    for i, item in enumerate(data[:2], 1):  # Limit to top 2 for voice
+                        if isinstance(item, dict):
+                            title = item.get('title', item.get('name', ''))
+                            if title:
+                                formatted += f"{i}. {title[:60]}... "
+                    return formatted
+            
+            # Format as text with length limits for voice
+            lines = result.split('\n')
+            formatted = "Here's what I found: "
+            for line in lines[:2]:
+                if line.strip():
+                    formatted += f"{line.strip()[:100]}... "
+            return formatted
+            
+        except:
+            return result[:200] + "..." if len(result) > 200 else result
 
 async def entrypoint(ctx: JobContext):
     """Main entry point for the LiveKit agent."""
