@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { liveKitService } from "./lib/livekit";
 import { openaiService } from "./lib/openai";
 import { n8nMCPProxy } from "./mcp_proxy";
+import { enhancedN8NMCPProxy } from "./mcp_proxy_enhanced";
 
 import { webScraperService } from "./lib/scraper";
 import { getAgentTemplate, createAgentConfigFromTemplate } from "./config/agent-config";
@@ -515,149 +516,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // MCP execution endpoint for agent tools
+  // Enhanced MCP execute endpoint with result polling
   app.post("/api/mcp/execute", async (req, res) => {
+    const { serverId, tool, params } = req.body;
+    
     try {
-      const { tool, params } = req.body;
-      
-      if (!tool) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "Tool parameter is required" 
-        });
-      }
-
-      // Get connected MCP servers
+      // Get server configuration from database
       const mcpServers = await storage.getMcpServersByUserId(1);
-      const activeServers = mcpServers.filter(server => server.isActive);
-      
-      if (activeServers.length === 0) {
-        return res.json({ 
-          success: false, 
-          error: "No active MCP servers available" 
-        });
+      const server = mcpServers.find(s => s.id === serverId);
+        
+      if (!server) {
+        return res.status(404).json({ success: false, error: 'MCP server not found' });
       }
 
-      // Find server that has the requested tool
-      for (const server of activeServers) {
-        try {
-          // For web search, look for internet access server
-          if (tool === "search" || tool === "web_search") {
-            if (server.name.toLowerCase().includes("internet") || 
-                server.name.toLowerCase().includes("web")) {
-              
-              // Execute search using the server's API
-              const searchQuery = params?.query || params?.q || "";
-              if (searchQuery) {
-                // Handle different MCP server protocols
-                if (server.url.includes('/sse')) {
-                  // For SSE-based MCP servers (like N8N), use the dedicated proxy
-                  try {
-                    // Use specific N8N tool name - this should match the "Internal Name" in your N8N workflow
-                    // Common N8N MCP tool names for search functionality
-                    const n8nToolNames = [
-                      'execute_web_search',    // Common internal name
-                      'web_search',           // Alternative name
-                      'search',               // Simple name
-                      'internet_search',      // Descriptive name
-                      'mcp_search'            // MCP-specific name
-                    ];
-                    
-                    let proxyResult = null;
-                    
-                    // Try each potential N8N tool name
-                    for (const toolName of n8nToolNames) {
-                      console.log(`N8N MCP proxy: Trying tool name '${toolName}'`);
-                      
-                      proxyResult = await n8nMCPProxy.callN8NTool(
-                        server.url,
-                        toolName, 
-                        { query: searchQuery },
-                        server.apiKey || undefined
-                      );
-                      
-                      if (proxyResult.success) {
-                        console.log(`N8N MCP proxy success with tool: ${toolName}`);
-                        break;
-                      } else {
-                        console.log(`N8N MCP proxy failed with tool ${toolName}: ${proxyResult.error}`);
-                        // Continue trying other tool names
-                      }
-                    }
-                    
-                    if (proxyResult.success) {
-                      return res.json({
-                        success: true,
-                        result: proxyResult.result,
-                        server: server.name
-                      });
-                    } else {
-                      console.error(`N8N MCP proxy error: ${proxyResult.error}`);
-                    }
-                  } catch (proxyError) {
-                    console.error(`MCP proxy error for ${server.name}:`, proxyError);
-                  }
-                } else {
-                  // For standard HTTP MCP servers
-                  const response = await fetch(server.url, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      ...(server.apiKey && { 'Authorization': `Bearer ${server.apiKey}` })
-                    },
-                    body: JSON.stringify({
-                      method: "tools/call",
-                      params: {
-                        name: "search",
-                        arguments: { query: searchQuery }
-                      }
-                    })
-                  });
-
-                  if (response.ok) {
-                    const result = await response.json();
-                    return res.json({
-                      success: true,
-                      result: result.result || result.content || "Search completed",
-                      server: server.name
-                    });
-                  }
-                }
-              }
-            }
+      const serverConfig = server;
+      console.log(`Processing MCP request for server: ${serverConfig.name}`);
+      
+      // Check if this is an N8N server based on protocol type or URL pattern
+      if (serverConfig.protocolType === 'sse' || serverConfig.url.includes('n8n')) {
+        // Use enhanced proxy with polling for N8N servers
+        console.log(`Using enhanced N8N proxy with result polling for tool: ${tool}`);
+        
+        const result = await enhancedN8NMCPProxy.callN8NToolWithPolling(
+          serverConfig.url,
+          tool,
+          params,
+          serverConfig.apiKey || undefined,
+          {
+            pollInterval: 1000,    // Poll every second
+            maxWaitTime: 30000     // Max 30 seconds
           }
-          
-          // For email tools, look for Zapier server
-          if (tool === "send_email" || tool === "email") {
-            if (server.name.toLowerCase().includes("zapier") || 
-                server.name.toLowerCase().includes("email")) {
-              
-              return res.json({
-                success: true,
-                result: "Email functionality is available via Zapier integration",
-                server: server.name
-              });
+        );
+        
+        return res.json(result);
+      } else {
+        // For other server types, use standard HTTP call (can be enhanced later)
+        console.log(`Using standard HTTP call for server type: ${serverConfig.protocolType}`);
+        
+        const response = await fetch(serverConfig.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(serverConfig.apiKey ? { 'Authorization': `Bearer ${serverConfig.apiKey}` } : {})
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: Date.now().toString(),
+            method: "tools/call",
+            params: {
+              name: tool,
+              arguments: params
             }
-          }
-          
-        } catch (serverError) {
-          console.error(`Error with MCP server ${server.name}:`, serverError);
-          continue;
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.result) {
+          return res.json({ success: true, result: data.result });
+        } else if (data.error) {
+          return res.json({ success: false, error: data.error.message || 'MCP error' });
+        } else {
+          return res.json({ success: false, error: 'Invalid MCP response' });
         }
       }
-
-      // If no server could handle the tool
-      res.json({ 
-        success: false, 
-        error: `No MCP server available to handle tool: ${tool}`,
-        available_servers: activeServers.map(s => s.name)
-      });
       
-    } catch (error) {
-      console.error("Error executing MCP tool:", error);
+    } catch (error: any) {
+      console.error('MCP execute error:', error);
       res.status(500).json({ 
         success: false, 
-        error: "MCP execution failed" 
+        error: error.message || 'Failed to execute MCP tool' 
+      });
+    }
+  });
+
+  // Webhook callback endpoint for async MCP results
+  app.post('/api/mcp/callback/:requestId', async (req, res) => {
+    const { requestId } = req.params;
+    const data = req.body;
+    
+    console.log(`Received MCP webhook callback for request ${requestId}`);
+    console.log('Callback data:', JSON.stringify(data).substring(0, 200));
+    
+    try {
+      // Pass to proxy handler
+      const handled = enhancedN8NMCPProxy.handleWebhookCallback(requestId, data);
+      
+      if (handled) {
+        res.json({ success: true, message: 'Callback processed successfully' });
+      } else {
+        res.status(404).json({ success: false, error: 'Request ID not found or expired' });
+      }
+    } catch (error: any) {
+      console.error('Webhook callback error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || 'Failed to process callback' 
+      });
+    }
+  });
+
+  // Health check endpoint for MCP servers
+  app.get('/api/mcp/health/:serverId', async (req, res) => {
+    const { serverId } = req.params;
+    
+    try {
+      const mcpServers = await storage.getMcpServersByUserId(1);
+      const server = mcpServers.find(s => s.id === parseInt(serverId));
+        
+      if (!server) {
+        return res.status(404).json({ success: false, error: 'MCP server not found' });
+      }
+
+      const serverConfig = server;
+      
+      // Simple health check - try to establish connection
+      if (serverConfig.protocolType === 'sse') {
+        // For SSE, check if we can establish connection
+        try {
+          const testConnection = await fetch(serverConfig.url, {
+            method: 'GET',
+            headers: serverConfig.apiKey ? { 'Authorization': `Bearer ${serverConfig.apiKey}` } : {},
+            signal: AbortSignal.timeout(5000)
+          });
+          
+          if (testConnection.ok) {
+            return res.json({ 
+              success: true, 
+              status: 'healthy',
+              message: 'MCP server is accessible' 
+            });
+          } else {
+            return res.json({ 
+              success: false, 
+              status: 'unhealthy',
+              message: `Server returned ${testConnection.status}` 
+            });
+          }
+        } catch (error) {
+          return res.json({ 
+            success: false, 
+            status: 'unhealthy',
+            message: 'Failed to connect to server' 
+          });
+        }
+      }
+      
+      // For other protocols, return unknown
+      return res.json({ 
+        success: true, 
+        status: 'unknown',
+        message: 'Health check not implemented for this protocol type' 
+      });
+      
+    } catch (error: any) {
+      console.error('Health check error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || 'Failed to check server health' 
+      });
+    }
+  });
+
+  // List all MCP servers for a user
+  app.get('/api/mcp/servers/:userId', async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+      const servers = await storage.getMcpServersByUserId(parseInt(userId));
+      
+      res.json({ 
+        success: true, 
+        servers: servers.map(s => ({
+          id: s.id,
+          name: s.name,
+          url: s.url,
+          protocolType: s.protocolType,
+          isActive: s.isActive,
+          connectionStatus: s.connectionStatus,
+          description: s.description
+        }))
+      });
+    } catch (error: any) {
+      console.error('List servers error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || 'Failed to list MCP servers' 
       });
     }
   });
