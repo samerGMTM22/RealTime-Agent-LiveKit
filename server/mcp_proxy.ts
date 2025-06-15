@@ -53,18 +53,41 @@ export class N8NMCPProxy {
       connection.lastActivity = Date.now();
 
       if (response.ok) {
-        const result: any = await response.json();
-        console.log(`N8N MCP Proxy: Success response:`, JSON.stringify(result).substring(0, 200));
+        const responseText = await response.text();
+        console.log(`N8N MCP Proxy: Raw response:`, responseText.substring(0, 200));
 
-        if (result.result) {
-            return { success: true, result: this.formatMCPResult(result.result) };
-        } else if (result.error) {
-            console.error(`N8N MCP Proxy: JSON-RPC error: ${result.error.message}`);
-            // If tool not found, it's a configuration issue
-            if (result.error.code === -32603 || result.error.message.includes("Tool not found")) {
-                 return { success: false, error: `Tool '${toolName}' not found on the N8N server. Check the 'Internal Name' in your N8N workflow.` };
-            }
-            return { success: false, error: result.error.message || 'MCP server error' };
+        // Handle N8N "Accepted" responses - this means the workflow received the request
+        if (responseText === "Accepted" || response.status === 202) {
+          console.log(`N8N MCP Proxy: N8N workflow accepted the request - tool execution initiated`);
+          return { 
+            success: true, 
+            result: `Search request accepted by N8N workflow. Tool '${toolName}' was successfully called with the provided parameters.` 
+          };
+        }
+
+        // Try to parse as JSON for standard JSON-RPC responses
+        try {
+          const result: any = JSON.parse(responseText);
+          console.log(`N8N MCP Proxy: Parsed JSON response:`, JSON.stringify(result).substring(0, 200));
+
+          if (result.result) {
+              return { success: true, result: this.formatMCPResult(result.result) };
+          } else if (result.error) {
+              console.error(`N8N MCP Proxy: JSON-RPC error: ${result.error.message}`);
+              // If tool not found, it's a configuration issue
+              if (result.error.code === -32603 || result.error.message.includes("Tool not found")) {
+                   return { success: false, error: `Tool '${toolName}' not found on the N8N server. Check the 'Internal Name' in your N8N workflow.` };
+              }
+              return { success: false, error: result.error.message || 'MCP server error' };
+          }
+        } catch (parseError) {
+          // If not valid JSON but status is OK, treat as successful execution
+          if (responseText.length > 0) {
+            return { 
+              success: true, 
+              result: `N8N workflow executed successfully. Response: ${responseText.substring(0, 100)}` 
+            };
+          }
         }
       } else {
         const errorText = await response.text();
