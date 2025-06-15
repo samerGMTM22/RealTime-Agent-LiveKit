@@ -1,22 +1,25 @@
-# Critical MCP LiveKit Integration Analysis - Expert Consultation Request
+# Universal MCP Integration Architecture - Expert Consultation Request
 
 ## Problem Summary
 
-Our LiveKit voice agent with MCP (Model Context Protocol) integration is experiencing critical failures that cause the agent to stop responding mid-conversation. While we successfully fixed the N8N search integration using your previous research, new issues have emerged that require expert analysis.
+We need a robust, universal MCP (Model Context Protocol) integration architecture that works seamlessly with ANY MCP server (N8N, Zapier, Claude Desktop, custom implementations) without requiring server-specific code. Our current implementation has fundamental architectural flaws that cause voice agent failures and don't scale to new MCP servers.
 
-## Current Status
+## Core Requirement
 
-**✅ WORKING:**
-- N8N MCP search integration (using `execute_web_search` tool name)
-- Express API MCP proxy with proper "Accepted" response handling
-- SSE connection establishment and session management
-- Initial voice agent startup and configuration loading
+**UNIVERSAL MCP INTEGRATION** that:
+- Works with any MCP server protocol (SSE, WebSocket, HTTP, stdio)
+- Automatically discovers and maps tool capabilities 
+- Handles different response formats (JSON-RPC, plain text, binary)
+- Provides consistent function tool interface to voice agent
+- Scales to unlimited MCP servers without code changes
+- Maintains stable connections and proper session lifecycle
 
-**❌ FAILING:**
-- Agent stops responding after function tool execution
-- OpenAI Realtime API connection resets and timeouts
-- Zapier MCP integration causes infinite connection loops
-- Function tool execution triggers unwanted secondary function calls
+**❌ CURRENT ARCHITECTURAL PROBLEMS:**
+- Server-specific implementations (N8N vs Zapier different code paths)
+- Hardcoded tool names and response handling
+- No universal protocol abstraction layer
+- Connection pooling issues causing agent hangs
+- Function tool execution blocking voice agent responses
 
 ## Detailed Error Analysis
 
@@ -119,43 +122,68 @@ Voice Response         MCP Integration
 
 ## Specific Research Questions
 
-### 1. Function Tool Execution Control
-- How to prevent unwanted function call chains in OpenAI Realtime API?
-- Should function tools be designed as single-shot operations?
-- How to control when the agent decides to call multiple functions?
+### 1. Universal MCP Protocol Abstraction
+- How to create a single protocol handler that works with SSE, WebSocket, HTTP, and stdio MCP servers?
+- What's the correct abstraction layer for different transport mechanisms?
+- How to implement automatic protocol detection and connection negotiation?
 
-### 2. MCP Session Management Best Practices
-- How should MCP SSE connections be pooled and reused in a voice agent context?
-- What's the correct session lifecycle for Zapier MCP vs N8N MCP?
-- Should we implement connection pooling at the Express API level?
+### 2. Dynamic Tool Discovery and Mapping
+- How to automatically discover available tools from any MCP server without hardcoding?
+- What's the standard method for mapping MCP tool schemas to LiveKit function tools?
+- How to handle tool name conflicts between different MCP servers?
 
-### 3. OpenAI Realtime API Stability
-- How to prevent connection resets during long-running function executions?
-- What's the recommended timeout configuration for function tools?
-- Should function execution be moved to a separate async context?
+### 3. Universal Response Format Handling
+- How to handle different response formats (JSON-RPC, plain text, binary, streaming) uniformly?
+- What's the correct way to normalize responses from different MCP implementations?
+- How to handle async responses and long-running operations across protocols?
 
-### 4. LiveKit Agent Error Recovery
-- How to implement graceful error handling when MCP calls fail?
-- Should the voice agent continue responding even if function tools fail?
-- What's the best practice for handling partial function execution results?
+### 4. Scalable Connection Architecture
+- How to implement connection pooling that works for any MCP server type?
+- What's the correct session lifecycle management for universal MCP integration?
+- How to prevent blocking operations while maintaining connection stability?
+
+### 5. Voice Agent Integration Best Practices
+- How to integrate MCP tools with OpenAI Realtime API without causing timeouts?
+- What's the correct async architecture for non-blocking function execution?
+- How to provide consistent error handling across all MCP server types?
 
 ## Expected Deliverables
 
-1. **Corrected MCP integration architecture** that prevents connection loops
-2. **Function tool execution strategy** that avoids unwanted call chains  
-3. **Error handling patterns** for resilient voice agent operation
-4. **Session management improvements** for both N8N and Zapier MCP servers
-5. **OpenAI Realtime API configuration** that maintains stability during function execution
+1. **Universal MCP Protocol Handler** - Single abstraction layer that works with any MCP transport
+2. **Dynamic Tool Discovery System** - Automatically maps any MCP server's tools to voice agent functions
+3. **Scalable Connection Architecture** - Connection pooling and session management for unlimited MCP servers
+4. **Normalized Response Processing** - Handles any response format consistently
+5. **Non-blocking Async Integration** - Prevents voice agent hangs regardless of MCP server behavior
+6. **Future-proof Design** - Architecture that scales to new MCP servers without code changes
 
 ## Current Codebase Context
 
-- **Express/Node.js backend** with working N8N MCP proxy
+- **Express/Node.js backend** with MCP proxy infrastructure
 - **Python LiveKit agent** using OpenAI Realtime API
 - **PostgreSQL database** with MCP server configurations
 - **TypeScript/React frontend** for voice interface
-- **Working N8N search** with `execute_web_search` tool name
-- **Failing Zapier email** with SSE connection issues
+- **Multiple MCP server types** requiring universal integration
 
-The core challenge is maintaining voice agent responsiveness while executing potentially slow MCP function calls, especially when multiple tools are involved in a conversation flow.
+## Core Challenge
 
-Please provide specific code corrections and architectural improvements to resolve these critical issues while maintaining the working N8N search functionality.
+**Design a universal MCP integration architecture that:**
+1. Works with ANY MCP server without server-specific code
+2. Automatically discovers and integrates new MCP servers
+3. Maintains voice agent responsiveness during tool execution
+4. Provides consistent error handling and response processing
+5. Scales to unlimited MCP servers without architectural changes
+
+## Current Anti-Pattern to Eliminate
+
+```python
+# BAD: Server-specific implementations
+if server.name.includes("n8n"):
+    use_n8n_specific_logic()
+elif server.name.includes("zapier"):
+    use_zapier_specific_logic()
+
+# GOOD: Universal protocol handling
+mcp_handler.execute_tool(server, tool_name, params)
+```
+
+Please provide a universal MCP integration architecture that eliminates the need for server-specific code and works consistently with any MCP implementation, focusing on protocol standardization, dynamic discovery, and robust connection management.
