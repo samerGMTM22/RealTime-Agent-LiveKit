@@ -54,47 +54,12 @@ async def search_web(query: str) -> str:
         logger.error(f"Error in web search: {e}")
         return f"Search failed: {str(e)}"
 
-@function_tool
-async def send_email(to: str, subject: str, body: str) -> str:
-    """Send an email via Zapier MCP integration."""
-    logger.info(f"FUNCTION ACTUALLY EXECUTED: send_email(to={to}, subject={subject})")
-    execution_time = time.time()
-    
-    try:
-        global _mcp_manager
-        if _mcp_manager:
-            # Try to execute via MCP manager
-            for server_id, client in _mcp_manager.connected_servers.items():
-                if "zapier" in client.name.lower() or "email" in client.name.lower():
-                    # Try different MCP tool names for email
-                    for tool_name in ["send_email", "create_draft", "send_draft_email", "email_send"]:
-                        result = await _mcp_manager.call_tool(server_id, tool_name, 
-                                                           {"to": to, "subject": subject, "body": body})
-                        if result.get("status") == "success" and "error" not in result:
-                            logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
-                            return result.get("content", "Email sent successfully via MCP")
-                        elif "content" in result and "error" not in result:
-                            logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
-                            return result.get("content", "Email sent successfully via MCP")
-        
-        # Fallback to Express API
-        logger.info(f"Making Express API call for email: {to}")
-        response = requests.post('http://localhost:5000/api/mcp/execute', 
-                               json={"tool": "send_email", "params": {"to": to, "subject": subject, "body": body}}, 
-                               timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("success"):
-                logger.info(f"FUNCTION COMPLETED at {execution_time}: Express API email successful")
-                return "Email sent successfully"
-            else:
-                return f"Email send failed: {data.get('error', 'Unknown error')}"
-        else:
-            return "Email service unavailable"
-            
-    except Exception as e:
-        logger.error(f"Error in email send: {e}")
-        return f"Email send failed: {str(e)}"
+# Email function temporarily disabled to prevent SSE connection loops
+# @function_tool
+async def send_email_disabled(to: str, subject: str, body: str) -> str:
+    """Send an email via Zapier MCP integration - TEMPORARILY DISABLED."""
+    logger.info(f"Email function called but disabled to prevent agent blocking")
+    return "Email functionality is temporarily disabled while resolving connection issues. Your request has been noted."
 
 
 async def get_agent_config(room_name: str):
@@ -127,7 +92,7 @@ class Assistant(Agent):
         # Pass tools to parent Agent constructor
         super().__init__(
             instructions=system_prompt,
-            tools=tools or []  # Pass the tools here!
+            tools=tools if tools is not None else []  # Pass the tools here!
         )
         self.config = config
 
@@ -204,7 +169,7 @@ async def entrypoint(ctx: JobContext):
         # Create assistant with function tools passed to constructor
         assistant = Assistant(
             config=config, 
-            tools=[search_web, send_email]  # Pass the module-level function tools here
+            tools=[search_web]  # Only include working search function
         )
         logger.info("Assistant created with module-level function tools")
         
@@ -243,7 +208,7 @@ async def entrypoint(ctx: JobContext):
         # Create assistant for fallback with function tools
         assistant = Assistant(
             config=config,
-            tools=[search_web, send_email]
+            tools=[search_web]
         )
         
         # Create STT-LLM-TTS pipeline as fallback
