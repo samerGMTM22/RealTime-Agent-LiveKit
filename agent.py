@@ -33,26 +33,11 @@ async def search_web(query: str) -> str:
     execution_time = time.time()
     
     try:
-        global _mcp_manager
-        if _mcp_manager:
-            # Try to execute via MCP manager
-            for server_id, client in _mcp_manager.connected_servers.items():
-                if "internet" in client.name.lower():
-                    # Try different MCP tool names for web search
-                    for tool_name in ["search_web", "search", "web_search", "google_search"]:
-                        result = await _mcp_manager.call_tool(server_id, tool_name, {"query": query})
-                        if result.get("status") == "success" and "error" not in result:
-                            logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
-                            return result.get("content", "Search completed successfully")
-                        elif "content" in result and "error" not in result:
-                            logger.info(f"FUNCTION COMPLETED at {execution_time}: MCP {tool_name} successful")
-                            return result.get("content", "Search completed successfully")
-        
-        # Fallback to Express API
+        # Use Express API with corrected N8N MCP integration
         logger.info(f"Making Express API call for search: {query}")
         response = requests.post('http://localhost:5000/api/mcp/execute', 
                                json={"tool": "search", "params": {"query": query}}, 
-                               timeout=10)
+                               timeout=15)
         logger.info(f"Express API response status: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
