@@ -95,52 +95,62 @@ export class N8NMCPProxy {
     }
 
     console.log(`N8N MCP Proxy: Creating new SSE connection to ${serverUrl}`);
-    const promise = new Promise<void>((resolve, reject) => {
-        const headers: any = { 'Cache-Control': 'no-cache', Connection: 'keep-alive' };
-        if (apiKey) {
-            headers['Authorization'] = `Bearer ${apiKey}`;
-        }
-
-        const eventSource = new EventSource(serverUrl);
-        const connection = { eventSource, messagesUrl: '', lastActivity: Date.now(), isReady: null as any };
-        connection.isReady = promise; // Add the promise to the connection object
-        
-        const timeout = setTimeout(() => {
-            eventSource.close();
-            reject(new Error('SSE connection timed out after 10 seconds.'));
-        }, 10000);
-
-        eventSource.addEventListener('message', (event: any) => {
-            const data = event.data;
-            if (data && data.includes('/messages?sessionId=')) {
-                connection.messagesUrl = new URL(data, serverUrl).toString();
-                console.log(`N8N MCP Proxy: Got session endpoint: ${connection.messagesUrl}`);
-                clearTimeout(timeout);
-                resolve();
-            }
-        });
-
-        eventSource.addEventListener('endpoint', (event: any) => {
-            const data = event.data;
-            if (data && data.includes('/messages?sessionId=')) {
-                connection.messagesUrl = new URL(data, serverUrl).toString();
-                console.log(`N8N MCP Proxy: Got session endpoint from endpoint event: ${connection.messagesUrl}`);
-                clearTimeout(timeout);
-                resolve();
-            }
-        });
-
-        eventSource.addEventListener('error', (err: any) => {
-            console.error('N8N MCP Proxy: SSE connection error:', err);
-            clearTimeout(timeout);
-            eventSource.close();
-            reject(new Error('SSE connection failed. Check N8N workflow is active and URL is correct.'));
-        });
-        
-        this.activeConnections.set(serverUrl, connection);
+    
+    let connectionResolve: () => void;
+    let connectionReject: (error: Error) => void;
+    
+    const connectionPromise = new Promise<void>((resolve, reject) => {
+        connectionResolve = resolve;
+        connectionReject = reject;
     });
 
-    return promise.then(() => this.activeConnections.get(serverUrl)!);
+    const headers: any = { 'Cache-Control': 'no-cache', Connection: 'keep-alive' };
+    if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    const eventSource = new EventSource(serverUrl);
+    const connection = { 
+        eventSource, 
+        messagesUrl: '', 
+        lastActivity: Date.now(), 
+        isReady: connectionPromise 
+    };
+    
+    const timeout = setTimeout(() => {
+        eventSource.close();
+        connectionReject(new Error('SSE connection timed out after 10 seconds.'));
+    }, 10000);
+
+    eventSource.addEventListener('message', (event: any) => {
+        const data = event.data;
+        if (data && data.includes('/messages?sessionId=')) {
+            connection.messagesUrl = new URL(data, serverUrl).toString();
+            console.log(`N8N MCP Proxy: Got session endpoint: ${connection.messagesUrl}`);
+            clearTimeout(timeout);
+            connectionResolve();
+        }
+    });
+
+    eventSource.addEventListener('endpoint', (event: any) => {
+        const data = event.data;
+        if (data && data.includes('/messages?sessionId=')) {
+            connection.messagesUrl = new URL(data, serverUrl).toString();
+            console.log(`N8N MCP Proxy: Got session endpoint from endpoint event: ${connection.messagesUrl}`);
+            clearTimeout(timeout);
+            connectionResolve();
+        }
+    });
+
+    eventSource.addEventListener('error', (err: any) => {
+        console.error('N8N MCP Proxy: SSE connection error:', err);
+        clearTimeout(timeout);
+        eventSource.close();
+        connectionReject(new Error('SSE connection failed. Check N8N workflow is active and URL is correct.'));
+    });
+    
+    this.activeConnections.set(serverUrl, connection);
+    return connectionPromise.then(() => connection);
   }
 
   private closeConnection(serverUrl: string) {

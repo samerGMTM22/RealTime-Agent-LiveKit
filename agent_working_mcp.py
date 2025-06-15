@@ -300,7 +300,7 @@ class WorkingMCPAgent(Agent):
             
             Be proactive in offering assistance and ask clarifying questions when needed.
             """,
-            functions=[search_web, send_email, get_mcp_status]
+            tools=[search_web, send_email, get_mcp_status]
         )
 
 async def entrypoint(ctx: JobContext):
