@@ -3,10 +3,9 @@
 import asyncio
 import logging
 import os
-from typing import Dict, Any
-from livekit.agents import JobContext, WorkerOptions, cli
+from typing import Dict, Any, List
+from livekit.agents import JobContext, WorkerOptions, cli, llm, Agent
 from livekit.agents.llm import function_tool
-from livekit.agents.multimodal import MultimodalAgent
 from livekit import rtc
 import livekit.agents.openai as openai
 

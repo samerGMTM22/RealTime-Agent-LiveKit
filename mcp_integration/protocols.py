@@ -26,6 +26,10 @@ class BaseProtocolHandler(ABC):
     async def health_check(self, server_config: Dict) -> bool:
         """Check if the MCP server is healthy and responsive"""
         pass
+    
+    async def cleanup(self):
+        """Cleanup protocol handler resources - implemented by subclasses as needed"""
+        pass
 
 class HTTPProtocolHandler(BaseProtocolHandler):
     """Handler for HTTP-based MCP servers"""
@@ -43,7 +47,8 @@ class HTTPProtocolHandler(BaseProtocolHandler):
         """Execute tool via HTTP POST"""
         try:
             client = await self._get_client()
-            url = f"{server_config['base_url'].rstrip('/')}/execute"
+            base_url = server_config.get('base_url') or server_config.get('url', '')
+            url = f"{base_url.rstrip('/')}/execute"
             
             payload = {
                 "tool_name": tool_name,
@@ -74,7 +79,8 @@ class HTTPProtocolHandler(BaseProtocolHandler):
         """Discover tools via HTTP GET"""
         try:
             client = await self._get_client()
-            discovery_url = f"{server_config['base_url'].rstrip('/')}{server_config.get('discovery_endpoint', '/.well-known/mcp.json')}"
+            base_url = server_config.get('base_url') or server_config.get('url', '')
+            discovery_url = f"{base_url.rstrip('/')}{server_config.get('discovery_endpoint', '/.well-known/mcp.json')}"
             
             headers = {}
             if server_config.get('api_key'):
