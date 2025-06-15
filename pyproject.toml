@@ -6,6 +6,8 @@ requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.12.12",
     "asyncpg>=0.30.0",
+    "httpx>=0.28.1",
+    "httpx-sse>=0.4.0",
     "livekit-agents[openai]>=1.0.23",
     "livekit-plugins-silero>=1.0.23",
     "pydantic-ai>=0.2.18",

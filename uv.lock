@@ -1746,6 +1746,8 @@ source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "asyncpg" },
+    { name = "httpx" },
+    { name = "httpx-sse" },
     { name = "livekit-agents", extra = ["openai"] },
     { name = "livekit-plugins-silero" },
     { name = "pydantic-ai" },
@@ -1758,6 +1760,8 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.12.12" },
     { name = "asyncpg", specifier = ">=0.30.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "httpx-sse", specifier = ">=0.4.0" },
     { name = "livekit-agents", extras = ["openai"], specifier = ">=1.0.23" },
     { name = "livekit-plugins-silero", specifier = ">=1.0.23" },
     { name = "pydantic-ai", specifier = ">=0.2.18" },

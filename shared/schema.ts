@@ -49,7 +49,9 @@ export const mcpServers = pgTable("mcp_servers", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
-  url: text("url").notNull(),
+  url: text("url").notNull(), // base_url for the MCP server
+  protocolType: text("protocol_type").notNull().default("sse"), // 'http', 'sse', 'websocket', 'stdio'
+  discoveryEndpoint: text("discovery_endpoint").default("/.well-known/mcp.json"), // endpoint for tool discovery
   description: text("description"),
   apiKey: text("api_key"),
   isActive: boolean("is_active").default(true),
