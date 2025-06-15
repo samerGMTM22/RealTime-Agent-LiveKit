@@ -33,20 +33,32 @@ async def search_web(query: str) -> str:
     execution_time = time.time()
     
     try:
-        # Use Express API with corrected N8N MCP integration
+        # Use Express API with enhanced polling mechanism for actual results
         logger.info(f"Making Express API call for search: {query}")
         response = requests.post('http://localhost:5000/api/mcp/execute', 
                                json={"tool": "search", "params": {"query": query}}, 
-                               timeout=15)
+                               timeout=30)  # Extended timeout for polling mechanism
         logger.info(f"Express API response status: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
             logger.info(f"Express API response data: {data}")
             if data.get("success"):
-                logger.info(f"FUNCTION COMPLETED at {execution_time}: Express API successful")
-                return data.get("result", "Search completed")
+                result = data.get("result", "")
+                
+                # Check if we got actual results or just acknowledgment
+                if "accepted" in result.lower() and len(result) < 100:
+                    logger.warning("Received acknowledgment but no actual search results")
+                    return f"I've initiated a web search for '{query}'. The search service processed the request but results may take longer to retrieve."
+                else:
+                    # We got actual results from polling mechanism
+                    logger.info(f"FUNCTION COMPLETED at {execution_time}: Got actual search results")
+                    return result
             else:
-                return f"Search failed: {data.get('error', 'Unknown error')}"
+                error_msg = data.get('error', 'Unknown error')
+                if "timeout" in error_msg.lower():
+                    return f"Search for '{query}' is taking longer than expected. The search was initiated but results may be available shortly."
+                else:
+                    return f"Search failed: {error_msg}"
         else:
             return "Search service unavailable"
             
