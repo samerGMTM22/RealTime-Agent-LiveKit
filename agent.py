@@ -25,6 +25,42 @@ _mcp_manager = None
 logger = logging.getLogger("voice-agent")
 load_dotenv()
 
+def format_search_results(result: str) -> str:
+    """Format search results for better voice output."""
+    try:
+        # If result is JSON-like, parse it
+        import json
+        if result.startswith('{') or result.startswith('['):
+            data = json.loads(result)
+            if isinstance(data, list):
+                formatted = "Here's what I found:\n\n"
+                for i, item in enumerate(data[:3], 1):  # Limit to top 3 for voice
+                    if isinstance(item, dict):
+                        title = item.get('title', item.get('name', ''))
+                        snippet = item.get('snippet', item.get('description', ''))
+                        if title:
+                            formatted += f"{i}. {title}\n"
+                            if snippet:
+                                formatted += f"   {snippet[:80]}...\n\n"
+                return formatted
+            elif isinstance(data, dict):
+                title = data.get('title', 'Result')
+                content = data.get('content', data.get('snippet', str(data)))
+                return f"{title}: {content[:200]}..."
+        
+        # If not JSON, format as text
+        lines = result.split('\n')
+        formatted = "Here's what I found: "
+        for i, line in enumerate(lines[:3], 1):
+            if line.strip():
+                formatted += f"{i}. {line.strip()[:100]}... "
+        
+        return formatted
+        
+    except:
+        # If formatting fails, return truncated original
+        return result[:300] + "..." if len(result) > 300 else result
+
 # Define function tools at module level (expert's recommendation)
 @function_tool
 async def search_web(query: str) -> str:
@@ -36,8 +72,8 @@ async def search_web(query: str) -> str:
         # Use Express API with enhanced polling mechanism for actual results
         logger.info(f"Making Express API call for search: {query}")
         response = requests.post('http://localhost:5000/api/mcp/execute', 
-                               json={"tool": "search", "params": {"query": query}}, 
-                               timeout=30)  # Extended timeout for polling mechanism
+                               json={"serverId": 9, "tool": "execute_web_search", "params": {"query": query}}, 
+                               timeout=35)  # Extended timeout for enhanced polling mechanism
         logger.info(f"Express API response status: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
@@ -52,7 +88,7 @@ async def search_web(query: str) -> str:
                 else:
                     # We got actual results from polling mechanism
                     logger.info(f"FUNCTION COMPLETED at {execution_time}: Got actual search results")
-                    return result
+                    return format_search_results(result)
             else:
                 error_msg = data.get('error', 'Unknown error')
                 if "timeout" in error_msg.lower():

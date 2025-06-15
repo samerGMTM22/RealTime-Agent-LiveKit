@@ -6,7 +6,63 @@ This document serves as a comprehensive reference for implementing a working voi
 
 ## Critical Success Factors
 
-### 1. OpenAI Realtime API Access Requirements
+### 1. Enhanced MCP Integration with Result Polling
+
+**Issue:** Voice agent was receiving only "Accepted" acknowledgments instead of actual search results from MCP tools.
+
+**Solution:** Implemented hybrid polling + webhook architecture:
+- Request ID tracking for async operations
+- 30-second polling with 1-second intervals  
+- Webhook callbacks for immediate result delivery
+- Enhanced error handling and result formatting
+
+**Implementation:**
+```python
+@function_tool
+async def search_web(query: str) -> str:
+    """Search with enhanced MCP polling for actual results."""
+    response = requests.post('http://localhost:5000/api/mcp/execute', 
+                           json={"serverId": 9, "tool": "execute_web_search", "params": {"query": query}}, 
+                           timeout=35)  # Extended timeout for polling
+    
+    if response.status_code == 200:
+        data = response.json()
+        if data.get("success"):
+            return format_search_results(data.get("result", ""))
+```
+
+**Voice-Optimized Result Formatting:**
+```python
+def format_search_results(result: str) -> str:
+    """Format search results for better voice output."""
+    try:
+        import json
+        if result.startswith('{') or result.startswith('['):
+            data = json.loads(result)
+            if isinstance(data, list):
+                formatted = "Here's what I found:\n\n"
+                for i, item in enumerate(data[:3], 1):  # Limit to top 3 for voice
+                    if isinstance(item, dict):
+                        title = item.get('title', item.get('name', ''))
+                        snippet = item.get('snippet', item.get('description', ''))
+                        if title:
+                            formatted += f"{i}. {title}\n"
+                            if snippet:
+                                formatted += f"   {snippet[:80]}...\n\n"
+                return formatted
+        
+        # Format as text with line limits
+        lines = result.split('\n')
+        formatted = "Here's what I found: "
+        for i, line in enumerate(lines[:3], 1):
+            if line.strip():
+                formatted += f"{i}. {line.strip()[:100]}... "
+        return formatted
+    except:
+        return result[:300] + "..." if len(result) > 300 else result
+```
+
+### 2. OpenAI Realtime API Access Requirements
 
 **Issue:** The primary blocker was OpenAI Realtime API access limitations.
 
