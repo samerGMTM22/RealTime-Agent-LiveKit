@@ -99,7 +99,8 @@ class HTTPProtocolHandler(BaseProtocolHandler):
         """Check HTTP server health"""
         try:
             client = await self._get_client()
-            health_url = f"{server_config['base_url'].rstrip('/')}/health"
+            base_url = server_config.get('base_url') or server_config.get('url', '')
+            health_url = f"{base_url.rstrip('/')}/health"
             
             response = await client.get(health_url, timeout=5.0)
             return response.status_code == 200
@@ -123,7 +124,8 @@ class SSEProtocolHandler(BaseProtocolHandler):
         """Execute tool via SSE connection"""
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                url = f"{server_config['base_url'].rstrip('/')}/webhook"
+                base_url = server_config.get('base_url') or server_config.get('url', '')
+                url = f"{base_url.rstrip('/')}/webhook"
                 
                 # Prepare headers
                 headers = {
@@ -188,7 +190,8 @@ class SSEProtocolHandler(BaseProtocolHandler):
         """Discover tools via SSE server's discovery endpoint"""
         try:
             async with httpx.AsyncClient() as client:
-                discovery_url = f"{server_config['base_url'].rstrip('/')}{server_config.get('discovery_endpoint', '/.well-known/mcp.json')}"
+                base_url = server_config.get('base_url') or server_config.get('url', '')
+                discovery_url = f"{base_url.rstrip('/')}{server_config.get('discovery_endpoint', '/.well-known/mcp.json')}"
                 
                 headers = {}
                 if server_config.get('api_key'):
@@ -240,7 +243,8 @@ class SSEProtocolHandler(BaseProtocolHandler):
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 # Try to connect briefly to test connectivity
-                response = await client.get(server_config['base_url'])
+                base_url = server_config.get('base_url') or server_config.get('url', '')
+                response = await client.get(base_url)
                 return response.status_code in [200, 404]  # 404 is OK for webhook endpoints
                 
         except Exception:
