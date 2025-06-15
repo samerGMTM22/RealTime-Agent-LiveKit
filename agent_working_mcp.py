@@ -131,6 +131,43 @@ class WorkingMCPManager:
     def get_connected_servers(self) -> List[Dict]:
         """Get list of connected servers"""
         return list(self.connected_servers.values())
+    
+    def get_tool_name_for_server(self, server_id: int, function_type: str) -> str:
+        """Get the actual N8N tool name for a server and function type"""
+        if server_id in self.connected_servers:
+            server = self.connected_servers[server_id]
+            
+            # Check if the server has tool mappings in metadata
+            metadata = server.get('metadata', {})
+            tool_mappings = metadata.get('tool_mappings', {})
+            
+            if function_type in tool_mappings:
+                return tool_mappings[function_type]
+            
+            # Check if the server has tools array with actual N8N names
+            tools = server.get('tools', [])
+            if tools:
+                # Try to find a tool that matches the function type
+                for tool in tools:
+                    if isinstance(tool, dict):
+                        tool_name = tool.get('name', '')
+                        if function_type in tool_name.lower() or 'search' in tool_name.lower():
+                            return tool_name
+                    elif isinstance(tool, str):
+                        if function_type in tool.lower() or 'search' in tool.lower():
+                            return tool
+        
+        # Fallback to common N8N tool names based on Gemini's research
+        fallback_names = {
+            'search': 'execute_web_search',
+            'email': 'send_email', 
+            'web_search': 'execute_web_search',
+            'internet_search': 'execute_web_search'
+        }
+        
+        return fallback_names.get(function_type, function_type)
+    
+
 
 async def load_agent_config(user_id: int = 1) -> Dict[str, Any]:
     """Load agent configuration from database"""
@@ -169,10 +206,13 @@ async def search_web(query: str) -> str:
     if not server_id:
         return "No web search service available. Please configure an internet access MCP server."
     
-    logger.info(f"Using MCP server ID {server_id} for web search")
+    # Use the best available tool name for N8N search functionality
+    tool_name = "execute_web_search"  # Primary N8N tool name from Gemini's research
+    
+    logger.info(f"Using MCP server ID {server_id} to call tool '{tool_name}'")
     result = await _working_mcp_manager.execute_tool_via_api(
         server_id=server_id,
-        tool_name="search",
+        tool_name=tool_name,
         params={"query": query}
     )
     
