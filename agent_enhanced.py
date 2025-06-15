@@ -38,7 +38,7 @@ async def search_web(query: str) -> str:
         response = requests.post(
             'http://localhost:5000/api/mcp/execute',
             json={
-                "serverId": 2,  # N8N server ID from your database
+                "serverId": 9,  # N8N server ID from your database
                 "tool": "execute_web_search",
                 "params": {"query": query}
             },
