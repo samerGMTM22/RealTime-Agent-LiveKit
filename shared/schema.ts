@@ -52,8 +52,6 @@ export const mcpServers = pgTable("mcp_servers", {
   url: text("url").notNull(), // base_url for the MCP server
   protocolType: text("protocol_type").notNull().default("sse"), // 'http', 'sse', 'websocket', 'stdio'
   discoveryEndpoint: text("discovery_endpoint").default("/.well-known/mcp.json"), // endpoint for tool discovery
-  resultEndpoint: text("result_endpoint").default("/mcp/results"), // endpoint for result polling
-  pollInterval: integer("poll_interval").default(1000), // polling interval in milliseconds
   description: text("description"),
   apiKey: text("api_key"),
   isActive: boolean("is_active").default(true),

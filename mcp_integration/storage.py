@@ -1,89 +1,103 @@
-"""PostgreSQL storage for MCP integration"""
+import os
 import asyncio
 import asyncpg
-import os
-from typing import Dict, List, Optional, Any
-import json
+from typing import List, Dict, Optional
+from datetime import datetime
 
 class PostgreSQLStorage:
+    """Python database interface matching TypeScript storage interface"""
+    
     def __init__(self):
         self.pool = None
-        self.database_url = os.getenv("DATABASE_URL")
-        if not self.database_url:
-            raise ValueError("DATABASE_URL environment variable is required")
-
-    async def initialize(self):
-        """Initialize the connection pool"""
+        
+    async def connect(self):
+        """Create connection pool"""
         if not self.pool:
-            self.pool = await asyncpg.create_pool(self.database_url)
-
-    async def get_active_mcp_servers(self, user_id: int = 1) -> List[Dict[str, Any]]:
-        """Get all active MCP servers for a user"""
-        await self.initialize()
+            database_url = os.getenv("DATABASE_URL")
+            if not database_url:
+                raise ValueError("DATABASE_URL environment variable not set")
+                
+            self.pool = await asyncpg.create_pool(
+                database_url,
+                min_size=1,
+                max_size=10
+            )
+    
+    async def getAgentConfigByUserId(self, user_id: int) -> Optional[Dict]:
+        """Get agent configuration for user"""
+        await self.connect()
         
-        query = """
-            SELECT 
-                id, name, url, protocol_type, discovery_endpoint, 
-                result_endpoint, poll_interval, api_key, tools, 
-                connection_status, capabilities, metadata
-            FROM mcp_servers 
-            WHERE user_id = $1 AND is_active = true
-        """
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, name, system_prompt, voice_model, temperature, personality, response_length
+                FROM agent_configs
+                WHERE user_id = $1 AND is_active = true
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                user_id
+            )
+            
+            if row:
+                return {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "systemPrompt": row["system_prompt"],
+                    "voiceModel": row["voice_model"],
+                    "temperature": row["temperature"],
+                    "personality": row["personality"],
+                    "responseLength": row["response_length"]
+                }
+            return None
+    
+    async def getMcpServersByUserId(self, user_id: int) -> List[Dict]:
+        """Get all MCP servers for a user"""
+        await self.connect()
         
-        if self.pool:
-            async with self.pool.acquire() as conn:
-                rows = await conn.fetch(query, user_id)
-                return [dict(row) for row in rows]
-        return []
-
-    async def update_server_status(self, server_id: int, status: str, last_connected: Optional[str] = None):
-        """Update server connection status"""
-        await self.initialize()
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, name, url, description, api_key, is_active,
+                       connection_status, last_connected, metadata
+                FROM mcp_servers
+                WHERE user_id = $1 AND is_active = true
+                ORDER BY created_at DESC
+                """,
+                user_id
+            )
+            
+            return [dict(row) for row in rows]
+    
+    async def updateMcpServer(self, server_id: int, updates: Dict) -> Optional[Dict]:
+        """Update MCP server status"""
+        await self.connect()
         
-        query = """
-            UPDATE mcp_servers 
-            SET connection_status = $2, last_connected = COALESCE($3, last_connected), updated_at = NOW()
-            WHERE id = $1
-        """
+        # Build dynamic UPDATE query
+        set_clauses = []
+        values = []
+        for i, (key, value) in enumerate(updates.items(), 1):
+            # Convert camelCase to snake_case
+            db_key = ''.join(['_'+c.lower() if c.isupper() else c for c in key]).lstrip('_')
+            set_clauses.append(f"{db_key} = ${i}")
+            values.append(value)
         
-        if self.pool:
-            async with self.pool.acquire() as conn:
-                await conn.execute(query, server_id, status, last_connected)
-
-    async def update_server_tools(self, server_id: int, tools: List[Dict], capabilities: List[Dict]):
-        """Update server tools and capabilities"""
-        await self.initialize()
+        values.append(server_id)
         
-        query = """
-            UPDATE mcp_servers 
-            SET tools = $2, capabilities = $3, updated_at = NOW()
-            WHERE id = $1
-        """
-        
-        if self.pool:
-            async with self.pool.acquire() as conn:
-                await conn.execute(query, server_id, json.dumps(tools), json.dumps(capabilities))
-
-    async def get_server_by_id(self, server_id: int) -> Optional[Dict[str, Any]]:
-        """Get a specific MCP server by ID"""
-        await self.initialize()
-        
-        query = """
-            SELECT 
-                id, name, url, protocol_type, discovery_endpoint, 
-                result_endpoint, poll_interval, api_key, tools, 
-                connection_status, capabilities, metadata
-            FROM mcp_servers 
-            WHERE id = $1
-        """
-        
-        if self.pool:
-            async with self.pool.acquire() as conn:
-                row = await conn.fetchrow(query, server_id)
-                return dict(row) if row else None
-        return None
-
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                f"""
+                UPDATE mcp_servers
+                SET {', '.join(set_clauses)}, updated_at = NOW()
+                WHERE id = ${len(values)}
+                RETURNING *
+                """,
+                *values
+            )
+            
+            return dict(row) if row else None
+    
     async def cleanup(self):
-        """Cleanup database connections"""
+        """Close database connections"""
         if self.pool:
             await self.pool.close()

@@ -25,6 +25,58 @@ _mcp_manager = None
 logger = logging.getLogger("voice-agent")
 load_dotenv()
 
+# Enhanced search function with result polling
+@function_tool
+async def search_web(query: str) -> str:
+    """Search the web with real-time progress updates and actual results."""
+    logger.info(f"FUNCTION EXECUTED: search_web({query})")
+    
+    try:
+        # Make request with enhanced MCP proxy that polls for results
+        logger.info(f"Making enhanced Express API call for search: {query}")
+        
+        response = requests.post(
+            'http://localhost:5000/api/mcp/execute',
+            json={
+                "serverId": 9,  # N8N server ID from your database
+                "tool": "execute_web_search",
+                "params": {"query": query}
+            },
+            timeout=35  # Longer timeout to allow for polling
+        )
+        
+        logger.info(f"Express API response status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            logger.info(f"Express API response data: {data}")
+            
+            if data.get("success"):
+                result = data.get("result", "")
+                
+                # Format results nicely for voice output
+                if isinstance(result, str) and len(result) > 100:
+                    # Parse and format search results
+                    formatted_result = format_search_results(result)
+                    logger.info(f"Returning formatted search results")
+                    return formatted_result
+                else:
+                    return result
+            else:
+                error_msg = data.get('error', 'Unknown error')
+                logger.error(f"Search failed: {error_msg}")
+                return f"I couldn't complete the search. Error: {error_msg}"
+        else:
+            logger.error(f"HTTP error {response.status_code}")
+            return "The search service is currently unavailable. Please try again later."
+            
+    except requests.Timeout:
+        logger.error("Search request timed out")
+        return "The search is taking longer than expected. This might be due to network issues. Please try again."
+    except Exception as e:
+        logger.error(f"Search error: {e}")
+        return f"I encountered an error while searching: {str(e)}"
+
 def format_search_results(result: str) -> str:
     """Format search results for better voice output."""
     try:
@@ -34,81 +86,33 @@ def format_search_results(result: str) -> str:
             data = json.loads(result)
             if isinstance(data, list):
                 formatted = "Here's what I found:\n\n"
-                for i, item in enumerate(data[:3], 1):  # Limit to top 3 for voice
+                for i, item in enumerate(data[:5], 1):  # Limit to top 5
                     if isinstance(item, dict):
                         title = item.get('title', item.get('name', ''))
                         snippet = item.get('snippet', item.get('description', ''))
                         if title:
                             formatted += f"{i}. {title}\n"
                             if snippet:
-                                formatted += f"   {snippet[:80]}...\n\n"
+                                formatted += f"   {snippet[:100]}...\n\n"
                 return formatted
             elif isinstance(data, dict):
+                # Handle single result
                 title = data.get('title', 'Result')
                 content = data.get('content', data.get('snippet', str(data)))
-                return f"{title}: {content[:200]}..."
+                return f"{title}:\n{content}"
         
-        # If not JSON, format as text
+        # If not JSON, try to format as text
         lines = result.split('\n')
-        formatted = "Here's what I found: "
-        for i, line in enumerate(lines[:3], 1):
+        formatted = "Here's what I found:\n\n"
+        for i, line in enumerate(lines[:5], 1):
             if line.strip():
-                formatted += f"{i}. {line.strip()[:100]}... "
+                formatted += f"{i}. {line.strip()}\n\n"
         
         return formatted
         
     except:
-        # If formatting fails, return truncated original
-        return result[:300] + "..." if len(result) > 300 else result
-
-# Define function tools at module level (expert's recommendation)
-@function_tool
-async def search_web(query: str) -> str:
-    """Search the web for current information using MCP internet access tools."""
-    logger.info(f"FUNCTION ACTUALLY EXECUTED: search_web({query})")
-    execution_time = time.time()
-    
-    try:
-        # Use Express API with enhanced polling mechanism for actual results
-        logger.info(f"Making Express API call for search: {query}")
-        response = requests.post('http://localhost:5000/api/mcp/execute', 
-                               json={"serverId": 9, "tool": "execute_web_search", "params": {"query": query}}, 
-                               timeout=35)  # Extended timeout for enhanced polling mechanism
-        logger.info(f"Express API response status: {response.status_code}")
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"Express API response data: {data}")
-            if data.get("success"):
-                result = data.get("result", "")
-                
-                # Check if we got actual results or just acknowledgment
-                if "accepted" in result.lower() and len(result) < 100:
-                    logger.warning("Received acknowledgment but no actual search results")
-                    return f"I've initiated a web search for '{query}'. The search service processed the request but results may take longer to retrieve."
-                else:
-                    # We got actual results from polling mechanism
-                    logger.info(f"FUNCTION COMPLETED at {execution_time}: Got actual search results")
-                    return format_search_results(result)
-            else:
-                error_msg = data.get('error', 'Unknown error')
-                if "timeout" in error_msg.lower():
-                    return f"Search for '{query}' is taking longer than expected. The search was initiated but results may be available shortly."
-                else:
-                    return f"Search failed: {error_msg}"
-        else:
-            return "Search service unavailable"
-            
-    except Exception as e:
-        logger.error(f"Error in web search: {e}")
-        return f"Search failed: {str(e)}"
-
-# Email function temporarily disabled to prevent SSE connection loops
-# @function_tool
-async def send_email_disabled(to: str, subject: str, body: str) -> str:
-    """Send an email via Zapier MCP integration - TEMPORARILY DISABLED."""
-    logger.info(f"Email function called but disabled to prevent agent blocking")
-    return "Email functionality is temporarily disabled while resolving connection issues. Your request has been noted."
-
+        # If formatting fails, return original
+        return result
 
 async def get_agent_config(room_name: str):
     """Fetch agent configuration from the database based on room name."""
@@ -127,7 +131,7 @@ async def get_agent_config(room_name: str):
     
     # Fallback configuration
     return {
-        "systemPrompt": "You are a helpful AI assistant.",
+        "systemPrompt": "You are a helpful AI assistant with web search capabilities.",
         "voiceModel": "alloy",
         "temperature": 80,
         "responseLength": "medium"
@@ -140,23 +144,19 @@ class Assistant(Agent):
         # Pass tools to parent Agent constructor
         super().__init__(
             instructions=system_prompt,
-            tools=tools if tools is not None else []  # Pass the tools here!
+            tools=tools if tools is not None else []
         )
         self.config = config
 
 
-
-
-
-
 async def entrypoint(ctx: JobContext):
-    """Main entry point for the LiveKit agent following expert guidelines."""
-    logger.info(f"Agent started for room: {ctx.room.name}")
+    """Main entry point for the enhanced LiveKit agent with MCP result retrieval."""
+    logger.info(f"Enhanced agent started for room: {ctx.room.name}")
     
     # Connect to room with audio-only subscription
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     
-    # Ensure audio track subscription as recommended by expert
+    # Ensure audio track subscription
     @ctx.room.on("track_published")
     def on_track_published(publication: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant):
         if publication.kind == "audio":
@@ -175,7 +175,7 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         config = {
-            "systemPrompt": "You are a helpful AI assistant.",
+            "systemPrompt": "You are a helpful AI assistant with web search capabilities.",
             "voiceModel": "alloy",
             "temperature": 80,
             "responseLength": "medium"
@@ -198,7 +198,7 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {realtime_temp}")
 
-    # Initialize global MCP manager for module-level function tools
+    # Initialize global MCP manager
     global _mcp_manager
     logger.info("Initializing MCP integration...")
     _mcp_manager = SimpleMCPManager()
@@ -212,14 +212,14 @@ async def entrypoint(ctx: JobContext):
         _mcp_manager = None
 
     try:
-        logger.info("Attempting OpenAI Realtime API")
+        logger.info("Starting enhanced OpenAI Realtime API with MCP result retrieval")
         
-        # Create assistant with function tools passed to constructor
+        # Create assistant with enhanced search function
         assistant = Assistant(
             config=config, 
-            tools=[search_web]  # Only include working search function
+            tools=[search_web]  # Enhanced search with result polling
         )
-        logger.info("Assistant created with module-level function tools")
+        logger.info("Assistant created with enhanced function tools")
         
         # Create AgentSession with Realtime API
         session = AgentSession(
@@ -241,10 +241,10 @@ async def entrypoint(ctx: JobContext):
         
         # Generate initial greeting
         await session.generate_reply(
-            instructions="Greet the user warmly and offer your assistance."
+            instructions="Greet the user warmly and mention that you can search the web for current information."
         )
         
-        logger.info("OpenAI Realtime API agent started successfully")
+        logger.info("Enhanced OpenAI Realtime API agent started successfully")
         
     except Exception as e:
         logger.error(f"Realtime API failed: {e}")
@@ -253,7 +253,7 @@ async def entrypoint(ctx: JobContext):
         # Convert temperature for standard LLM
         llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
         
-        # Create assistant for fallback with function tools
+        # Create assistant for fallback with enhanced function tools
         assistant = Assistant(
             config=config,
             tools=[search_web]
@@ -272,7 +272,7 @@ async def entrypoint(ctx: JobContext):
             agent=assistant
         )
         
-        logger.info("STT-LLM-TTS pipeline started successfully")
+        logger.info("STT-LLM-TTS pipeline started successfully with enhanced MCP")
 
 
 if __name__ == "__main__":
