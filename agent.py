@@ -207,18 +207,26 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {realtime_temp}")
 
-    # Initialize global MCP manager for module-level function tools
-    global _mcp_manager
-    logger.info("Initializing MCP integration...")
-    _mcp_manager = SimpleMCPManager()
+    # Initialize global MCP dispatcher with job polling architecture
+    global _mcp_dispatcher
+    logger.info("Initializing MCP job polling system...")
     
     try:
-        mcp_servers = await _mcp_manager.initialize_user_servers(user_id=1)
-        connected_count = len([s for s in mcp_servers if s.get("status") == "connected"])
+        storage = PostgreSQLStorage()
+        _mcp_dispatcher = UniversalMCPDispatcher(storage)
+        await _mcp_dispatcher.initialize_tools(user_id=1)
+        
+        available_tools = await _mcp_dispatcher.get_available_tools()
+        logger.info(f"MCP system ready with {len(available_tools)} tools available")
+        
+        # Run health checks
+        health_status = await _mcp_dispatcher.health_check_all_servers()
+        connected_count = len([s for s in health_status.values() if s])
         logger.info(f"Connected to {connected_count} MCP servers")
+        
     except Exception as e:
-        logger.error(f"Failed to initialize MCP servers: {e}")
-        _mcp_manager = None
+        logger.error(f"Failed to initialize MCP job polling system: {e}")
+        _mcp_dispatcher = None
 
     try:
         logger.info("Attempting OpenAI Realtime API")
