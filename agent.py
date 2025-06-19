@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent))
 
 from livekit import agents, rtc
-from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, llm, AgentSession, Agent
+from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, llm, AgentSession
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
@@ -143,15 +143,15 @@ async def get_agent_config(room_name: str):
     }
 
 
-class Assistant(Agent):
-    def __init__(self, config: dict, tools: list = None) -> None:
-        system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
-        # Pass tools to parent Agent constructor
-        super().__init__(
-            instructions=system_prompt,
-            tools=tools if tools is not None else []  # Pass the tools here!
-        )
+class Assistant:
+    def __init__(self, config: dict) -> None:
         self.config = config
+        self.name = config.get('name', 'AI Assistant')
+    
+    @llm.ai_callable()
+    async def get_general_info(self) -> str:
+        """Provides general information about the assistant."""
+        return f"I'm {self.name} and I'm here to help you with any questions you have."
 
 
 
@@ -231,11 +231,8 @@ async def entrypoint(ctx: JobContext):
     try:
         logger.info("Attempting OpenAI Realtime API")
         
-        # Create assistant with function tools passed to constructor
-        assistant = Assistant(
-            config=config, 
-            tools=[search_web]  # Only include working search function
-        )
+        # Create assistant
+        assistant = Assistant(config=config)
         logger.info("Assistant created with module-level function tools")
         
         # Create AgentSession with Realtime API
