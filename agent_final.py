@@ -1,4 +1,4 @@
-"""Working LiveKit Voice Agent with OpenAI Realtime API and MCP Integration"""
+"""Final Working LiveKit Voice Agent with MCP Job Polling Integration"""
 import asyncio
 import logging
 import os
@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 sys.path.insert(0, str(Path(__file__).parent))
 
 from livekit import agents, rtc
-from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe
-from livekit.plugins import openai
+from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, llm, AgentSession
+from livekit.plugins import openai, silero
 
 # Import MCP integration
 from mcp_integration.storage import PostgreSQLStorage
@@ -32,15 +32,15 @@ def format_search_results(result: str) -> str:
         if result.startswith('{') or result.startswith('['):
             data = json.loads(result)
             if isinstance(data, list):
-                formatted = "Here's what I found:\n\n"
+                formatted = "Here's what I found: "
                 for i, item in enumerate(data[:3], 1):  # Limit to top 3 for voice
                     if isinstance(item, dict):
                         title = item.get('title', item.get('name', ''))
                         snippet = item.get('snippet', item.get('description', ''))
                         if title:
-                            formatted += f"{i}. {title}\n"
+                            formatted += f"{i}. {title}. "
                             if snippet:
-                                formatted += f"   {snippet[:80]}...\n\n"
+                                formatted += f"{snippet[:100]}... "
                 return formatted
         
         # Format as text with line limits
@@ -53,14 +53,15 @@ def format_search_results(result: str) -> str:
     except:
         return result[:300] + "..." if len(result) > 300 else result
 
+@llm.ai_callable()
 async def search_web(query: str) -> str:
     """Search the web for current information using MCP job polling architecture."""
     global _mcp_dispatcher
     
     logger.info(f"SEARCH INITIATED: {query}")
     
+    # Fallback to direct API call if MCP dispatcher not available
     if not _mcp_dispatcher:
-        # Fallback to direct API call
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -80,8 +81,8 @@ async def search_web(query: str) -> str:
             logger.error(f"Search error: {e}")
             return f"I encountered an error while searching: {str(e)[:100]}. Please try again."
     
+    # Use MCP dispatcher for job polling
     try:
-        # Use MCP dispatcher for job polling
         tools = await _mcp_dispatcher.get_available_tools()
         search_tools = [t for t in tools if 'search' in t['name'].lower()]
         
@@ -125,7 +126,7 @@ async def get_agent_config(room_name: str):
     }
 
 async def entrypoint(ctx: JobContext):
-    """Main entry point for the LiveKit agent with OpenAI Realtime API."""
+    """Main entry point for the LiveKit agent with MCP job polling integration."""
     logger.info(f"Agent started for room: {ctx.room.name}")
     
     # Connect to room with audio-only subscription
@@ -174,18 +175,12 @@ async def entrypoint(ctx: JobContext):
         logger.error(f"Failed to initialize MCP system: {e}")
         _mcp_dispatcher = None
 
-    # Standard STT-LLM-TTS pipeline with MCP function tools
+    # STT-LLM-TTS pipeline with MCP function tools
     try:
         logger.info("Starting STT-LLM-TTS pipeline with MCP integration...")
         
-        from livekit.agents import llm, AgentSession
-        from livekit.plugins import silero
-        
-        # Create function tool for web search
-        @llm.ai_callable()
-        async def search_web_tool(query: str) -> str:
-            """Search the web for current information."""
-            return await search_web(query)
+        # Convert temperature for standard LLM
+        llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
         
         # Create agent session with proper configuration
         session = AgentSession(
@@ -193,12 +188,12 @@ async def entrypoint(ctx: JobContext):
             stt=openai.STT(model="whisper-1"),
             llm=openai.LLM(
                 model="gpt-4o",
-                temperature=min(2.0, float(temp_raw) / 100.0 * 2.0),
+                temperature=llm_temp,
             ),
             tts=openai.TTS(model="tts-1", voice=voice),
         )
 
-        # Start the session
+        # Start the session (search_web function automatically available via @llm.ai_callable decorator)
         await session.start(ctx.room)
         logger.info("STT-LLM-TTS pipeline with MCP integration started successfully")
         
