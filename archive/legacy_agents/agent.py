@@ -3,79 +3,29 @@ import os
 import asyncio
 import sys
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Any, List
 from dotenv import load_dotenv
 
 # Add the workspace root to Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from livekit import agents, rtc
-from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, llm, AgentSession, Agent
+from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, llm, AgentSession
 from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
 import time
+import httpx
 
-# Import simplified MCP integration 
-from mcp_integration.simple_client import SimpleMCPManager
+# Import enhanced MCP integration with job polling
+from mcp_integration.storage import PostgreSQLStorage
+from mcp_integration.universal_manager import UniversalMCPDispatcher
 
-# Global MCP manager to be accessible by function tools
-_mcp_manager = None
+# Global MCP dispatcher for job polling
+_mcp_dispatcher = None
 
 logger = logging.getLogger("voice-agent")
 load_dotenv()
-
-# Enhanced search function with result polling
-@function_tool
-async def search_web(query: str) -> str:
-    """Search the web with real-time progress updates and actual results."""
-    logger.info(f"FUNCTION EXECUTED: search_web({query})")
-    
-    try:
-        # Make request with enhanced MCP proxy that polls for results
-        logger.info(f"Making enhanced Express API call for search: {query}")
-        
-        response = requests.post(
-            'http://localhost:5000/api/mcp/execute',
-            json={
-                "serverId": 9,  # N8N server ID from your database
-                "tool": "execute_web_search",
-                "params": {"query": query}
-            },
-            timeout=35  # Longer timeout to allow for polling
-        )
-        
-        logger.info(f"Express API response status: {response.status_code}")
-        
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"Express API response data: {data}")
-            
-            if data.get("success"):
-                result = data.get("result", "")
-                
-                # Format results nicely for voice output
-                if isinstance(result, str) and len(result) > 100:
-                    # Parse and format search results
-                    formatted_result = format_search_results(result)
-                    logger.info(f"Returning formatted search results")
-                    return formatted_result
-                else:
-                    return result
-            else:
-                error_msg = data.get('error', 'Unknown error')
-                logger.error(f"Search failed: {error_msg}")
-                return f"I couldn't complete the search. Error: {error_msg}"
-        else:
-            logger.error(f"HTTP error {response.status_code}")
-            return "The search service is currently unavailable. Please try again later."
-            
-    except requests.Timeout:
-        logger.error("Search request timed out")
-        return "The search is taking longer than expected. This might be due to network issues. Please try again."
-    except Exception as e:
-        logger.error(f"Search error: {e}")
-        return f"I encountered an error while searching: {str(e)}"
 
 def format_search_results(result: str) -> str:
     """Format search results for better voice output."""
@@ -86,33 +36,88 @@ def format_search_results(result: str) -> str:
             data = json.loads(result)
             if isinstance(data, list):
                 formatted = "Here's what I found:\n\n"
-                for i, item in enumerate(data[:5], 1):  # Limit to top 5
+                for i, item in enumerate(data[:3], 1):  # Limit to top 3 for voice
                     if isinstance(item, dict):
                         title = item.get('title', item.get('name', ''))
                         snippet = item.get('snippet', item.get('description', ''))
                         if title:
                             formatted += f"{i}. {title}\n"
                             if snippet:
-                                formatted += f"   {snippet[:100]}...\n\n"
+                                formatted += f"   {snippet[:80]}...\n\n"
                 return formatted
             elif isinstance(data, dict):
-                # Handle single result
                 title = data.get('title', 'Result')
                 content = data.get('content', data.get('snippet', str(data)))
-                return f"{title}:\n{content}"
+                return f"{title}: {content[:200]}..."
         
-        # If not JSON, try to format as text
+        # If not JSON, format as text
         lines = result.split('\n')
-        formatted = "Here's what I found:\n\n"
-        for i, line in enumerate(lines[:5], 1):
+        formatted = "Here's what I found: "
+        for i, line in enumerate(lines[:3], 1):
             if line.strip():
-                formatted += f"{i}. {line.strip()}\n\n"
+                formatted += f"{i}. {line.strip()[:100]}... "
         
         return formatted
         
     except:
-        # If formatting fails, return original
-        return result
+        # If formatting fails, return truncated original
+        return result[:300] + "..." if len(result) > 300 else result
+
+# Enhanced MCP function tools with job polling architecture
+@function_tool
+async def search_web(query: str) -> str:
+    """Search the web for current information using MCP job polling architecture."""
+    global _mcp_dispatcher
+    
+    logger.info(f"SEARCH INITIATED: {query}")
+    
+    if not _mcp_dispatcher:
+        logger.warning("MCP dispatcher not initialized")
+        return "Search system not initialized. Please wait a moment and try again."
+    
+    try:
+        # Get available search tools
+        available_tools = await _mcp_dispatcher.get_available_tools()
+        search_tools = [t for t in available_tools if 'search' in t['name'].lower() or 'web' in t['name'].lower()]
+        
+        if not search_tools:
+            logger.warning("No search tools available")
+            return "No web search tools are currently available. Please check your MCP server configuration."
+        
+        # Use the first available search tool
+        search_tool = search_tools[0]
+        tool_name = search_tool['name']
+        
+        logger.info(f"Using search tool: {tool_name}")
+        
+        # Execute the search with job polling
+        result = await _mcp_dispatcher.execute_tool(
+            tool_name=tool_name,
+            params={"query": query},
+            timeout=35  # Extended timeout for polling
+        )
+        
+        if result:
+            formatted_result = format_search_results(result)
+            logger.info(f"SEARCH COMPLETED: {query}")
+            return formatted_result
+        else:
+            return "I completed the search but didn't receive any results. The search might still be processing."
+            
+    except asyncio.TimeoutError:
+        logger.error(f"Search timed out for query: {query}")
+        return "The search is taking longer than expected. This might be due to high server load. Please try again in a moment."
+    except Exception as e:
+        logger.error(f"Search error for query '{query}': {e}")
+        return f"I encountered an error while searching: {str(e)[:100]}. Please try rephrasing your query."
+
+# Email function temporarily disabled to prevent SSE connection loops
+# @function_tool
+async def send_email_disabled(to: str, subject: str, body: str) -> str:
+    """Send an email via Zapier MCP integration - TEMPORARILY DISABLED."""
+    logger.info(f"Email function called but disabled to prevent agent blocking")
+    return "Email functionality is temporarily disabled while resolving connection issues. Your request has been noted."
+
 
 async def get_agent_config(room_name: str):
     """Fetch agent configuration from the database based on room name."""
@@ -131,32 +136,36 @@ async def get_agent_config(room_name: str):
     
     # Fallback configuration
     return {
-        "systemPrompt": "You are a helpful AI assistant with web search capabilities.",
+        "systemPrompt": "You are a helpful AI assistant.",
         "voiceModel": "alloy",
         "temperature": 80,
         "responseLength": "medium"
     }
 
 
-class Assistant(Agent):
-    def __init__(self, config: dict, tools: list = None) -> None:
-        system_prompt = config.get("systemPrompt", "You are a helpful voice AI assistant.")
-        # Pass tools to parent Agent constructor
-        super().__init__(
-            instructions=system_prompt,
-            tools=tools if tools is not None else []
-        )
+class Assistant:
+    def __init__(self, config: dict) -> None:
         self.config = config
+        self.name = config.get('name', 'AI Assistant')
+    
+    @llm.ai_callable()
+    async def get_general_info(self) -> str:
+        """Provides general information about the assistant."""
+        return f"I'm {self.name} and I'm here to help you with any questions you have."
+
+
+
+
 
 
 async def entrypoint(ctx: JobContext):
-    """Main entry point for the enhanced LiveKit agent with MCP result retrieval."""
-    logger.info(f"Enhanced agent started for room: {ctx.room.name}")
+    """Main entry point for the LiveKit agent following expert guidelines."""
+    logger.info(f"Agent started for room: {ctx.room.name}")
     
     # Connect to room with audio-only subscription
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     
-    # Ensure audio track subscription
+    # Ensure audio track subscription as recommended by expert
     @ctx.room.on("track_published")
     def on_track_published(publication: rtc.RemoteTrackPublication, participant: rtc.RemoteParticipant):
         if publication.kind == "audio":
@@ -175,7 +184,7 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
         config = {
-            "systemPrompt": "You are a helpful AI assistant with web search capabilities.",
+            "systemPrompt": "You are a helpful AI assistant.",
             "voiceModel": "alloy",
             "temperature": 80,
             "responseLength": "medium"
@@ -198,28 +207,33 @@ async def entrypoint(ctx: JobContext):
     
     logger.info(f"Voice: {voice}, Temperature: {realtime_temp}")
 
-    # Initialize global MCP manager
-    global _mcp_manager
-    logger.info("Initializing MCP integration...")
-    _mcp_manager = SimpleMCPManager()
+    # Initialize global MCP dispatcher with job polling architecture
+    global _mcp_dispatcher
+    logger.info("Initializing MCP job polling system...")
     
     try:
-        mcp_servers = await _mcp_manager.initialize_user_servers(user_id=1)
-        connected_count = len([s for s in mcp_servers if s.get("status") == "connected"])
+        storage = PostgreSQLStorage()
+        _mcp_dispatcher = UniversalMCPDispatcher(storage)
+        await _mcp_dispatcher.initialize_tools(user_id=1)
+        
+        available_tools = await _mcp_dispatcher.get_available_tools()
+        logger.info(f"MCP system ready with {len(available_tools)} tools available")
+        
+        # Run health checks
+        health_status = await _mcp_dispatcher.health_check_all_servers()
+        connected_count = len([s for s in health_status.values() if s])
         logger.info(f"Connected to {connected_count} MCP servers")
+        
     except Exception as e:
-        logger.error(f"Failed to initialize MCP servers: {e}")
-        _mcp_manager = None
+        logger.error(f"Failed to initialize MCP job polling system: {e}")
+        _mcp_dispatcher = None
 
     try:
-        logger.info("Starting enhanced OpenAI Realtime API with MCP result retrieval")
+        logger.info("Attempting OpenAI Realtime API")
         
-        # Create assistant with enhanced search function
-        assistant = Assistant(
-            config=config, 
-            tools=[search_web]  # Enhanced search with result polling
-        )
-        logger.info("Assistant created with enhanced function tools")
+        # Create assistant
+        assistant = Assistant(config=config)
+        logger.info("Assistant created with module-level function tools")
         
         # Create AgentSession with Realtime API
         session = AgentSession(
@@ -241,10 +255,10 @@ async def entrypoint(ctx: JobContext):
         
         # Generate initial greeting
         await session.generate_reply(
-            instructions="Greet the user warmly and mention that you can search the web for current information."
+            instructions="Greet the user warmly and offer your assistance."
         )
         
-        logger.info("Enhanced OpenAI Realtime API agent started successfully")
+        logger.info("OpenAI Realtime API agent started successfully")
         
     except Exception as e:
         logger.error(f"Realtime API failed: {e}")
@@ -253,7 +267,7 @@ async def entrypoint(ctx: JobContext):
         # Convert temperature for standard LLM
         llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
         
-        # Create assistant for fallback with enhanced function tools
+        # Create assistant for fallback with function tools
         assistant = Assistant(
             config=config,
             tools=[search_web]
@@ -272,7 +286,7 @@ async def entrypoint(ctx: JobContext):
             agent=assistant
         )
         
-        logger.info("STT-LLM-TTS pipeline started successfully with enhanced MCP")
+        logger.info("STT-LLM-TTS pipeline started successfully")
 
 
 if __name__ == "__main__":

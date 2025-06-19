@@ -141,7 +141,7 @@ async function startAIAgent(roomName: string) {
     
     // Start the Python LiveKit agent process with proper CLI parameters
     const agentProcess = spawn('python', [
-      'agent.py', 
+      'agents/voice_agent.py', 
       'start',
       '--url', process.env.LIVEKIT_URL!,
       '--api-key', process.env.LIVEKIT_API_KEY!,
@@ -150,7 +150,8 @@ async function startAIAgent(roomName: string) {
       env: {
         ...process.env,
         LIVEKIT_ROOM_NAME: roomName,
-        OPENAI_API_KEY: process.env.OPENAI_API_KEY
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+        LD_LIBRARY_PATH: '/nix/store/libstdcxx5-7.5.0/lib:' + (process.env.LD_LIBRARY_PATH || '')
       },
       stdio: ['inherit', 'pipe', 'pipe']
     });
