@@ -141,7 +141,7 @@ async function startAIAgent(roomName: string) {
     
     // Start the Python LiveKit agent process with proper CLI parameters
     const agentProcess = spawn('node', [
-      'agents/simple_voice_agent.cjs', 
+      'agents/realtime_agent.cjs', 
       'start',
       '--url', process.env.LIVEKIT_URL!,
       '--api-key', process.env.LIVEKIT_API_KEY!,
