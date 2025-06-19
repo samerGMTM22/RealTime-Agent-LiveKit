@@ -3,7 +3,7 @@ import os
 import asyncio
 import sys
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Any, List
 from dotenv import load_dotenv
 
 # Add the workspace root to Python path
@@ -15,12 +15,14 @@ from livekit.agents.llm import function_tool
 from livekit.plugins import openai, silero
 import requests
 import time
+import httpx
 
-# Import simplified MCP integration 
-from mcp_integration.simple_client import SimpleMCPManager
+# Import enhanced MCP integration with job polling
+from mcp_integration.storage import PostgreSQLStorage
+from mcp_integration.universal_manager import UniversalMCPDispatcher
 
-# Global MCP manager to be accessible by function tools
-_mcp_manager = None
+# Global MCP dispatcher for job polling
+_mcp_dispatcher = None
 
 logger = logging.getLogger("voice-agent")
 load_dotenv()
@@ -61,46 +63,53 @@ def format_search_results(result: str) -> str:
         # If formatting fails, return truncated original
         return result[:300] + "..." if len(result) > 300 else result
 
-# Define function tools at module level (expert's recommendation)
+# Enhanced MCP function tools with job polling architecture
 @function_tool
 async def search_web(query: str) -> str:
-    """Search the web for current information using MCP internet access tools."""
-    logger.info(f"FUNCTION ACTUALLY EXECUTED: search_web({query})")
-    execution_time = time.time()
+    """Search the web for current information using MCP job polling architecture."""
+    global _mcp_dispatcher
+    
+    logger.info(f"SEARCH INITIATED: {query}")
+    
+    if not _mcp_dispatcher:
+        logger.warning("MCP dispatcher not initialized")
+        return "Search system not initialized. Please wait a moment and try again."
     
     try:
-        # Use Express API with enhanced polling mechanism for actual results
-        logger.info(f"Making Express API call for search: {query}")
-        response = requests.post('http://localhost:5000/api/mcp/execute', 
-                               json={"serverId": 9, "tool": "execute_web_search", "params": {"query": query}}, 
-                               timeout=35)  # Extended timeout for enhanced polling mechanism
-        logger.info(f"Express API response status: {response.status_code}")
-        if response.status_code == 200:
-            data = response.json()
-            logger.info(f"Express API response data: {data}")
-            if data.get("success"):
-                result = data.get("result", "")
-                
-                # Check if we got actual results or just acknowledgment
-                if "accepted" in result.lower() and len(result) < 100:
-                    logger.warning("Received acknowledgment but no actual search results")
-                    return f"I've initiated a web search for '{query}'. The search service processed the request but results may take longer to retrieve."
-                else:
-                    # We got actual results from polling mechanism
-                    logger.info(f"FUNCTION COMPLETED at {execution_time}: Got actual search results")
-                    return format_search_results(result)
-            else:
-                error_msg = data.get('error', 'Unknown error')
-                if "timeout" in error_msg.lower():
-                    return f"Search for '{query}' is taking longer than expected. The search was initiated but results may be available shortly."
-                else:
-                    return f"Search failed: {error_msg}"
+        # Get available search tools
+        available_tools = await _mcp_dispatcher.get_available_tools()
+        search_tools = [t for t in available_tools if 'search' in t['name'].lower() or 'web' in t['name'].lower()]
+        
+        if not search_tools:
+            logger.warning("No search tools available")
+            return "No web search tools are currently available. Please check your MCP server configuration."
+        
+        # Use the first available search tool
+        search_tool = search_tools[0]
+        tool_name = search_tool['name']
+        
+        logger.info(f"Using search tool: {tool_name}")
+        
+        # Execute the search with job polling
+        result = await _mcp_dispatcher.execute_tool(
+            tool_name=tool_name,
+            params={"query": query},
+            timeout=35  # Extended timeout for polling
+        )
+        
+        if result:
+            formatted_result = format_search_results(result)
+            logger.info(f"SEARCH COMPLETED: {query}")
+            return formatted_result
         else:
-            return "Search service unavailable"
+            return "I completed the search but didn't receive any results. The search might still be processing."
             
+    except asyncio.TimeoutError:
+        logger.error(f"Search timed out for query: {query}")
+        return "The search is taking longer than expected. This might be due to high server load. Please try again in a moment."
     except Exception as e:
-        logger.error(f"Error in web search: {e}")
-        return f"Search failed: {str(e)}"
+        logger.error(f"Search error for query '{query}': {e}")
+        return f"I encountered an error while searching: {str(e)[:100]}. Please try rephrasing your query."
 
 # Email function temporarily disabled to prevent SSE connection loops
 # @function_tool

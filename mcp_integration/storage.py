@@ -30,9 +30,11 @@ class PostgreSQLStorage:
             WHERE user_id = $1 AND is_active = true
         """
         
-        async with self.pool.acquire() as conn:
-            rows = await conn.fetch(query, user_id)
-            return [dict(row) for row in rows]
+        if self.pool:
+            async with self.pool.acquire() as conn:
+                rows = await conn.fetch(query, user_id)
+                return [dict(row) for row in rows]
+        return []
 
     async def update_server_status(self, server_id: int, status: str, last_connected: Optional[str] = None):
         """Update server connection status"""
@@ -44,8 +46,9 @@ class PostgreSQLStorage:
             WHERE id = $1
         """
         
-        async with self.pool.acquire() as conn:
-            await conn.execute(query, server_id, status, last_connected)
+        if self.pool:
+            async with self.pool.acquire() as conn:
+                await conn.execute(query, server_id, status, last_connected)
 
     async def update_server_tools(self, server_id: int, tools: List[Dict], capabilities: List[Dict]):
         """Update server tools and capabilities"""
@@ -57,8 +60,9 @@ class PostgreSQLStorage:
             WHERE id = $1
         """
         
-        async with self.pool.acquire() as conn:
-            await conn.execute(query, server_id, json.dumps(tools), json.dumps(capabilities))
+        if self.pool:
+            async with self.pool.acquire() as conn:
+                await conn.execute(query, server_id, json.dumps(tools), json.dumps(capabilities))
 
     async def get_server_by_id(self, server_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific MCP server by ID"""
@@ -73,9 +77,11 @@ class PostgreSQLStorage:
             WHERE id = $1
         """
         
-        async with self.pool.acquire() as conn:
-            row = await conn.fetchrow(query, server_id)
-            return dict(row) if row else None
+        if self.pool:
+            async with self.pool.acquire() as conn:
+                row = await conn.fetchrow(query, server_id)
+                return dict(row) if row else None
+        return None
 
     async def cleanup(self):
         """Cleanup database connections"""
