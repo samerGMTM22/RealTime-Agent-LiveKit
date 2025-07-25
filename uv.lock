@@ -893,6 +893,9 @@ codecs = [
 images = [
     { name = "pillow" },
 ]
+mcp = [
+    { name = "mcp" },
+]
 openai = [
     { name = "livekit-plugins-openai" },
 ]
@@ -1748,7 +1751,7 @@ dependencies = [
     { name = "asyncpg" },
     { name = "httpx" },
     { name = "httpx-sse" },
-    { name = "livekit-agents", extra = ["openai"] },
+    { name = "livekit-agents", extra = ["mcp", "openai"] },
     { name = "livekit-plugins-silero" },
     { name = "pydantic-ai" },
     { name = "python-dotenv" },
@@ -1762,7 +1765,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "httpx-sse", specifier = ">=0.4.0" },
-    { name = "livekit-agents", extras = ["openai"], specifier = ">=1.0.23" },
+    { name = "livekit-agents", extras = ["mcp", "openai"], specifier = ">=1.0.23" },
     { name = "livekit-plugins-silero", specifier = ">=1.0.23" },
     { name = "pydantic-ai", specifier = ">=0.2.18" },
     { name = "python-dotenv", specifier = ">=1.1.0" },

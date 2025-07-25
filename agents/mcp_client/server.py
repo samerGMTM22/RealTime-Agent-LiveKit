@@ -1,9 +1,13 @@
-"""MCP server implementations for different transport protocols."""
+"""MCP server implementations using official MCP client libraries."""
 import asyncio
 import logging
 from typing import Any, Dict, List, Optional
-import aiohttp
-import json
+import os
+from contextlib import AsyncExitStack
+# from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+from mcp.client.sse import sse_client
+from mcp.client.session import ClientSession
+from mcp import types
 
 logger = logging.getLogger("mcp-server")
 
@@ -33,128 +37,126 @@ class MCPServer:
 
 
 class MCPServerSse(MCPServer):
-    """MCP server implementation using SSE (Server-Sent Events) transport."""
+    """Official MCP server implementation using SSE transport."""
     
-    def __init__(self, url: str, name: Optional[str] = None):
-        self.url = url
-        self._name = name or f"MCP Server ({url})"
-        self.session: Optional[aiohttp.ClientSession] = None
+    def __init__(self, params: Dict[str, Any], cache_tools_list: bool = True, name: Optional[str] = None):
+        self.params = params
+        self.url = params.get("url", "")
+        self._name = name or f"MCP Server ({self.url})"
+        self.cache_tools_list = cache_tools_list
+        self.session: Optional[ClientSession] = None
+        self.exit_stack: AsyncExitStack = AsyncExitStack()
         self.connected = False
         self._tools_cache: Optional[List[Dict[str, Any]]] = None
+        self._cache_dirty = True
         
     @property
     def name(self) -> str:
         return self._name
         
     async def connect(self):
-        """Connect to the MCP server."""
+        """Connect to the MCP server using official SSE client."""
         if self.connected:
             return
             
         try:
-            self.session = aiohttp.ClientSession()
-            # Test connection by listing tools
-            await self.list_tools()
+            # Use official MCP SSE client
+            transport = await self.exit_stack.enter_async_context(
+                sse_client(self.url)
+            )
+            read, write = transport
+            
+            # Create session
+            session = await self.exit_stack.enter_async_context(
+                ClientSession(read, write)
+            )
+            await session.initialize()
+            
+            self.session = session
             self.connected = True
             logger.info(f"Connected to MCP server: {self.name}")
         except Exception as e:
             logger.error(f"Failed to connect to MCP server {self.name}: {e}")
-            if self.session:
-                await self.session.close()
-                self.session = None
+            await self.cleanup()
             raise
     
     async def list_tools(self) -> List[Dict[str, Any]]:
         """List available tools from the MCP server."""
-        if self._tools_cache is not None:
-            return self._tools_cache
-            
         if not self.session:
-            await self.connect()
-            
+            raise RuntimeError("Server not initialized. Call connect() first.")
+
+        # Return from cache if available and not dirty
+        if self.cache_tools_list and not self._cache_dirty and self._tools_cache:
+            return self._tools_cache
+
+        self._cache_dirty = False
+        
         try:
-            # For now, return hardcoded tools that match our MCP servers
-            if "internet" in self.name.lower():
-                self._tools_cache = [{
-                    "name": "execute_web_search",
-                    "description": "Search the web for information",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "Search query"}
-                        },
-                        "required": ["query"]
-                    }
-                }]
-            elif "zapier" in self.name.lower():
-                self._tools_cache = [{
-                    "name": "send_email",
-                    "description": "Send an email",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "to": {"type": "string", "description": "Recipient email"},
-                            "subject": {"type": "string", "description": "Email subject"},
-                            "body": {"type": "string", "description": "Email body"}
-                        },
-                        "required": ["to", "subject", "body"]
-                    }
-                }]
-            else:
-                self._tools_cache = []
+            # Use official MCP protocol to list tools
+            result = await self.session.list_tools()
             
+            # Convert MCP tools to our format
+            self._tools_cache = []
+            for tool in result.tools:
+                tool_dict = {
+                    "name": tool.name,
+                    "description": tool.description or "",
+                    "parameters": tool.inputSchema or {}
+                }
+                self._tools_cache.append(tool_dict)
+            
+            logger.info(f"Listed {len(self._tools_cache)} tools from {self.name}")
             return self._tools_cache
         except Exception as e:
-            logger.error(f"Error listing tools: {e}")
+            logger.error(f"Error listing tools from {self.name}: {e}")
             return []
     
     async def call_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Call a tool on the MCP server using the backend proxy."""
+        """Call a tool on the MCP server using official MCP protocol."""
+        if not self.session:
+            raise RuntimeError("Server not initialized. Call connect() first.")
+            
         arguments = arguments or {}
         
         try:
-            # Use the backend MCP proxy endpoint
-            payload = {
-                "serverId": 9 if "internet" in self.name.lower() else 15,  # Map to server IDs
-                "tool": tool_name,
-                "params": arguments
-            }
+            logger.info(f"Calling tool {tool_name} on {self.name}")
             
-            if not self.session:
-                await self.connect()
+            # Use official MCP protocol
+            result = await self.session.call_tool(tool_name, arguments)
             
-            if not self.session:
-                raise RuntimeError("Session not initialized")
-                
-            async with self.session.post(
-                "http://localhost:5000/api/mcp/execute", 
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=20)  # 20 second timeout
-            ) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    if data.get("success"):
-                        return {"content": data.get("result", "")}
+            # Handle the result - MCP CallToolResult structure
+            if not result or not hasattr(result, 'content'):
+                return {"error": "Invalid tool response"}
+            
+            # Extract content from MCP result
+            content = ""
+            if result.content:
+                for item in result.content:
+                    # Handle different content types
+                    if hasattr(item, 'type'):
+                        if item.type == 'text' and hasattr(item, 'text'):
+                            content += item.text
+                        elif hasattr(item, 'data'):
+                            content += str(item.data)
                     else:
-                        return {"error": data.get("error", "Unknown error")}
-                else:
-                    error_text = await response.text()
-                    logger.error(f"Tool call failed: {response.status} - {error_text}")
-                    return {"error": f"Tool call failed: {error_text}"}
-        except asyncio.TimeoutError:
-            logger.error(f"Tool call timed out after 20 seconds: {tool_name}")
-            return {"error": "The search is taking too long. Let me help with what I know instead."}
+                        # Fallback - convert to string
+                        content += str(item)
+            
+            return {"content": content or "Tool executed successfully"}
+            
         except Exception as e:
-            logger.error(f"Error calling tool {tool_name}: {e}")
-            return {"error": f"I encountered an issue: {str(e)}"}
+            logger.error(f"Error calling tool {tool_name} on {self.name}: {e}")
+            return {"error": f"Tool execution failed: {str(e)}"}
     
     async def cleanup(self):
         """Cleanup the server connection."""
-        if self.session:
-            await self.session.close()
+        try:
+            await self.exit_stack.aclose()
             self.session = None
-        self.connected = False
-        logger.info(f"Cleaned up MCP server: {self.name}")
+            self.connected = False
+            logger.info(f"Cleaned up MCP server: {self.name}")
+        except Exception as e:
+            logger.error(f"Error cleaning up {self.name}: {e}")
     
     async def __aenter__(self):
         await self.connect()

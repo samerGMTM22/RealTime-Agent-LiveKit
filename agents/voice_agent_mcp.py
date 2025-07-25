@@ -92,13 +92,14 @@ async def entrypoint(ctx: JobContext):
     # Convert temperature from 0-100 range to 0-2 range for OpenAI API
     temp = min(2.0, max(0.0, temp_raw / 50.0)) if temp_raw > 2 else temp_raw
     
-    # 5. Initialize MCP servers
+    # 5. Initialize MCP servers using official pattern
     mcp_servers = []
     try:
-        # Create MCP server instances
+        # Create MCP server instances with proper params format
         for server_id, server_config in MCP_SERVERS.items():
             server = MCPServerSse(
-                url=server_config["url"],
+                params={"url": server_config["url"]},
+                cache_tools_list=True,
                 name=server_config["name"]
             )
             mcp_servers.append(server)
