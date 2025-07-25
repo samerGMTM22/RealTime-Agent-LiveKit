@@ -18,8 +18,7 @@ try:
     from livekit import rtc
     from livekit.agents import (
         JobContext, WorkerOptions, cli, AutoSubscribe, 
-        AgentSession, Agent, function_tool,
-        FunctionTool, RawFunctionTool
+        AgentSession, Agent, function_tool
     )
     from livekit.plugins import openai
     from openai.types.beta.realtime.session import TurnDetection
@@ -309,7 +308,7 @@ Note: External services (web search and email) are temporarily unavailable, but 
         )
     
     # 8. Create function tools list
-    available_tools: List[Union[FunctionTool, RawFunctionTool]] = []
+    available_tools = []
     if _mcp_enabled or _mcp_test_mode:
         available_tools = [search_web, send_email]
         logger.info(f"Registered {len(available_tools)} function tools")

@@ -315,10 +315,7 @@ Note: MCP services (web search and email capabilities) are currently unavailable
     )
 
     # 7. Create function tools list based on MCP availability
-    from typing import List, Union
-    from livekit.agents import FunctionTool, RawFunctionTool
-    
-    available_tools: List[Union[FunctionTool, RawFunctionTool]] = []
+    available_tools = []
     if _mcp_enabled:
         available_tools = [search_web, send_email]
         logger.info(f"Registered {len(available_tools)} MCP function tools")
