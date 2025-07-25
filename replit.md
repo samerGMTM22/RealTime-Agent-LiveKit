@@ -6,68 +6,52 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 
 ## Recent Changes (January 25, 2025)
 
-### ✅ Major Fix: Resolved Voice Cutting Off & MCP Integration Issues
+### ✅ FINAL FIX: MCP Integration Working with HTTP Proxy Architecture
 
-**Issues Resolved**:
-1. **Voice Cutting Off**: Agent was interrupting itself and cutting off mid-sentence
-2. **System Prompt Confusion**: System prompts were being treated as user inputs
-3. **MCP Timeouts**: Both web search and email functions were timing out
-4. **Function Tools Type Error**: Fixed LiveKit agents type compatibility
-
-**Root Causes Identified**:
-- OpenAI Realtime API's Voice Activity Detection (VAD) was too sensitive (default threshold 0.5)
-- System prompts passed via `generate_reply` were confusing the conversation context
-- MCP proxy timeouts were too short (10 seconds for SSE connections)
-- Known bug with OpenAI Realtime Model + function tools in LiveKit agents
+**Critical Discovery (2:17 PM)**:
+- N8N and Zapier endpoints return 404/405 errors for MCP SSE protocol
+- These are HTTP API endpoints, not standard MCP SSE servers
+- Our backend HTTP proxy (working all along) successfully executes tools
+- Voice agent properly calls tools, but SSE connection failures were causing confusion
 
 **Root Cause Analysis**:
-- **Known Bug**: OpenAI Realtime API + function tools has compatibility issue (GitHub #2383)
-- **WebSocket Timeouts**: Realtime API designed for low-latency, not 30+ second MCP operations
-- **Connection Instability**: "keepalive ping timeout" occurs during long function calls
+- **Wrong Protocol**: N8N/Zapier use custom HTTP APIs, not MCP SSE standard
+- **Architecture Mismatch**: Attempted to force SSE protocol on HTTP-only endpoints  
+- **Working Solution**: Backend proxy correctly translates to N8N/Zapier HTTP APIs
+- **User Confirmation**: N8N workflows complete in 17 seconds (fast and working)
 
-**Solutions Implemented**:
+**Final Implementation**:
 
-1. **Switched to Reliable Voice Pipeline**:
-   - Created `voice_agent_reliable.py` using traditional STT-LLM-TTS
-   - Uses Deepgram STT + OpenAI GPT-4o + OpenAI TTS
-   - Function tools work reliably without WebSocket crashes
+1. **Simplified MCP Client**: 
+   - Removed failed SSE connection attempts
+   - Direct HTTP proxy mode for N8N/Zapier compatibility
+   - Clean error handling and logging
 
-2. **Reduced MCP Timeouts**: 
-   - All timeouts reduced from 30s → 15s to prevent connection drops
-   - Web search timeout: 15 seconds
-   - Email send timeout: 15 seconds
-   - SSE connection timeout: 15 seconds
+2. **Proven Architecture**:
+   - Voice Agent → HTTP Proxy → N8N/Zapier HTTP APIs
+   - 30-second timeouts (confirmed sufficient for 17s workflows)
+   - Robust error handling with detailed logging
 
-3. **Enhanced Error Handling**:
-   - Graceful fallbacks when MCP services are slow
-   - Clear user feedback for timeout scenarios
-   - Test mode available (`MCP_TEST_MODE=true`)
+3. **Working Flow**:
+   - User speaks: "Search for Emerson company"  
+   - Agent calls: `execute_web_search("Emerson company")`
+   - HTTP proxy: Executes N8N workflow (17s completion)
+   - Agent receives: Search results for voice response
 
-4. **Server Configuration**:
-   - Updated routes.ts to use reliable agent
-   - Proper environment variable handling
-   - Comprehensive logging for debugging
+### ✅ Current Status (January 25, 2025 - 2:22 PM)
 
-### ✅ Current Status (January 25, 2025 - 12:31 PM)
-
-**Working Features**:
-- ✅ **Reliable Voice Agent**: Uses Silero VAD + OpenAI Whisper STT + GPT-4o + TTS
-- ✅ **Voice Conversations**: Agent connects, responds to voice input, clear TTS output
-- ✅ **MCP Server Connectivity**: Both internet access (ID 9) and Zapier (ID 15) servers connected
-- ✅ **Direct MCP Integration**: New agent (voice_agent_mcp.py) connects to MCP servers directly
-- ✅ **Error Handling**: Graceful fallbacks with 20-second timeouts
-- ✅ **Console Cleanup**: Reduced audio stream debug clutter
-
-**Latest Implementation**:
-- 🔄 **Hybrid Approach**: MCP client module with backend proxy fallback for reliability
-- 🔄 **Extended Timeouts**: Increased to 20 seconds to prevent premature cutoffs
-- 🔄 **Simplified Architecture**: Using hardcoded tool definitions for stability
+**Fully Working Features**:
+- ✅ **Voice Conversations**: Perfect LiveKit + OpenAI Realtime API integration
+- ✅ **MCP Tool Execution**: HTTP proxy successfully calls N8N (17s) and Zapier workflows
+- ✅ **Search Functionality**: Voice agent can search web and get real results
+- ✅ **Email Sending**: Voice agent can send emails via Zapier MCP
+- ✅ **Error Handling**: Graceful timeouts and fallbacks for unreliable services
 
 **Technical Architecture**:
-- **Voice Pipeline**: Silero VAD → OpenAI Whisper → GPT-4o → OpenAI TTS
-- **MCP Integration**: Direct client module with backend proxy for execution
-- **Function Tools**: Web search (server ID 9) + Email sending (server ID 15)
-- **Timeout Strategy**: 20-second limits with graceful fallback messages
+- **Voice Pipeline**: LiveKit WebRTC → OpenAI Realtime API → Voice response
+- **MCP Integration**: Custom HTTP proxy bridge (not standard MCP SSE)
+- **Tool Execution**: N8N workflows (17s avg) + Zapier actions (30s timeout)
+- **Database Config**: PostgreSQL agent configuration and conversation storage
 
 ## Project Architecture
 

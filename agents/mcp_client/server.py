@@ -55,44 +55,20 @@ class MCPServerSse(MCPServer):
         return self._name
         
     async def connect(self):
-        """Connect to the MCP server with detailed error handling."""
+        """Skip SSE connection - use HTTP proxy directly for N8N/Zapier compatibility."""
         if self.connected:
             return
             
         try:
-            logger.info(f"Attempting SSE connection to: {self.url}")
+            logger.info(f"Configuring HTTP proxy mode for: {self.url}")
             
-            # Test if this is a compatible MCP SSE endpoint
-            import aiohttp
-            async with aiohttp.ClientSession() as test_session:
-                try:
-                    # Test basic connectivity first
-                    async with test_session.get(self.url, timeout=aiohttp.ClientTimeout(total=5)) as response:
-                        logger.info(f"Endpoint response: {response.status}")
-                except Exception as test_error:
-                    logger.error(f"Basic connectivity test failed: {test_error}")
-                    raise ConnectionError(f"Cannot reach endpoint: {test_error}")
-            
-            # Try official MCP SSE client
-            transport = await self.exit_stack.enter_async_context(
-                sse_client(self.url)
-            )
-            read, write = transport
-            
-            # Create session
-            session = await self.exit_stack.enter_async_context(
-                ClientSession(read, write)
-            )
-            await session.initialize()
-            
-            self.session = session
-            self.connected = True
-            logger.info(f"Successfully connected to MCP server: {self.name}")
+            # These endpoints are N8N/Zapier HTTP APIs, not standard MCP SSE
+            # Skip the SSE connection entirely and use HTTP proxy
+            self.session = None  # No SSE session needed
+            self.connected = True  # Mark as "connected" for HTTP mode
+            logger.info(f"Configured HTTP proxy mode for: {self.name}")
         except Exception as e:
-            logger.error(f"Detailed connection error for {self.name}: {type(e).__name__}: {e}")
-            logger.error(f"URL: {self.url}")
-            await self.cleanup()
-            # Don't re-raise - allow tools to be created anyway
+            logger.error(f"Configuration error for {self.name}: {e}")
             self.connected = False
     
     async def list_tools(self) -> List[Dict[str, Any]]:
@@ -127,46 +103,14 @@ class MCPServerSse(MCPServer):
             return []
     
     async def call_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Call a tool with fallback to HTTP if MCP SSE failed."""
+        """Call tool using HTTP proxy (N8N/Zapier endpoints aren't standard MCP SSE)."""
         arguments = arguments or {}
         
-        # If we have a working MCP session, use it
-        if self.session and self.connected:
-            try:
-                logger.info(f"Calling tool {tool_name} via MCP protocol on {self.name}")
-                
-                result = await self.session.call_tool(tool_name, arguments)
-                
-                # Handle the result - MCP CallToolResult structure
-                if not result or not hasattr(result, 'content'):
-                    return {"error": "Invalid tool response"}
-                
-                # Extract content from MCP result
-                content = ""
-                if result.content:
-                    for item in result.content:
-                        # Handle different content types
-                        if hasattr(item, 'type'):
-                            if item.type == 'text' and hasattr(item, 'text'):
-                                content += item.text
-                            elif hasattr(item, 'data'):
-                                content += str(item.data)
-                        else:
-                            # Fallback - convert to string
-                            content += str(item)
-                
-                return {"content": content or "Tool executed successfully"}
-                
-            except Exception as e:
-                logger.error(f"MCP protocol call failed for {tool_name}: {e}")
-                # Fall through to HTTP fallback
-        
-        # Fallback to HTTP API (our working backend proxy)
         try:
-            logger.info(f"Using HTTP fallback for tool {tool_name} on {self.name}")
+            logger.info(f"Calling tool {tool_name} via HTTP proxy on {self.name}")
             
             import aiohttp
-            import asyncio
+            # import asyncio  # Already imported at module level
             
             # Determine server ID based on name
             server_id = 9 if "internet" in self.name.lower() else 18
@@ -186,17 +130,23 @@ class MCPServerSse(MCPServer):
                     if response.status == 200:
                         data = await response.json()
                         if data.get("success"):
-                            return {"content": data.get("result", "")}
+                            result_content = data.get("result", "")
+                            logger.info(f"Tool {tool_name} succeeded: {len(str(result_content))} chars")
+                            return {"content": result_content}
                         else:
-                            return {"error": data.get("error", "Unknown error")}
+                            error_msg = data.get("error", "Unknown error")
+                            logger.error(f"Tool {tool_name} failed: {error_msg}")
+                            return {"error": error_msg}
                     else:
                         error_text = await response.text()
+                        logger.error(f"HTTP {response.status}: {error_text}")
                         return {"error": f"HTTP call failed: {error_text}"}
                         
         except asyncio.TimeoutError:
+            logger.warning(f"Tool {tool_name} timed out after 30s")
             return {"error": "The request is taking too long. Let me help with what I know instead."}
         except Exception as e:
-            logger.error(f"HTTP fallback failed for {tool_name}: {e}")
+            logger.error(f"Tool {tool_name} exception: {e}")
             return {"error": f"I encountered an issue: {str(e)}"}
     
     async def cleanup(self):
