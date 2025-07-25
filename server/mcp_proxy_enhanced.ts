@@ -222,8 +222,8 @@ export class EnhancedN8NMCPProxy {
     
     const timeout = setTimeout(() => {
         eventSource.close();
-        connectionReject(new Error('SSE connection timed out after 10 seconds.'));
-    }, 10000);
+        connectionReject(new Error('SSE connection timed out after 30 seconds.'));
+    }, 30000); // Increased to 30 seconds for slower MCP servers
 
     eventSource.addEventListener('message', (event: any) => {
         const data = event.data;

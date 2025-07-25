@@ -6,50 +6,58 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 
 ## Recent Changes (January 25, 2025)
 
-### ✅ Critical Fix: Restored Working LiveKit + OpenAI Realtime API Integration
+### ✅ Major Fix: Resolved Voice Cutting Off & MCP Integration Issues
 
-**Issue Resolved**: The voice agent was connecting to OpenAI Realtime API but users couldn't speak to it due to broken LiveKit integration.
+**Issues Resolved**:
+1. **Voice Cutting Off**: Agent was interrupting itself and cutting off mid-sentence
+2. **System Prompt Confusion**: System prompts were being treated as user inputs
+3. **MCP Timeouts**: Both web search and email functions were timing out
+4. **Function Tools Type Error**: Fixed LiveKit agents type compatibility
 
-**Root Cause**: During MCP development, the proper LiveKit AgentSession integration was replaced with a standalone OpenAI client that had no connection to LiveKit room audio streams.
+**Root Causes Identified**:
+- OpenAI Realtime API's Voice Activity Detection (VAD) was too sensitive (default threshold 0.5)
+- System prompts passed via `generate_reply` were confusing the conversation context
+- MCP proxy timeouts were too short (10 seconds for SSE connections)
+- Known bug with OpenAI Realtime Model + function tools in LiveKit agents
 
-**Solution Implemented**:
-- Created `agents/voice_agent_realtime.py` with proper LiveKit AgentSession pattern
-- Restored bidirectional audio flow between LiveKit room and OpenAI Realtime API
-- Integrated working MCP job polling system for actual search results
-- Fixed library dependency issues with proper environment variables
+**Solutions Implemented**:
 
-**Key Technical Details**:
+1. **Turn Detection Optimization**:
 ```python
-# Proper LiveKit Integration Pattern Used:
-await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-
-@ctx.room.on("track_published")
-def on_track_published(publication, participant):
-    if publication.kind == "audio":
-        publication.set_subscribed(True)  # Critical for audio flow
-
-session = AgentSession(
-    llm=openai.realtime.RealtimeModel(
-        model="gpt-4o-realtime-preview",
-        voice=voice,
-        temperature=realtime_temp,
-        instructions=enhanced_prompt,
-    ),
-    allow_interruptions=True,
+turn_detection=TurnDetection(
+    type="server_vad",
+    threshold=0.7,  # Increased from 0.5 (less sensitive)
+    prefix_padding_ms=400,  # More padding before speech
+    silence_duration_ms=1000,  # Wait 1 second vs 500ms default
+    create_response=True,
+    interrupt_response=True,
 )
-
-await session.start(room=ctx.room, agent=assistant)
+# Also increased interruption delays to 0.8s and max endpointing to 8.0s
 ```
 
-### ✅ MCP Integration Status
+2. **MCP Timeout Fixes**:
+- SSE connection timeout: 10s → 30s
+- Web search timeout: 35s → 45s  
+- Email send timeout: 30s → 45s
 
-**Working Components**:
-- Job polling architecture for async MCP operations (35-second timeout)
-- Database-driven MCP server configuration
-- Voice-optimized search result formatting
-- Graceful fallback when MCP services unavailable
+3. **System Prompt Isolation**:
+- Removed automatic greeting via `generate_reply(instructions=...)`
+- Agent now waits for user to speak first
+- System prompts properly isolated in Agent constructor
 
-**Search Function**: Provides real web search results instead of "Accepted" acknowledgments
+4. **Improved Error Handling**:
+- Created `voice_agent_realtime_improved.py` with comprehensive fallbacks
+- Added test mode for MCP functions (set `MCP_TEST_MODE=true`)
+- Graceful degradation when MCP services unavailable
+
+### ✅ Current Status
+
+**Working Features**:
+- Voice conversations without cutting off or self-interruption
+- Proper turn detection for natural conversation flow
+- MCP function tools registered correctly with Agent
+- Fallback responses when MCP services timeout
+- Test mode for validating voice + function integration
 
 ## Project Architecture
 

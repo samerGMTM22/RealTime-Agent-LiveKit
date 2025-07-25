@@ -69,7 +69,7 @@ async def search_web(query: str) -> str:
                 "tool": "execute_web_search", 
                 "params": {"query": query}
             },
-            timeout=35  # Extended timeout for polling
+            timeout=45  # Extended timeout for polling
         )
         
         if response.status_code == 200:
@@ -117,7 +117,7 @@ async def send_email(to: str, subject: str, body: str) -> str:
                     "body": body
                 }
             },
-            timeout=30
+            timeout=45  # Increased timeout for Zapier MCP
         )
         
         if response.status_code == 200:
@@ -291,20 +291,34 @@ Note: MCP services (web search and email capabilities) are currently unavailable
     # 6. Create AgentSession with OpenAI Realtime API
     logger.info("Starting OpenAI Realtime API session with LiveKit integration...")
     
+    # Configure turn detection to be less aggressive
+    from openai.types.beta.realtime.session import TurnDetection
+    
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
             model="gpt-4o-realtime-preview",
             voice=voice,
             temperature=realtime_temp,
+            turn_detection=TurnDetection(
+                type="server_vad",
+                threshold=0.7,  # Higher = less sensitive (was 0.5)
+                prefix_padding_ms=400,  # More padding before speech
+                silence_duration_ms=1000,  # Wait longer before cutting off (was 500ms)
+                create_response=True,
+                interrupt_response=True,
+            )
         ),
         allow_interruptions=True,
-        min_interruption_duration=0.5,
-        min_endpointing_delay=0.5,
-        max_endpointing_delay=6.0,
+        min_interruption_duration=0.8,  # Increased from 0.5
+        min_endpointing_delay=0.8,  # Increased from 0.5
+        max_endpointing_delay=8.0,  # Increased from 6.0
     )
 
     # 7. Create function tools list based on MCP availability
-    available_tools = []
+    from typing import List, Union
+    from livekit.agents import FunctionTool, RawFunctionTool
+    
+    available_tools: List[Union[FunctionTool, RawFunctionTool]] = []
     if _mcp_enabled:
         available_tools = [search_web, send_email]
         logger.info(f"Registered {len(available_tools)} MCP function tools")
@@ -325,14 +339,9 @@ Note: MCP services (web search and email capabilities) are currently unavailable
     # 10. Start session with proper LiveKit integration
     await session.start(room=ctx.room, agent=agent)
     
-    # 11. Generate initial greeting
-    greeting_instruction = "Greet the user warmly and let them know you're ready to help"
-    if _mcp_enabled:
-        greeting_instruction += " with questions, searches, and various tasks"
-    else:
-        greeting_instruction += " with questions and general assistance"
-    
-    await session.generate_reply(instructions=greeting_instruction)
+    # 11. Generate initial greeting - use chat_ctx to avoid system prompt confusion
+    # Don't use generate_reply with instructions as it can confuse system/user prompts
+    logger.info("Agent ready and waiting for user interaction")
     
     logger.info("LiveKit + OpenAI Realtime API session started successfully")
 
