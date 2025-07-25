@@ -48,24 +48,26 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
    - Proper environment variable handling
    - Comprehensive logging for debugging
 
-### ✅ Current Status (January 25, 2025 - 11:58 AM)
+### ✅ Current Status (January 25, 2025 - 12:31 PM)
 
 **Working Features**:
 - ✅ **Reliable Voice Agent**: Uses Silero VAD + OpenAI Whisper STT + GPT-4o + TTS
 - ✅ **Voice Conversations**: Agent connects, responds to voice input, clear TTS output
 - ✅ **MCP Server Connectivity**: Both internet access (ID 9) and Zapier (ID 15) servers connected
-- ✅ **Function Tools Registration**: Web search and email functions properly registered
-- ✅ **Error Handling**: Graceful fallbacks when MCP services timeout
+- ✅ **Direct MCP Integration**: New agent (voice_agent_mcp.py) connects to MCP servers directly
+- ✅ **Error Handling**: Graceful fallbacks with 20-second timeouts
 - ✅ **Console Cleanup**: Reduced audio stream debug clutter
 
-**Current Issue Being Fixed**:
-- 🔄 **MCP Function Execution**: Functions registered but need timeout optimization (15s limit causing issues)
+**Latest Implementation**:
+- 🔄 **Hybrid Approach**: MCP client module with backend proxy fallback for reliability
+- 🔄 **Extended Timeouts**: Increased to 20 seconds to prevent premature cutoffs
+- 🔄 **Simplified Architecture**: Using hardcoded tool definitions for stability
 
 **Technical Architecture**:
 - **Voice Pipeline**: Silero VAD → OpenAI Whisper → GPT-4o → OpenAI TTS
+- **MCP Integration**: Direct client module with backend proxy for execution
 - **Function Tools**: Web search (server ID 9) + Email sending (server ID 15)
-- **MCP Status**: Servers connected, functions timeout after 15 seconds
-- **Fallback Strategy**: Clear user communication when tools timeout
+- **Timeout Strategy**: 20-second limits with graceful fallback messages
 
 ## Project Architecture
 
