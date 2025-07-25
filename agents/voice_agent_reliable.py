@@ -18,7 +18,7 @@ from livekit.agents import (
     JobContext, WorkerOptions, cli, AutoSubscribe, 
     AgentSession, Agent, function_tool
 )
-from livekit.plugins import openai, deepgram, silero
+from livekit.plugins import openai
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
@@ -258,7 +258,7 @@ Note: External services (web search and email) are temporarily unavailable, but 
     
     # 9. Create AgentSession with traditional voice pipeline
     session = AgentSession(
-        stt=deepgram.STT(model="nova-2"),  # High-quality STT
+        stt=openai.STT(model="whisper-1"),  # OpenAI Whisper STT
         llm=openai.LLM(
             model="gpt-4o",
             temperature=temp,
