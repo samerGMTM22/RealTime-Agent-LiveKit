@@ -141,7 +141,7 @@ async function startAIAgent(roomName: string) {
     
     // Start the Python LiveKit agent process with proper CLI parameters
     const agentProcess = spawn('python', [
-      'agents/voice_agent_realtime.py', 
+      'agents/voice_agent_reliable.py', 
       'start',
       '--url', process.env.LIVEKIT_URL!,
       '--api-key', process.env.LIVEKIT_API_KEY!,
@@ -545,7 +545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           serverConfig.apiKey || undefined,
           {
             pollInterval: 1000,    // Poll every second
-            maxWaitTime: 30000     // Max 30 seconds
+            maxWaitTime: 15000     // Max 15 seconds
           }
         );
         

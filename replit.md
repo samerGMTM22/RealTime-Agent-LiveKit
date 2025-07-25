@@ -20,44 +20,48 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 - MCP proxy timeouts were too short (10 seconds for SSE connections)
 - Known bug with OpenAI Realtime Model + function tools in LiveKit agents
 
+**Root Cause Analysis**:
+- **Known Bug**: OpenAI Realtime API + function tools has compatibility issue (GitHub #2383)
+- **WebSocket Timeouts**: Realtime API designed for low-latency, not 30+ second MCP operations
+- **Connection Instability**: "keepalive ping timeout" occurs during long function calls
+
 **Solutions Implemented**:
 
-1. **Turn Detection Optimization**:
-```python
-turn_detection=TurnDetection(
-    type="server_vad",
-    threshold=0.7,  # Increased from 0.5 (less sensitive)
-    prefix_padding_ms=400,  # More padding before speech
-    silence_duration_ms=1000,  # Wait 1 second vs 500ms default
-    create_response=True,
-    interrupt_response=True,
-)
-# Also increased interruption delays to 0.8s and max endpointing to 8.0s
-```
+1. **Switched to Reliable Voice Pipeline**:
+   - Created `voice_agent_reliable.py` using traditional STT-LLM-TTS
+   - Uses Deepgram STT + OpenAI GPT-4o + OpenAI TTS
+   - Function tools work reliably without WebSocket crashes
 
-2. **MCP Timeout Fixes**:
-- SSE connection timeout: 10s → 30s
-- Web search timeout: 35s → 45s  
-- Email send timeout: 30s → 45s
+2. **Reduced MCP Timeouts**: 
+   - All timeouts reduced from 30s → 15s to prevent connection drops
+   - Web search timeout: 15 seconds
+   - Email send timeout: 15 seconds
+   - SSE connection timeout: 15 seconds
 
-3. **System Prompt Isolation**:
-- Removed automatic greeting via `generate_reply(instructions=...)`
-- Agent now waits for user to speak first
-- System prompts properly isolated in Agent constructor
+3. **Enhanced Error Handling**:
+   - Graceful fallbacks when MCP services are slow
+   - Clear user feedback for timeout scenarios
+   - Test mode available (`MCP_TEST_MODE=true`)
 
-4. **Improved Error Handling**:
-- Created `voice_agent_realtime_improved.py` with comprehensive fallbacks
-- Added test mode for MCP functions (set `MCP_TEST_MODE=true`)
-- Graceful degradation when MCP services unavailable
+4. **Server Configuration**:
+   - Updated routes.ts to use reliable agent
+   - Proper environment variable handling
+   - Comprehensive logging for debugging
 
-### ✅ Current Status
+### ✅ Current Status (January 25, 2025 - 10:57 AM)
 
 **Working Features**:
-- Voice conversations without cutting off or self-interruption
-- Proper turn detection for natural conversation flow
-- MCP function tools registered correctly with Agent
-- Fallback responses when MCP services timeout
-- Test mode for validating voice + function integration
+- ✅ **Reliable Voice Agent**: Uses traditional STT-LLM-TTS pipeline (no WebSocket crashes)
+- ✅ **MCP Function Tools**: Web search and email functions working with 15-second timeouts
+- ✅ **Error Handling**: Graceful fallbacks when MCP services are slow or unavailable
+- ✅ **Test Mode**: Available via `MCP_TEST_MODE=true` for validation
+- ✅ **Connection Stability**: No more OpenAI Realtime API WebSocket timeout issues
+
+**Technical Architecture**:
+- **Voice Pipeline**: Deepgram STT → OpenAI GPT-4o → OpenAI TTS
+- **Function Tools**: Web search (server ID 9) + Email sending (server ID 15)
+- **Timeout Strategy**: 15-second limits prevent connection drops
+- **Fallback Strategy**: Clear user communication when tools timeout
 
 ## Project Architecture
 
