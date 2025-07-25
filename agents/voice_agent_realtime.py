@@ -94,6 +94,60 @@ async def search_web(query: str) -> str:
         logger.error(f"Search error: {str(e)}")
         return f"I encountered an error while searching for '{query}'. Please try rephrasing your request."
 
+@function_tool
+async def send_email(to: str, subject: str, body: str) -> str:
+    """Send an email using Zapier MCP integration."""
+    global _mcp_enabled
+    
+    if not _mcp_enabled:
+        return "Email services are currently unavailable. Please try again later."
+    
+    try:
+        logger.info(f"Sending email to: {to}")
+        
+        # Use Zapier MCP server for email
+        response = requests.post(
+            'http://localhost:5000/api/mcp/execute',
+            json={
+                "serverId": 15,  # Zapier MCP server
+                "tool": "send_email",
+                "params": {
+                    "to": to,
+                    "subject": subject,
+                    "body": body
+                }
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("success"):
+                logger.info(f"Email sent successfully to: {to}")
+                return f"✅ Email sent successfully to {to} with subject '{subject}'"
+            else:
+                error_msg = data.get("error", "Unknown error")
+                logger.error(f"Email send failed: {error_msg}")
+                return f"Failed to send email: {error_msg}"
+        else:
+            logger.error(f"Email API error: {response.status_code}")
+            return f"Email service temporarily unavailable. Status: {response.status_code}"
+            
+    except Exception as e:
+        logger.error(f"Email error: {str(e)}")
+        return f"I encountered an error while sending the email: {str(e)}"
+
+async def get_available_mcp_tools() -> List[Dict]:
+    """Get available MCP servers and their capabilities."""
+    try:
+        response = requests.get("http://localhost:5000/api/mcp/servers", timeout=10)
+        if response.status_code == 200:
+            servers = response.json()
+            return [server for server in servers if server.get("isActive", True)]
+    except Exception as e:
+        logger.error(f"Error fetching MCP servers: {e}")
+    return []
+
 def format_search_results(result: str, query: str) -> str:
     """Format search results for better voice output."""
     try:
@@ -214,20 +268,25 @@ async def entrypoint(ctx: JobContext):
     if _mcp_enabled:
         enhanced_prompt = f"""{base_prompt}
 
-You have access to web search capabilities through the search_web function. When users ask questions that would benefit from current information, real-time data, or specific facts, use the search function to provide accurate, up-to-date responses.
+You have access to powerful tools through MCP (Model Context Protocol) integration:
 
-Use search for:
-- Current events, news, or recent developments
-- Specific facts, statistics, or technical information
-- Business information, product details, or reviews
-- Weather, sports scores, or real-time data
+🔍 **Web Search** (search_web function):
+- Use for current events, news, or recent developments
+- Search for specific facts, statistics, or technical information  
+- Find business information, product details, or reviews
+- Get weather, sports scores, or real-time data
 - Any question where fresh information would be valuable
 
-Always provide natural, conversational responses based on the search results."""
+📧 **Email Communication** (send_email function):
+- Send emails through Zapier integration
+- Format: send_email(to="email@example.com", subject="Subject", body="Message")
+- Always confirm email details before sending
+
+When users ask about searching the internet or sending emails, use these functions to provide real, actionable results. Always respond naturally and conversationally."""
     else:
         enhanced_prompt = f"""{base_prompt}
 
-Note: Web search capabilities are currently unavailable, but I can still help with general questions, explanations, and tasks that don't require real-time information."""
+Note: MCP services (web search and email capabilities) are currently unavailable, but I can still help with general questions, explanations, and tasks that don't require real-time information."""
 
     # 6. Create AgentSession with OpenAI Realtime API
     logger.info("Starting OpenAI Realtime API session with LiveKit integration...")
@@ -244,15 +303,29 @@ Note: Web search capabilities are currently unavailable, but I can still help wi
         max_endpointing_delay=6.0,
     )
 
-    # 7. Create assistant with enhanced system prompt
+    # 7. Create function tools list based on MCP availability
+    available_tools = []
+    if _mcp_enabled:
+        available_tools = [search_web, send_email]
+        logger.info(f"Registered {len(available_tools)} MCP function tools")
+    else:
+        logger.info("No MCP tools registered - services unavailable")
+    
+    # 8. Create assistant with enhanced system prompt and tools
     enhanced_config = config.copy()
     enhanced_config["systemPrompt"] = enhanced_prompt
     assistant = VoiceAssistant(enhanced_config)
     
-    # 8. Start session with proper LiveKit integration
-    await session.start(room=ctx.room, agent=assistant)
+    # 9. Create Agent with function tools
+    agent = Agent(
+        instructions=enhanced_prompt,
+        tools=available_tools,
+    )
     
-    # 10. Generate initial greeting
+    # 10. Start session with proper LiveKit integration
+    await session.start(room=ctx.room, agent=agent)
+    
+    # 11. Generate initial greeting
     greeting_instruction = "Greet the user warmly and let them know you're ready to help"
     if _mcp_enabled:
         greeting_instruction += " with questions, searches, and various tasks"
