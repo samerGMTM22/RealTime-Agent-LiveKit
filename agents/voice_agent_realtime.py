@@ -19,7 +19,7 @@ class VoiceAssistant(Agent):
     """Voice assistant agent with Realtime API and MCP integration."""
     
     def __init__(self, config: Dict):
-        super().__init__()
+        super().__init__(instructions=config.get("systemPrompt", "You are a helpful AI assistant."))
         self.config = config
         self.name = config.get('name', 'Voice Assistant')
 
@@ -237,7 +237,6 @@ Note: Web search capabilities are currently unavailable, but I can still help wi
             model="gpt-4o-realtime-preview",
             voice=voice,
             temperature=realtime_temp,
-            instructions=enhanced_prompt,
         ),
         allow_interruptions=True,
         min_interruption_duration=0.5,
@@ -245,13 +244,15 @@ Note: Web search capabilities are currently unavailable, but I can still help wi
         max_endpointing_delay=6.0,
     )
 
-    # 7. Create assistant with function tools
-    assistant = VoiceAssistant(config)
+    # 7. Create assistant with enhanced system prompt
+    enhanced_config = config.copy()
+    enhanced_config["systemPrompt"] = enhanced_prompt
+    assistant = VoiceAssistant(enhanced_config)
     
     # 8. Start session with proper LiveKit integration
     await session.start(room=ctx.room, agent=assistant)
     
-    # 9. Generate initial greeting
+    # 10. Generate initial greeting
     greeting_instruction = "Greet the user warmly and let them know you're ready to help"
     if _mcp_enabled:
         greeting_instruction += " with questions, searches, and various tasks"
