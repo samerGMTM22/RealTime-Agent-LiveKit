@@ -18,7 +18,7 @@ from livekit.agents import (
     JobContext, WorkerOptions, cli, AutoSubscribe, 
     AgentSession, Agent, function_tool
 )
-from livekit.plugins import openai
+from livekit.plugins import openai, silero
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
@@ -217,7 +217,9 @@ async def entrypoint(ctx: JobContext):
     
     # 5. Extract configuration
     voice = config.get("voice", "alloy")
-    temp = float(config.get("temperature", 0.7))
+    temp_raw = float(config.get("temperature", 0.7))
+    # Convert temperature from 0-100 range to 0-2 range for OpenAI API
+    temp = min(2.0, max(0.0, temp_raw / 50.0)) if temp_raw > 2 else temp_raw
     
     # 6. Create enhanced system prompt
     base_prompt = config.get("systemPrompt", "You are a helpful AI assistant.")
@@ -239,7 +241,7 @@ Use these tools naturally when users ask for searches or email sending. Keep res
 
 Note: External services (web search and email) are temporarily unavailable, but I can still help with questions and general assistance using my training data."""
 
-    logger.info(f"Voice: {voice}, Temperature: {temp}, MCP: {'enabled' if _mcp_enabled else 'disabled'}")
+    logger.info(f"Voice: {voice}, Temperature: {temp} (raw: {temp_raw}), MCP: {'enabled' if _mcp_enabled else 'disabled'}")
 
     # 7. Create traditional voice pipeline (STT-LLM-TTS) for reliability
     logger.info("Creating reliable voice pipeline with function tools...")
@@ -256,8 +258,9 @@ Note: External services (web search and email) are temporarily unavailable, but 
         tools=available_tools if available_tools else None,
     )
     
-    # 9. Create AgentSession with traditional voice pipeline
+    # 9. Create AgentSession with traditional voice pipeline + VAD
     session = AgentSession(
+        vad=silero.VAD.load(),  # Add VAD for streaming support
         stt=openai.STT(model="whisper-1"),  # OpenAI Whisper STT
         llm=openai.LLM(
             model="gpt-4o",
