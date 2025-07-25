@@ -55,12 +55,25 @@ class MCPServerSse(MCPServer):
         return self._name
         
     async def connect(self):
-        """Connect to the MCP server using official SSE client."""
+        """Connect to the MCP server with detailed error handling."""
         if self.connected:
             return
             
         try:
-            # Use official MCP SSE client
+            logger.info(f"Attempting SSE connection to: {self.url}")
+            
+            # Test if this is a compatible MCP SSE endpoint
+            import aiohttp
+            async with aiohttp.ClientSession() as test_session:
+                try:
+                    # Test basic connectivity first
+                    async with test_session.get(self.url, timeout=aiohttp.ClientTimeout(total=5)) as response:
+                        logger.info(f"Endpoint response: {response.status}")
+                except Exception as test_error:
+                    logger.error(f"Basic connectivity test failed: {test_error}")
+                    raise ConnectionError(f"Cannot reach endpoint: {test_error}")
+            
+            # Try official MCP SSE client
             transport = await self.exit_stack.enter_async_context(
                 sse_client(self.url)
             )
@@ -74,11 +87,13 @@ class MCPServerSse(MCPServer):
             
             self.session = session
             self.connected = True
-            logger.info(f"Connected to MCP server: {self.name}")
+            logger.info(f"Successfully connected to MCP server: {self.name}")
         except Exception as e:
-            logger.error(f"Failed to connect to MCP server {self.name}: {e}")
+            logger.error(f"Detailed connection error for {self.name}: {type(e).__name__}: {e}")
+            logger.error(f"URL: {self.url}")
             await self.cleanup()
-            raise
+            # Don't re-raise - allow tools to be created anyway
+            self.connected = False
     
     async def list_tools(self) -> List[Dict[str, Any]]:
         """List available tools from the MCP server."""
@@ -112,41 +127,77 @@ class MCPServerSse(MCPServer):
             return []
     
     async def call_tool(self, tool_name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Call a tool on the MCP server using official MCP protocol."""
-        if not self.session:
-            raise RuntimeError("Server not initialized. Call connect() first.")
-            
+        """Call a tool with fallback to HTTP if MCP SSE failed."""
         arguments = arguments or {}
         
+        # If we have a working MCP session, use it
+        if self.session and self.connected:
+            try:
+                logger.info(f"Calling tool {tool_name} via MCP protocol on {self.name}")
+                
+                result = await self.session.call_tool(tool_name, arguments)
+                
+                # Handle the result - MCP CallToolResult structure
+                if not result or not hasattr(result, 'content'):
+                    return {"error": "Invalid tool response"}
+                
+                # Extract content from MCP result
+                content = ""
+                if result.content:
+                    for item in result.content:
+                        # Handle different content types
+                        if hasattr(item, 'type'):
+                            if item.type == 'text' and hasattr(item, 'text'):
+                                content += item.text
+                            elif hasattr(item, 'data'):
+                                content += str(item.data)
+                        else:
+                            # Fallback - convert to string
+                            content += str(item)
+                
+                return {"content": content or "Tool executed successfully"}
+                
+            except Exception as e:
+                logger.error(f"MCP protocol call failed for {tool_name}: {e}")
+                # Fall through to HTTP fallback
+        
+        # Fallback to HTTP API (our working backend proxy)
         try:
-            logger.info(f"Calling tool {tool_name} on {self.name}")
+            logger.info(f"Using HTTP fallback for tool {tool_name} on {self.name}")
             
-            # Use official MCP protocol
-            result = await self.session.call_tool(tool_name, arguments)
+            import aiohttp
+            import asyncio
             
-            # Handle the result - MCP CallToolResult structure
-            if not result or not hasattr(result, 'content'):
-                return {"error": "Invalid tool response"}
+            # Determine server ID based on name
+            server_id = 9 if "internet" in self.name.lower() else 18
             
-            # Extract content from MCP result
-            content = ""
-            if result.content:
-                for item in result.content:
-                    # Handle different content types
-                    if hasattr(item, 'type'):
-                        if item.type == 'text' and hasattr(item, 'text'):
-                            content += item.text
-                        elif hasattr(item, 'data'):
-                            content += str(item.data)
+            payload = {
+                "serverId": server_id,
+                "tool": tool_name,
+                "params": arguments
+            }
+            
+            async with aiohttp.ClientSession() as http_session:
+                async with http_session.post(
+                    "http://localhost:5000/api/mcp/execute",
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data.get("success"):
+                            return {"content": data.get("result", "")}
+                        else:
+                            return {"error": data.get("error", "Unknown error")}
                     else:
-                        # Fallback - convert to string
-                        content += str(item)
-            
-            return {"content": content or "Tool executed successfully"}
-            
+                        error_text = await response.text()
+                        return {"error": f"HTTP call failed: {error_text}"}
+                        
+        except asyncio.TimeoutError:
+            return {"error": "The request is taking too long. Let me help with what I know instead."}
         except Exception as e:
-            logger.error(f"Error calling tool {tool_name} on {self.name}: {e}")
-            return {"error": f"Tool execution failed: {str(e)}"}
+            logger.error(f"HTTP fallback failed for {tool_name}: {e}")
+            return {"error": f"I encountered an issue: {str(e)}"}
     
     async def cleanup(self):
         """Cleanup the server connection."""
