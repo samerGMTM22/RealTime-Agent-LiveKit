@@ -20,13 +20,34 @@ from livekit.agents import (
 )
 from livekit.plugins import openai, silero
 
-# Set up logging
+# Set up logging - reduce audio stream clutter
 logging.basicConfig(level=logging.INFO, format='%(name)s - %(levelname)s - %(message)s')
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING) 
+logging.getLogger("openai").setLevel(logging.WARNING)
 logger = logging.getLogger("reliable-voice-agent")
 
 # Global flag for MCP availability
 _mcp_enabled = False
 _mcp_test_mode = os.getenv("MCP_TEST_MODE", "false").lower() == "true"
+
+def format_search_results(result, query: str) -> str:
+    """Format search results for voice-friendly response."""
+    try:
+        # Handle different result formats
+        if isinstance(result, dict):
+            content = result.get('content') or result.get('summary') or str(result)
+        else:
+            content = str(result)
+        
+        # Limit length for voice response
+        if len(content) > 300:
+            content = content[:300] + "..."
+        
+        return f"Here's what I found about {query}: {content}"
+    except Exception as e:
+        logger.warning(f"Error formatting search results: {e}")
+        return f"I found some information about {query}, but had trouble formatting it clearly."
 
 @function_tool
 async def search_web(query: str) -> str:
@@ -135,20 +156,7 @@ async def send_email(to: str, subject: str, body: str) -> str:
         logger.warning(f"Email error: {str(e)}")
         return f"An error occurred while sending the email: {str(e)}"
 
-def format_search_results(result: str, query: str) -> str:
-    """Format search results for voice output"""
-    if not result or result == "No results found":
-        return f"I searched for '{query}' but didn't find specific results. Would you like me to search for something related?"
-    
-    # Format for voice-friendly output
-    formatted = f"Here's what I found about {query}: {result}"
-    
-    # Truncate if too long for voice
-    if len(formatted) > 400:
-        formatted = formatted[:397] + "..."
-        formatted += " There's more information available if you'd like me to continue."
-    
-    return formatted
+
 
 async def check_mcp_availability() -> bool:
     """Check if MCP services are available with short timeout"""
