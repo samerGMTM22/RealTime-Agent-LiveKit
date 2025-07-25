@@ -40,7 +40,7 @@ export class EnhancedN8NMCPProxy {
   ): Promise<any> {
     const requestId = uuidv4();
     const pollInterval = options.pollInterval || 1000; // 1 second default
-    const maxWaitTime = options.maxWaitTime || 15000; // 15 seconds default
+    const maxWaitTime = options.maxWaitTime || 30000; // 30 seconds default
 
     try {
       // First, make the initial MCP call
@@ -82,7 +82,7 @@ export class EnhancedN8NMCPProxy {
         method: 'POST',
         headers,
         body: JSON.stringify(mcpRequest),
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(30000)
       });
 
       if (!response.ok) {
@@ -223,7 +223,7 @@ export class EnhancedN8NMCPProxy {
     const timeout = setTimeout(() => {
         eventSource.close();
         connectionReject(new Error('SSE connection timed out after 30 seconds.'));
-    }, 15000); // Reduced to 15 seconds to prevent WebSocket timeouts
+    }, 30000); // 30 seconds for SSE connection establishment
 
     eventSource.addEventListener('message', (event: any) => {
         const data = event.data;

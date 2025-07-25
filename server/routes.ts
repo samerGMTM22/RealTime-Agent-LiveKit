@@ -545,7 +545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           serverConfig.apiKey || undefined,
           {
             pollInterval: 1000,    // Poll every second
-            maxWaitTime: 15000     // Max 15 seconds
+            maxWaitTime: 30000     // Max 30 seconds
           }
         );
         
