@@ -38,28 +38,33 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
    - HTTP proxy: Executes N8N workflow (17s completion)
    - Agent receives: Search results for voice response
 
-### ✅ Current Status (January 26, 2025 - 5:27 AM)
+### ✅ Current Status (January 26, 2025 - 5:46 AM)
 
-**PRODUCTION-READY: Direct HTTP Tool Integration Complete**
+**UPDATE: MCP SSE Proxy Integration - Timeout Issues**
 
-**Fully Working Features**:
-- ✅ **Voice Conversations**: Perfect LiveKit + OpenAI Realtime API integration
-- ✅ **Direct HTTP Tools**: N8N and Zapier webhooks integrated as native function tools
-- ✅ **Web Search**: Voice agent directly calls N8N workflow (17s execution)
-- ✅ **Email Sending**: Voice agent directly calls Zapier automation (30s timeout)
-- ✅ **Expert Architecture**: Implements production pattern from definitive research
+**Voice Agent Working**:
+- ✅ **Voice Conversations**: LiveKit + OpenAI Realtime API integration functional
+- ✅ **Modern API**: Updated from deprecated VoiceAssistant to Agent + AgentSession
+- ✅ **Tool Registration**: Function tools properly registered with @function_tool decorator
+- ✅ **Server Routes**: Correctly spawning voice_agent_direct_tools.py
 
-**Final Implementation**:
-- **Tool Classes**: `n8n_tool.py` and `zapier_tool.py` with direct HTTP calls
-- **Voice Agent**: `voice_agent_direct_tools.py` with native tool registration
-- **Architecture**: Voice Agent → HTTP Webhooks (no MCP protocol needed)
-- **URLs**: Hardcoded from persistent memory (no secrets required)
+**Integration Challenge**:
+- ⚠️ **N8N/Zapier Timeouts**: Both endpoints timeout after 30 seconds via MCP proxy
+- ⚠️ **Protocol Mismatch**: MCP proxy expects SSE protocol, but N8N/Zapier may use different formats
+- ⚠️ **Workflow Execution**: N8N workflow triggers but doesn't return results within timeout
+- ⚠️ **Authentication**: May need specific headers or API keys for these services
+
+**Current Implementation**:
+- **Voice Agent**: `voice_agent_direct_tools.py` with MCP proxy integration
+- **MCP Proxy**: Using `/api/mcp/execute` endpoint with serverId parameter
+- **Configured Servers**: N8N (ID: 9) and Zapier (ID: 18) in database
+- **Timeout**: 30-35 second limits on both tools
 
 **Technical Architecture**:
 - **Voice Pipeline**: LiveKit WebRTC → OpenAI Realtime API → Voice response
-- **Tool Integration**: Direct HTTP POST to N8N/Zapier webhook endpoints
-- **Tool Execution**: N8N workflows (17s avg) + Zapier actions (30s timeout)
-- **Function Tools**: Registered natively with LiveKit VoiceAssistant class
+- **Tool Integration**: Voice Agent → MCP Proxy → SSE Connection → N8N/Zapier
+- **Server Management**: MCP servers configured with SSE endpoints
+- **Result Polling**: Enhanced proxy with polling for async results
 
 ## Project Architecture
 
