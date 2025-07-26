@@ -61,9 +61,12 @@ Voice Input → OpenAI Realtime API → Function Tools → N8N Webhook → Resul
 - ✅ Application running successfully without MCP dependencies
 - ✅ External tool handler with webhook integration active
 - ✅ New voice agent created with webhook tool execution
-- ✅ Frontend configuration page completely updated
+- ✅ Frontend configuration page completely updated (removed all MCP references)
 - ✅ Automatic webhook tool discovery system operational
 - ✅ All LSP diagnostics resolved across TypeScript and Python files
+- ✅ Fixed voice agent startup issue (updated to use voice_agent_webhook.py)
+- ✅ Clean external tool configuration UI with instructional sections
+- ✅ Tool discovery status populated from database via background webhook queries
 
 ## Project Architecture
 

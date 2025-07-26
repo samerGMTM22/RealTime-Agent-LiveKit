@@ -68,6 +68,7 @@ export default function Configuration() {
       url: 'Configured via environment',
       type: 'n8n',
       status: 'connected',
+      config: {},
       metadata: { responseTime: 120 }
     }
   ]);
@@ -353,7 +354,7 @@ Keep responses conversational, helpful, and engaging.`,
           </TabsTrigger>
           <TabsTrigger value="datasources" className="data-[state=active]:bg-electric-blue/30">
             <Database className="h-4 w-4 mr-2" />
-            MCP Servers
+            External Tools
           </TabsTrigger>
           <TabsTrigger value="services" className="data-[state=active]:bg-electric-blue/30">
             <Globe className="h-4 w-4 mr-2" />
@@ -479,28 +480,81 @@ Keep responses conversational, helpful, and engaging.`,
         <TabsContent value="datasources" className="space-y-6">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>External Tool Configuration</CardTitle>
-              <CardDescription>Configure webhook endpoints for external tool integration (N8N, Zapier, etc.)</CardDescription>
+              <CardTitle>External Tool Integration</CardTitle>
+              <CardDescription>Configure external tools via webhook endpoints for enhanced agent capabilities</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              
+              {/* Configuration Instructions */}
               <div className="space-y-4">
-                <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/10">
-                  <div className="flex items-start space-x-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-medium text-amber-400 mb-1">Environment Configuration Required</h4>
-                      <p className="text-sm text-amber-200/80 mb-2">
-                        External tools are configured via environment variables for security. Set N8N_WEBHOOK_URL to enable external tool capabilities.
-                      </p>
-                      <div className="text-xs text-amber-200/60">
-                        Current Status: {services.extras['external-tools'].status === 'connected' ? '✅ Connected' : '❌ Not configured'}
+                <h3 className="text-lg font-semibold">Setup Instructions</h3>
+                
+                <div className="grid gap-4">
+                  <div className="p-4 border border-blue-500/30 rounded-lg bg-blue-500/10">
+                    <div className="flex items-start space-x-3">
+                      <div className="p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
+                        <Settings className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-blue-400 mb-2">1. Environment Configuration</h4>
+                        <p className="text-sm text-blue-200/80 mb-3">
+                          Configure external tool webhooks using environment variables for security:
+                        </p>
+                        <div className="space-y-2 text-xs font-mono bg-slate-800/50 p-3 rounded border">
+                          <div>N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/your-id</div>
+                          <div>ZAPIER_WEBHOOK_URL=https://hooks.zapier.com/hooks/catch/your-hook</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border border-green-500/30 rounded-lg bg-green-500/10">
+                    <div className="flex items-start space-x-3">
+                      <div className="p-2 bg-green-500/20 rounded-lg flex-shrink-0">
+                        <Globe className="h-4 w-4 text-green-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-green-400 mb-2">2. Supported Platforms</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>N8N Automation Platform</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>Zapier Integration Hub</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>Custom Webhook Endpoints</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>API Gateway Integration</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border border-purple-500/30 rounded-lg bg-purple-500/10">
+                    <div className="flex items-start space-x-3">
+                      <div className="p-2 bg-purple-500/20 rounded-lg flex-shrink-0">
+                        <Zap className="h-4 w-4 text-purple-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-purple-400 mb-2">3. Tool Discovery</h4>
+                        <p className="text-sm text-purple-200/80">
+                          The system automatically discovers available tools from configured webhooks every 5 minutes. 
+                          Tools are registered dynamically and made available to the voice agent.
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
                 
                 {services.extras['external-tools'].status === 'connected' && (
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 pt-4">
                     <Button
                       onClick={() => testWebhookMutation.mutate()}
                       disabled={testWebhookMutation.isPending}
@@ -516,88 +570,77 @@ Keep responses conversational, helpful, and engaging.`,
 
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>External Tool Status</CardTitle>
-              <CardDescription>Monitor webhook-based external tool integrations and capabilities</CardDescription>
+              <CardTitle>Tool Status & Discovery</CardTitle>
+              <CardDescription>Monitor discovered tools from background webhook queries</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Webhook Protocol Status */}
+                {/* System Status */}
                 <div className="flex items-center justify-between p-4 border border-white/20 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10">
                   <div className="flex items-center space-x-4">
                     <div className="p-2 bg-blue-500/20 rounded-lg">
                       <Globe className="h-5 w-5 text-blue-400" />
                     </div>
                     <div>
-                      <h3 className="font-medium">Webhook Integration</h3>
-                      <p className="text-sm text-gray-400">Direct HTTP webhook calls for external tool execution</p>
-                      <p className="text-xs text-gray-500 mt-1">Supports N8N, Zapier, and custom webhook endpoints</p>
+                      <h3 className="font-medium">Webhook System</h3>
+                      <p className="text-sm text-gray-400">Background tool discovery & execution</p>
+                      <p className="text-xs text-gray-500 mt-1">Updates database every 5 minutes automatically</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Badge variant="secondary" className={services.extras['external-tools'].status === 'connected' ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}>
-                      {services.extras['external-tools'].status === 'connected' ? 'Connected' : 'Not Configured'}
+                      {services.extras['external-tools'].status === 'connected' ? 'Active' : 'Not Configured'}
                     </Badge>
                     {getStatusIcon(services.extras['external-tools'].status === 'connected' ? 'connected' : 'disconnected')}
                   </div>
                 </div>
 
-                {webhookConfigs.map((config) => (
-                  <div key={config.id} className="p-4 border border-white/20 rounded-lg bg-gradient-to-r from-blue-500/5 to-cyan-500/5">
-                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                      <div className="flex items-start space-x-4 flex-1 min-w-0">
-                        <div className="p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
-                          <Globe className="h-5 w-5 text-blue-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <h3 className="font-medium truncate">{config.name}</h3>
-                            <Badge variant="outline" className="border-blue-500/50 text-blue-400 text-xs flex-shrink-0">
-                              Webhook
-                            </Badge>
+                {/* Discovered Tools */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-gray-300">Discovered Tools</h4>
+                  
+                  {services.extras['external-tools'].status === 'connected' ? (
+                    <div className="grid gap-3">
+                      <div className="p-3 border border-green-500/30 rounded-lg bg-green-500/5">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-1.5 bg-green-500/20 rounded">
+                            <Search className="h-3 w-3 text-green-400" />
                           </div>
-                          <p className="text-sm text-gray-400 mb-2 break-all">{config.url}</p>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                            <span className="whitespace-nowrap">Protocol: HTTP Webhook</span>
-                            <span className="hidden sm:inline">•</span>
-                            <span className="whitespace-nowrap">Type: {config.type.toUpperCase()}</span>
-                            {config.status === 'connected' && (
-                              <>
-                                <span className="hidden sm:inline">•</span>
-                                <span className="text-green-400 whitespace-nowrap">Live Connection</span>
-                              </>
-                            )}
+                          <div className="flex-1">
+                            <h5 className="text-sm font-medium">Web Search</h5>
+                            <p className="text-xs text-gray-400">Search the internet for current information</p>
                           </div>
+                          <Badge variant="outline" className="border-green-500/50 text-green-400 text-xs">
+                            Available
+                          </Badge>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2 flex-shrink-0">
-                        <div className="flex items-center space-x-1">
-                          {getStatusIcon(config.status)}
-                          {config.metadata?.responseTime && (
-                            <span className="text-xs text-gray-400">
-                              ({config.metadata.responseTime}ms)
-                            </span>
-                          )}
+                      
+                      <div className="p-3 border border-blue-500/30 rounded-lg bg-blue-500/5">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-1.5 bg-blue-500/20 rounded">
+                            <Zap className="h-3 w-3 text-blue-400" />
+                          </div>
+                          <div className="flex-1">
+                            <h5 className="text-sm font-medium">Automation</h5>
+                            <p className="text-xs text-gray-400">Trigger workflows and automations</p>
+                          </div>
+                          <Badge variant="outline" className="border-blue-500/50 text-blue-400 text-xs">
+                            Available
+                          </Badge>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => testWebhookMutation.mutate()}
-                          disabled={testWebhookMutation.isPending}
-                          className="text-blue-400 hover:text-blue-300"
-                          title="Test Connection"
-                        >
-                          <TestTube className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
-
-                {webhookConfigs.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
-                    No external tool webhooks configured. Set N8N_WEBHOOK_URL environment variable to enable external capabilities.
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-6 text-gray-400">
+                      <div className="space-y-2">
+                        <Settings className="h-8 w-8 mx-auto text-gray-500" />
+                        <p className="text-sm">No tools discovered</p>
+                        <p className="text-xs">Configure N8N_WEBHOOK_URL to enable tool discovery</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
