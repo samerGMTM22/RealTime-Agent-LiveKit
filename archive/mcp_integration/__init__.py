@@ -1,1 +1,0 @@
-"""MCP Integration for LiveKit Agents"""

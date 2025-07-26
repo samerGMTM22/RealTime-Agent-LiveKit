@@ -1,162 +1,268 @@
-# Voice Agent Platform - Give Me the Mic
+# LiveKit Voice Agent Platform with Webhook Integration
 
-A sophisticated voice agent application built with LiveKit Agents framework and OpenAI Realtime API, featuring a premium frontend and modular business customization capabilities.
+An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime API, and external tool integration via webhooks for intelligent, adaptive conversational experiences.
 
-## Architecture
-
-### Backend (Node.js/TypeScript)
-- **Frontend Server**: React/TypeScript with shadcn/ui components
-- **API Server**: Express.js with LiveKit integration
-- **Database**: In-memory storage with configurable agent templates
-- **Real-time Communication**: LiveKit WebRTC for audio streaming
-
-### Voice Agent (Python)
-- **LiveKit Agents Framework**: Official Python framework for voice processing
-- **OpenAI Realtime API**: Direct speech-to-speech processing
-- **Custom Tools**: Channel information, music tips, content suggestions
-- **Room Management**: Automatic connection to LiveKit rooms
-
-## Features
-
-### Voice Capabilities
-- Real-time voice conversations with OpenAI Realtime API
-- Automatic voice activity detection and turn-taking
-- Natural speech processing with low latency
-- Customizable voice models and personalities
-
-### Business Intelligence
-- YouTube channel integration (Give Me the Mic - 484 subscribers, 249 videos)
-- Music-related advice and tips
-- Content recommendations based on user interests
-- Channel statistics and information
-
-### Frontend Features
-- Premium UI with dark/light mode support
-- Real-time voice session management
-- Agent configuration and customization
-- Conversation history tracking
-- System status monitoring
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 20+ and Python 3.11+
-- LiveKit Cloud account or self-hosted LiveKit server
-- OpenAI API key with Realtime API access
+
+1. **LiveKit Cloud Account** (or self-hosted LiveKit server)
+   - Sign up at [LiveKit Cloud](https://cloud.livekit.io)
+   - Get your API Key, Secret, and WebSocket URL
+
+2. **OpenAI API Access** 
+   - Requires Tier 5+ account for Realtime API access
+   - Get your API key from [OpenAI Platform](https://platform.openai.com)
+
+3. **PostgreSQL Database**
+   - Can use cloud providers like Neon, Supabase, or self-hosted
+   - Database URL connection string required
+
+4. **External Tool Integration** (Optional)
+   - N8N webhook for web search and automation
+   - Alternative: Zapier or custom webhook endpoints
 
 ### Environment Setup
 
-1. Copy your API keys to `.env`:
-```bash
-OPENAI_API_KEY=your_openai_api_key
-LIVEKIT_API_KEY=your_livekit_api_key
-LIVEKIT_API_SECRET=your_livekit_secret
-LIVEKIT_URL=your_livekit_ws_url
-YOUTUBE_API_KEY=your_youtube_api_key
+Create a `.env` file in the root directory:
+
+```env
+# Required - LiveKit Configuration
+LIVEKIT_URL=wss://your-project.livekit.cloud
+LIVEKIT_API_KEY=your-api-key
+LIVEKIT_API_SECRET=your-api-secret
+
+# Required - OpenAI Configuration  
+OPENAI_API_KEY=sk-your-openai-key
+
+# Required - Database
+DATABASE_URL=postgresql://user:password@host:port/database
+
+# Optional - External Tools (N8N Webhook)
+N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/your-webhook-id
+
+# Optional - Additional integrations
+ZAPIER_WEBHOOK_URL=https://hooks.zapier.com/hooks/catch/your-hook-id
 ```
 
-### Running the Application
+### Installation & Running
 
-1. **Start the Node.js server**:
 ```bash
+# Install dependencies
+npm install
+
+# Run database migrations (if needed)
+npm run db:push
+
+# Start the application
 npm run dev
 ```
 
-2. **Test the Python voice agent**:
-```bash
-python agent.py console
+The application will be available at `http://localhost:5000`
+
+## 🏗️ Architecture Overview
+
+### Core Components
+
+1. **Frontend Dashboard** (`client/`)
+   - React + Vite application
+   - Real-time voice conversation interface
+   - Agent configuration management
+   - Tool discovery and status monitoring
+
+2. **Backend API** (`server/`)
+   - Node.js + Express server
+   - LiveKit room and token management
+   - Agent configuration CRUD operations
+   - External tool webhook integration
+   - Database operations via Drizzle ORM
+
+3. **Voice Agent** (`agents/voice_agent_webhook.py`)
+   - Python-based LiveKit agent
+   - OpenAI Realtime API integration with STT-LLM-TTS fallback
+   - External tool execution via webhook calls
+   - Database configuration loading
+   - English-first responses (configurable)
+
+4. **Database Schema** (`shared/schema.ts`)
+   - Agent configurations and settings
+   - Conversation history
+   - External tool discovery metadata
+   - User preferences
+
+### External Tool Integration
+
+The system uses a **webhook-based architecture** for external tool integration:
+
+```
+Voice Input → OpenAI Realtime API → Function Tools → N8N/Zapier Webhook → Results → Voice Output
 ```
 
-3. **Start a voice session**:
-   - Open the web interface
-   - Click "Start Session"
-   - The Python agent will automatically join the room
-   - Begin speaking to interact with the AI assistant
+**Benefits:**
+- ✅ Simple HTTP integration (no complex protocols)
+- ✅ Works with any webhook-capable system
+- ✅ Reliable result retrieval
+- ✅ Easy to extend and maintain
 
-## System Components
+## 🔧 Configuration
 
-### Python Voice Agent (`agent.py`)
-- Implements proper LiveKit Agents framework
-- Uses OpenAI Realtime API for speech processing
-- Includes custom tools for channel information
-- Handles room connections and voice interactions
+### Agent Configuration
 
-### Node.js API Server
-- Manages LiveKit room creation and tokens
-- Provides agent configuration endpoints
-- Handles conversation history
-- Integrates with YouTube API for channel data
+Configure your voice agent through the web interface:
 
-### React Frontend
-- Voice interface with audio visualization
-- Agent configuration and settings
-- Real-time connection status
-- Conversation history display
+1. **System Prompt**: Define the agent's personality and capabilities
+2. **Voice Model**: Choose from OpenAI's voice options (coral, alloy, echo, etc.)
+3. **Temperature**: Control response creativity (0-100)
+4. **Language**: Default language for responses (English recommended)
+5. **OpenAI Model**: Select the underlying language model
 
-## Voice Agent Tools
+### External Tool Setup
 
-The Python agent includes several specialized tools:
+#### N8N Integration
 
-- **`get_channel_info()`**: Provides information about the Give Me the Mic channel
-- **`get_music_tips(topic)`**: Offers music-related advice for singing, recording, instruments, etc.
-- **`suggest_content(interest)`**: Recommends channel content based on user interests
+1. Create an N8N workflow with a webhook trigger
+2. Add nodes for web search, email automation, etc.
+3. Configure the webhook to return JSON responses
+4. Add your webhook URL to the `N8N_WEBHOOK_URL` environment variable
 
-## Deployment
-
-### Development Mode
-```bash
-python agent.py dev
+**Expected Response Format:**
+```json
+{
+  "tools": [
+    {
+      "name": "web_search",
+      "description": "Search the internet for information",
+      "category": "search"
+    },
+    {
+      "name": "automation", 
+      "description": "Execute automated tasks and workflows",
+      "category": "workflow"
+    }
+  ]
+}
 ```
 
-### Production Mode
-```bash
-python agent.py start
+#### Tool Discovery
+
+The system automatically discovers available tools:
+- **At interaction start**: Triggered when users join voice sessions
+- **Background refresh**: Periodic discovery every 5 minutes
+- **Manual refresh**: Available through the configuration interface
+
+## 🎯 Key Features
+
+### Voice Conversation
+- **Real-time audio**: Low-latency LiveKit WebRTC
+- **OpenAI Realtime API**: Direct voice-to-voice processing
+- **Intelligent interruptions**: Natural conversation flow
+- **Multi-language support**: Configurable default language
+
+### External Tool Access
+- **Web Search**: Real-time internet search capabilities
+- **Automation**: Email sending, task creation, etc.
+- **Extensible**: Add custom tools via webhook endpoints
+- **Reliable**: Timeout handling and error recovery
+
+### User Interface
+- **Live conversation**: Real-time voice interaction
+- **Configuration management**: Easy agent setup
+- **Tool monitoring**: Real-time tool discovery status
+- **Conversation history**: Track previous interactions
+
+## 📁 Project Structure
+
+```
+├── agents/
+│   └── voice_agent_webhook.py     # Active voice agent
+├── client/                        # React frontend
+│   ├── src/
+│   │   ├── pages/                # Dashboard, configuration
+│   │   ├── components/           # Reusable UI components
+│   │   └── lib/                  # Utilities and API client
+├── server/                       # Express backend
+│   ├── lib/                      # Service integrations
+│   ├── config/                   # Configuration management
+│   └── routes.ts                 # API endpoints
+├── shared/
+│   └── schema.ts                 # Database schema (Drizzle)
+├── docs/                         # Documentation
+└── README.md                     # This file
 ```
 
-The agent automatically connects to LiveKit rooms created by the web application and provides voice responses using OpenAI's Realtime API.
-
-## Customization
-
-### Adding New Agent Types
-1. Create templates in `server/config/agent-config.ts`
-2. Define custom tools in the Python agent
-3. Update the frontend configuration forms
-
-### Business Templates
-The system supports various business use cases:
-- Music education and coaching
-- Customer service automation
-- Real estate assistance
-- Fitness and wellness coaching
-
-## Technical Details
-
-### Voice Processing Pipeline
-1. User speaks → LiveKit captures audio
-2. Audio streams to Python agent
-3. OpenAI Realtime API processes speech
-4. AI generates response speech
-5. Response streams back to user via LiveKit
-
-### Integration Points
-- **LiveKit WebRTC**: Real-time audio communication
-- **OpenAI Realtime API**: Speech-to-speech processing
-- **YouTube API**: Channel data integration
-- **Custom Tools**: Business-specific functionality
-
-## Troubleshooting
+## 🔍 Troubleshooting
 
 ### Common Issues
-1. **Agent not connecting**: Check LiveKit credentials in `.env`
-2. **No voice response**: Verify OpenAI API key has Realtime API access
-3. **Audio issues**: Ensure microphone permissions are granted
+
+1. **Voice Agent Not Starting**
+   - Verify all environment variables are set
+   - Check OpenAI API key has Realtime API access (Tier 5+)
+   - Ensure LiveKit credentials are correct
+
+2. **External Tools Not Working**
+   - Verify webhook URL is accessible
+   - Check webhook returns proper JSON format
+   - Review server logs for connection errors
+
+3. **Database Connection Issues**
+   - Verify DATABASE_URL format and credentials
+   - Ensure database server is accessible
+   - Run `npm run db:push` to sync schema
 
 ### Debug Mode
-Run the Python agent with verbose logging:
-```bash
-python agent.py dev --verbose
+
+Enable detailed logging by setting:
+```env
+NODE_ENV=development
 ```
 
-## License
+Check logs in:
+- Browser console (frontend issues)
+- Terminal output (backend and agent issues)
+- PostgreSQL logs (database issues)
 
-MIT License - See LICENSE file for details.
+## 🚀 Production Deployment
+
+### Using Replit Deployments
+
+1. Configure all environment variables in Replit Secrets
+2. Ensure database is accessible from Replit's IP ranges
+3. Use the "Deploy" button in your Replit project
+4. Your app will be available at `https://your-repl-name.your-username.replit.app`
+
+### Alternative Deployments
+
+The application can be deployed to any Node.js hosting platform:
+- Vercel, Netlify (frontend + serverless functions)
+- Railway, Render (full-stack)
+- AWS, Google Cloud, Azure (container deployments)
+
+## 📚 Documentation
+
+- [`docs/LIVEKIT_REALTIME_API_GUIDE.md`](docs/LIVEKIT_REALTIME_API_GUIDE.md) - Implementation patterns and troubleshooting
+- [`docs/MCP_POLLING_IMPLEMENTATION_SUMMARY.md`](docs/MCP_POLLING_IMPLEMENTATION_SUMMARY.md) - Legacy MCP implementation notes
+- [`replit.md`](replit.md) - Project development history and architecture decisions
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## 🆘 Support
+
+For support and questions:
+1. Check the troubleshooting section above
+2. Review the documentation in the `docs/` folder
+3. Check issues in the project repository
+4. Create a new issue with detailed information about your problem
+
+---
+
+**Built with:** LiveKit WebRTC, OpenAI Realtime API, React, Node.js, PostgreSQL, Python

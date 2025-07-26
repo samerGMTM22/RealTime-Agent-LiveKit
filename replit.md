@@ -13,6 +13,14 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 - **Adopted Webhook Architecture**: Simple HTTP webhook calls for external tool execution
 - **Simplified Integration**: Voice Agent → N8N Webhook → Tool Results → Voice Response
 
+**PRODUCTION CLEANUP COMPLETED (4:00 PM - January 26, 2025)**:
+- **Project Cleanup**: Removed all archived folders (archived_agents/, archived_documentation/, archived_mcp_implementation/, archive/, attached_assets/)
+- **Agent Cleanup**: Cleaned agents/ folder to only keep active voice_agent_webhook.py file
+- **Server Cleanup**: Removed unused MCP-related server files (mcp_client.py, mcp_manager.py, etc.)
+- **Documentation Consolidation**: Created docs/ folder, moved technical documentation, updated README.md with comprehensive setup guide
+- **Environment Template Updated**: Cleaned .env.template to remove unused secrets (YouTube API, MCP URLs)
+- **File Structure Optimized**: Production-ready structure with only essential files maintained
+
 **Latest Updates (3:30-3:40 PM - January 26, 2025)**:
 - **Interaction-Based Tool Discovery**: Tool discovery now triggers automatically at start of each voice interaction instead of 5-minute intervals
 - **Real Database Integration**: Frontend now displays actual discovered tools from database instead of hardcoded values
