@@ -182,7 +182,7 @@ class DatabaseConfig:
                     return {
                         'id': 1,
                         'name': 'Default Voice Agent',
-                        'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Always respond in English unless specifically asked to use another language.if asked to use sensitive information like email or other confirm that you got right from user before using in any task',
+                        'system_prompt': 'You are a helpful voice assistant with access to external tools for web search and automation. Be concise and conversational. Always respond in English unless specifically asked to use another language.\n\nIMPORTANT CONFIRMATION PROTOCOL:\n- When users request automation involving sensitive information (emails, phone numbers, addresses), the automation tool will automatically ask for confirmation\n- If you see a confirmation request from the tool, read it back to the user clearly and wait for their "yes" confirmation\n- Only call the automation tool again with confirmed="yes" after the user explicitly confirms\n- For corrections, call the tool again with the corrected information\n\nExample flow:\n1. User: "Send email to john@example.com"\n2. You call automation tool → Tool asks for confirmation\n3. You: "I want to confirm: Email address john@example.com. Is this correct?"\n4. User: "Yes" \n5. You call automation tool with confirmed="yes"',
                         'voice_model': 'coral',
                         'temperature': 80,
                         'language': 'en',
@@ -210,7 +210,7 @@ class DatabaseConfig:
             return {
                 'id': 1,
                 'name': 'Default Voice Agent',
-                'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Always respond in English unless specifically asked to use another language.',
+                'system_prompt': 'You are a helpful voice assistant with access to external tools for web search and automation. Be concise and conversational. Always respond in English unless specifically asked to use another language.\n\nIMPORTANT CONFIRMATION PROTOCOL:\n- When users request automation involving sensitive information (emails, phone numbers, addresses), the automation tool will automatically ask for confirmation\n- If you see a confirmation request from the tool, read it back to the user clearly and wait for their "yes" confirmation\n- Only call the automation tool again with confirmed="yes" after the user explicitly confirms\n- For corrections, call the tool again with the corrected information',
                 'voice_model': 'coral',
                 'temperature': 80,
                 'language': 'en',
@@ -221,12 +221,74 @@ class DatabaseConfig:
 # Initialize global webhook executor
 webhook_executor = WebhookToolExecutor()
 
-@function_tool
-async def execute_web_search(query: str) -> str:
-    """Search the internet for current information"""
-    logger.info(f"Executing web search: {query}")
+def detect_sensitive_info(text: str) -> dict:
+    """
+    Detect sensitive information in text that requires user confirmation
     
-    # Pass the natural language query directly - more contextual for AI webhook
+    Returns:
+        dict: Contains 'has_sensitive', 'emails', 'phones', 'patterns_found'
+    """
+    import re
+    
+    # Patterns that indicate sensitive operations
+    sensitive_patterns = [
+        'email', 'send to', '@', 'phone', 'number', 'address', 'contact',
+        'message to', 'text to', 'call', 'notify', 'recipient', 'forward to'
+    ]
+    
+    # Extract specific sensitive data
+    email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+    phone_pattern = r'\b(?:\+?1[-.\s]?)?(?:\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4})\b'
+    
+    emails_found = re.findall(email_pattern, text, re.IGNORECASE)
+    phones_found = re.findall(phone_pattern, text)
+    
+    patterns_found = [pattern for pattern in sensitive_patterns 
+                     if pattern.lower() in text.lower()]
+    
+    has_sensitive = bool(emails_found or phones_found or patterns_found)
+    
+    logger.info(f"Sensitive info detection: {has_sensitive} - Emails: {emails_found}, Phones: {phones_found}, Patterns: {patterns_found}")
+    
+    return {
+        'has_sensitive': has_sensitive,
+        'emails': emails_found,
+        'phones': phones_found,
+        'patterns_found': patterns_found
+    }
+
+@function_tool
+async def execute_web_search(query: str, confirmed: str = "no") -> str:
+    """
+    Search the internet for current information
+    
+    Args:
+        query: The search query
+        confirmed: Set to 'yes' if searching for potentially sensitive personal information
+    """
+    logger.info(f"Executing web search: {query} (confirmed: {confirmed})")
+    
+    # Check for potentially sensitive personal information searches
+    personal_info_patterns = [
+        'phone number', 'address of', 'home address', 'email address', 
+        'personal information', 'social security', 'credit card', 'bank account',
+        'password', 'private', 'confidential', 'personal details'
+    ]
+    
+    contains_personal = any(pattern.lower() in query.lower() for pattern in personal_info_patterns)
+    
+    # If searching for personal information and not confirmed, ask for confirmation
+    if contains_personal and confirmed.lower() != "yes":
+        logger.info(f"Requesting confirmation for potentially sensitive search: {query}")
+        
+        confirmation_msg = "I want to confirm before searching for potentially sensitive information:\n\n"
+        confirmation_msg += f"🔍 Search query: {query}\n\n"
+        confirmation_msg += "This appears to involve personal or sensitive information. "
+        confirmation_msg += "✅ Please say 'yes' to confirm you want to proceed with this search, or provide a different query."
+        
+        return confirmation_msg
+    
+    # Proceed with search
     result = await webhook_executor.execute_external_tool('web_search', {
         'query': f"Use internet search to find information about: {query}",
         'message': query
@@ -238,11 +300,41 @@ async def execute_web_search(query: str) -> str:
         return f"Search failed: {result['error']}"
 
 @function_tool
-async def execute_automation(request: str, details: str = "") -> str:
-    """Execute automation workflows like sending emails, creating tasks, etc."""
-    logger.info(f"Executing automation: {request}")
+async def execute_automation(request: str, details: str = "", confirmed: str = "no") -> str:
+    """
+    Execute automation workflows like sending emails, creating tasks, etc.
     
-    # Create more natural request for AI webhook
+    Args:
+        request: The automation request description
+        details: Additional details for the automation
+        confirmed: Set to 'yes' only after user has confirmed sensitive information
+    """
+    logger.info(f"Executing automation: {request} (confirmed: {confirmed})")
+    
+    # Use helper function to detect sensitive information
+    full_text = f"{request} {details}".strip()
+    sensitive_info = detect_sensitive_info(full_text)
+    
+    # If sensitive information detected and not yet confirmed, ask for confirmation
+    if sensitive_info['has_sensitive'] and confirmed.lower() != "yes":
+        logger.info(f"Requesting confirmation for sensitive automation request: {request}")
+        
+        confirmation_msg = "I want to confirm the details before proceeding with this automation:\n\n"
+        
+        if sensitive_info['emails']:
+            confirmation_msg += f"📧 Email addresses: {', '.join(sensitive_info['emails'])}\n"
+        if sensitive_info['phones']:
+            confirmation_msg += f"📞 Phone numbers: {', '.join(sensitive_info['phones'])}\n"
+        
+        confirmation_msg += f"📋 Request: {request}\n"
+        if details:
+            confirmation_msg += f"📝 Details: {details}\n"
+        
+        confirmation_msg += "\n✅ Is this information correct? Please say 'yes' to confirm and proceed, or provide corrections."
+        
+        return confirmation_msg
+    
+    # If confirmed or no sensitive data, proceed with execution
     natural_request = f"Use automation tools to {request}"
     if details:
         natural_request += f" with these details: {details}"
