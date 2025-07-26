@@ -18,6 +18,9 @@ export const agentConfigs = pgTable("agent_configs", {
   voiceModel: text("voice_model").notNull().default("alloy"),
   responseLength: text("response_length").notNull().default("moderate"),
   temperature: integer("temperature").notNull().default(70), // stored as int (0-100)
+  language: text("language").notNull().default("en"), // ISO language code
+  openaiModel: text("openai_model").notNull().default("gpt-4o"),
+  liverkitRoomName: text("livekit_room_name"),
   isActive: boolean("is_active").notNull().default(false),
   settings: jsonb("settings").notNull().default('{}'),
   createdAt: timestamp("created_at").defaultNow(),
@@ -122,6 +125,6 @@ export interface VoiceSessionData {
 export interface SystemStatus {
   livekit: 'online' | 'offline' | 'error';
   openai: 'connected' | 'disconnected' | 'error';
-  mcp: 'connected' | 'disconnected' | 'error';
+  externalTools: 'connected' | 'disconnected' | 'error';
   latency: string;
 }

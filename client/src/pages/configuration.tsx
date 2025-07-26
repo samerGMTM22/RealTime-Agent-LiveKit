@@ -43,6 +43,18 @@ const RESPONSE_LENGTHS = [
   { value: 'detailed', label: 'Detailed', description: 'Comprehensive responses' }
 ];
 
+const LANGUAGES = [
+  { value: 'en', label: 'English', description: 'Default language for responses' },
+  { value: 'es', label: 'Spanish', description: 'Respuestas en español' },
+  { value: 'fr', label: 'French', description: 'Réponses en français' },
+  { value: 'de', label: 'German', description: 'Antworten auf Deutsch' },
+  { value: 'it', label: 'Italian', description: 'Risposte in italiano' },
+  { value: 'pt', label: 'Portuguese', description: 'Respostas em português' },
+  { value: 'ja', label: 'Japanese', description: '日本語での回答' },
+  { value: 'ko', label: 'Korean', description: '한국어로 응답' },
+  { value: 'zh', label: 'Chinese', description: '中文回复' }
+];
+
 interface WebhookConfig {
   id: string;
   type: 'webhook' | 'n8n' | 'zapier';
@@ -81,6 +93,7 @@ export default function Configuration() {
   const [voiceModel, setVoiceModel] = useState("coral");
   const [responseLength, setResponseLength] = useState("moderate");
   const [temperature, setTemperature] = useState([70]);
+  const [language, setLanguage] = useState("en");
   
   // Service connections state  
   const [services, setServices] = useState<{
@@ -122,6 +135,7 @@ export default function Configuration() {
       setVoiceModel(agent.voiceModel || "coral");
       setResponseLength(agent.responseLength || "moderate");
       setTemperature([agent.temperature || 70]);
+      setLanguage(agent.language || "en");
       
       // Load service settings from agent configuration
       if (agent.settings && agent.settings.services) {
@@ -141,7 +155,7 @@ export default function Configuration() {
     // Check if external tools are configured via environment
     if (systemStatus && typeof systemStatus === 'object') {
       const status = systemStatus as any;
-      const hasWebhook = status.mcp === 'ready'; // N8N webhook configured
+      const hasWebhook = status.externalTools === 'ready'; // N8N webhook configured
       
       if (hasWebhook) {
         setWebhookConfigs([{
@@ -169,7 +183,7 @@ export default function Configuration() {
           openai: { enabled: true, status: status.openai === 'connected' ? 'connected' as const : 'error' as const }
         },
         extras: {
-          'external-tools': { enabled: prev.extras['external-tools'].enabled, status: status.mcp === 'connected' ? 'connected' as const : 'error' as const }
+          'external-tools': { enabled: prev.extras['external-tools'].enabled, status: status.externalTools === 'connected' ? 'connected' as const : 'error' as const }
         }
       }));
     }
@@ -217,7 +231,7 @@ Keep responses conversational, helpful, and engaging.`,
     }
   });
 
-  // External tool configuration mutations (replaced MCP system)
+  // External tool configuration mutations (webhook-based system)
   const testWebhookMutation = useMutation({
     mutationFn: async () => {
       return apiRequest('POST', '/api/external-tools/test-webhook');
@@ -249,6 +263,7 @@ Keep responses conversational, helpful, and engaging.`,
         voiceModel,
         responseLength,
         temperature: temperature[0],
+        language,
         userId: 1,
         isActive: true,
         settings: {
@@ -432,6 +447,25 @@ Keep responses conversational, helpful, and engaging.`,
                           <div>
                             <div className="font-medium">{length.label}</div>
                             <div className="text-sm text-gray-400">{length.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="language">Language</Label>
+                  <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger className="glass-card border-white/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="glass-card bg-slate-800">
+                      {LANGUAGES.map((lang) => (
+                        <SelectItem key={lang.value} value={lang.value} className="text-white">
+                          <div>
+                            <div className="font-medium">{lang.label}</div>
+                            <div className="text-sm text-gray-400">{lang.description}</div>
                           </div>
                         </SelectItem>
                       ))}

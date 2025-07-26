@@ -13,6 +13,13 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 - **Adopted Webhook Architecture**: Simple HTTP webhook calls for external tool execution
 - **Simplified Integration**: Voice Agent → N8N Webhook → Tool Results → Voice Response
 
+**Latest Updates (2:00-2:10 PM)**:
+- **Language Selector Added**: Multi-language support with English as default
+- **Complete MCP Reference Cleanup**: Replaced all "MCP" mentions with "External Tools" in UI
+- **Database Schema Updates**: Added language, openaiModel, and liverkitRoomName fields
+- **Manual Webhook Testing**: Added `/api/external-tools/manual-test` endpoint for connectivity verification
+- **Status System Updated**: Changed from 'mcp' to 'externalTools' throughout application
+
 **Implementation Summary**:
 
 1. **✅ COMPLETE MCP REMOVAL**:

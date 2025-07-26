@@ -130,7 +130,7 @@ class DatabaseConfig:
                 # Get active agent configuration
                 query = """
                 SELECT id, name, system_prompt, voice_model, temperature, 
-                       openai_model, livekit_room_name
+                       language, openai_model, livekit_room_name
                 FROM agent_configs 
                 WHERE id = $1 AND is_active = true
                 LIMIT 1
@@ -142,9 +142,10 @@ class DatabaseConfig:
                     return {
                         'id': 1,
                         'name': 'Default Voice Agent',
-                        'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational.',
+                        'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Respond in English.',
                         'voice_model': 'coral',
                         'temperature': 80,
+                        'language': 'en',
                         'openai_model': 'gpt-4o',
                         'livekit_room_name': 'default'
                     }
@@ -155,6 +156,7 @@ class DatabaseConfig:
                     'system_prompt': row['system_prompt'],
                     'voice_model': row['voice_model'],
                     'temperature': row['temperature'],
+                    'language': row.get('language', 'en'),
                     'openai_model': row['openai_model'],
                     'livekit_room_name': row['livekit_room_name']
                 }
@@ -168,9 +170,10 @@ class DatabaseConfig:
             return {
                 'id': 1,
                 'name': 'Default Voice Agent',
-                'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational.',
+                'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Respond in English.',
                 'voice_model': 'coral',
                 'temperature': 80,
+                'language': 'en',
                 'openai_model': 'gpt-4o',
                 'livekit_room_name': 'default'
             }
@@ -287,9 +290,12 @@ async def entrypoint(ctx: JobContext):
             # Convert temperature for standard LLM (0-2 range)
             llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
             
+            # Get language preference, default to English
+            language = agent_config.get('language', 'en')
+            
             session = AgentSession(
                 vad=silero.VAD.load(),
-                stt=openai.STT(language="en"),
+                stt=openai.STT(language=language),
                 llm=openai.LLM(
                     model="gpt-4o",
                     temperature=llm_temp,

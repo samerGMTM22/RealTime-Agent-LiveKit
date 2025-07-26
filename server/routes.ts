@@ -486,6 +486,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual webhook test endpoint for user testing
+  app.post("/api/external-tools/manual-test", async (req, res) => {
+    try {
+      const { message = "Manual webhook test from Replit" } = req.body;
+      
+      const result = await externalToolHandler.executeExternalTool('test', {
+        message,
+        timestamp: new Date().toISOString(),
+        source: 'manual_test'
+      });
+      
+      res.json({
+        testSuccess: result.success,
+        response: result.result || result.error,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error('Manual webhook test error:', error);
+      res.status(500).json({ 
+        testSuccess: false, 
+        error: error.message || 'Failed to test webhook manually' 
+      });
+    }
+  });
+
   app.get("/api/external-tools/discovered", async (req, res) => {
     try {
       const tools = await webhookToolDiscovery.getDiscoveredTools();
@@ -513,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const status = {
         livekit: 'online',
         openai: 'connected',
-        mcp: 'ready',
+        externalTools: 'ready',
         latency: '45ms',
         timestamp: new Date().toISOString()
       };
@@ -528,13 +553,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // External tools status - check webhook availability
       try {
         if (process.env.N8N_WEBHOOK_URL) {
-          status.mcp = 'ready'; // External webhook configured
+          status.externalTools = 'ready'; // External webhook configured
         } else {
-          status.mcp = 'disconnected'; // No webhook configured
+          status.externalTools = 'disconnected'; // No webhook configured
         }
       } catch (error) {
         console.error("External tools status check error:", error);
-        status.mcp = 'error';
+        status.externalTools = 'error';
       }
 
       res.json(status);
