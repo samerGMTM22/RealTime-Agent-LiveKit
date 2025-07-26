@@ -96,7 +96,8 @@ class WebhookToolDiscovery {
           'User-Agent': 'LiveKit-Voice-Agent/1.0'
         },
         body: JSON.stringify({
-          action: 'discover_tools',
+          tool: 'discovery',
+          action: 'list_tools',
           timestamp: new Date().toISOString(),
           source: 'automatic_discovery'
         }),
