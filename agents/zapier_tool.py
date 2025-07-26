@@ -6,7 +6,7 @@ import aiohttp
 import logging
 from livekit.agents.llm import function_tool
 
-ZAPIER_MCP_URL = os.environ.get("ZAPIER_MCP_URL")
+ZAPIER_MCP_URL = os.environ.get("ZAPIER_MCP_URL", "https://mcp.zapier.com/api/mcp/s/MDRmNjkzMDUtYzI0NS00Y2FlLTgzODQtNzU5ZmRjMjViNDI1OmU3ZWQ4YWJjLTIxNDEtNDI5OC1iNTBiLWRlYWUxMjkxYWRkMw==")
 
 logger = logging.getLogger(__name__)
 

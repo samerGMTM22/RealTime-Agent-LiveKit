@@ -6,7 +6,7 @@ import aiohttp
 import logging
 from livekit.agents.llm import function_tool
 
-N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL")
+N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "https://n8n.srv755489.hstgr.cloud/mcp/43a3ec6f-728e-489b-9456-45f9d41750b7")
 N8N_BEARER_TOKEN = os.environ.get("N8N_BEARER_TOKEN")
 
 logger = logging.getLogger(__name__)

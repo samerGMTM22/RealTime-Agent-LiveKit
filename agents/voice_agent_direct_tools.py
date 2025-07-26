@@ -9,7 +9,7 @@ from typing import Any
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli
 from livekit.agents.voice_assistant import VoiceAssistant
 from livekit.plugins import openai, silero
-from livekit.agents.llm import ChatRole
+from livekit.agents.llm import ChatContext
 
 # Import our direct tool adapters
 from n8n_tool import N8NTools
@@ -61,7 +61,7 @@ async def entrypoint(ctx: JobContext):
         ),
         tts=openai.TTS(voice=config.get("voiceModel", "alloy")),
         chat_ctx=[
-            {"role": ChatRole.SYSTEM, "content": config.get("systemPrompt", "You are a helpful voice assistant.")}
+            {"role": "system", "content": config.get("systemPrompt", "You are a helpful voice assistant.")}
         ],
         tools=[n8n_tools, zapier_tools]  # Register our direct tool adapters
     )
