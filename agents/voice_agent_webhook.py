@@ -196,13 +196,20 @@ async def execute_web_search(query: str) -> str:
         return f"Search failed: {result['error']}"
 
 @function_tool
-async def execute_automation(action: str, params: Dict[str, Any] = None) -> str:
+async def execute_automation(action: str, params: str = "{}") -> str:
     """Execute automation workflows and tasks"""
     logger.info(f"Executing automation: {action}")
     
+    # Parse JSON string params to avoid OpenAI schema issues
+    try:
+        import json
+        parsed_params = json.loads(params) if params != "{}" else {}
+    except:
+        parsed_params = {}
+    
     result = await webhook_executor.execute_external_tool('automation', {
         'action': action,
-        'params': params or {}
+        'params': parsed_params
     })
     
     if result['success']:
@@ -246,12 +253,18 @@ async def entrypoint(ctx: JobContext):
         try:
             from livekit.plugins.openai import realtime
             
+            # Create agent with external tools for Realtime API
+            agent = Agent(
+                instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.'),
+                tools=[execute_web_search, execute_automation]
+            )
+            
             session = AgentSession(
+                agent=agent,
                 llm=realtime.RealtimeModel(
                     model="gpt-4o-realtime-preview",
                     voice=agent_config.get('voice_model', 'coral'),
                     temperature=realtime_temp,
-                    instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.')
                 ),
                 allow_interruptions=True,
                 min_interruption_duration=0.5,
@@ -278,7 +291,14 @@ async def entrypoint(ctx: JobContext):
             # Convert temperature for standard LLM (0-2 range)
             llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
             
+            # Create agent with external tools
+            agent = Agent(
+                instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.'),
+                tools=[execute_web_search, execute_automation]
+            )
+            
             session = AgentSession(
+                agent=agent,
                 vad=silero.VAD.load(),
                 stt=openai.STT(language="en"),
                 llm=openai.LLM(
@@ -286,16 +306,14 @@ async def entrypoint(ctx: JobContext):
                     temperature=llm_temp,
                 ),
                 tts=openai.TTS(voice=agent_config.get('voice_model', 'coral')),
+                allow_interruptions=True,
+                min_interruption_duration=0.5,
+                min_endpointing_delay=0.5,
+                max_endpointing_delay=6.0,
             )
             
-            # Create agent with external tools
-            agent = Agent(
-                instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.'),
-                tools=[execute_web_search, execute_automation]
-            )
-            
-            # Start session with agent
-            await session.start(agent=agent, room=ctx.room)
+            # Start session
+            await session.start(room=ctx.room)
             
             # Generate initial greeting
             await session.generate_reply(
