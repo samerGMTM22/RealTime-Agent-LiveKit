@@ -2,18 +2,10 @@
 
 """
 LiveKit Voice Agent with External Tool Integration via Webhooks
-
-This agent integrates LiveKit WebRTC with OpenAI Realtime API for voice conversations,
-and uses external webhook calls for tool execution (replacing complex MCP integration).
+Following the working patterns from LIVEKIT_REALTIME_API_GUIDE.md
 
 Architecture:
 Voice Input → OpenAI Realtime API → Function Tools → N8N Webhook → Results → Voice Output
-
-Key Features:
-- Direct OpenAI Realtime API integration (no STT-LLM-TTS pipeline)
-- External tool execution via webhook system
-- Database configuration fetching 
-- Graceful error handling and fallbacks
 """
 
 import asyncio
@@ -23,15 +15,15 @@ import sys
 import json
 import aiohttp
 from typing import Dict, Any, Optional
-from urllib.parse import urlparse
 
 # Add the project root to the Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# LiveKit imports
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
-from livekit.agents import VoicePipelineAgent
-from livekit.plugins import openai
+# LiveKit imports - following guide patterns
+from livekit import agents, rtc
+from livekit.agents import JobContext, WorkerOptions, cli, AutoSubscribe, AgentSession, Agent
+from livekit.plugins import openai, silero
+from livekit.agents.llm import function_tool
 
 # Database imports
 import asyncpg
@@ -86,22 +78,22 @@ class WebhookToolExecutor:
                     json=payload,
                     timeout=timeout
                 ) as response:
-                
-                if response.status == 200:
-                    result = await response.json()
-                    logger.info(f"Webhook call successful for {tool_name}")
-                    return {
-                        'success': True,
-                        'result': result.get('result', 'Tool executed successfully'),
-                        'tool': tool_name
-                    }
-                else:
-                    error_text = await response.text()
-                    logger.error(f"Webhook call failed: {response.status} - {error_text}")
-                    return {
-                        'success': False,
-                        'error': f"Webhook returned {response.status}: {error_text}"
-                    }
+                    
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.info(f"Webhook call successful for {tool_name}")
+                        return {
+                            'success': True,
+                            'result': result.get('result', 'Tool executed successfully'),
+                            'tool': tool_name
+                        }
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Webhook call failed: {response.status} - {error_text}")
+                        return {
+                            'success': False,
+                            'error': f"Webhook returned {response.status}: {error_text}"
+                        }
                     
         except asyncio.TimeoutError:
             logger.error(f"Webhook timeout for tool: {tool_name}")
@@ -115,6 +107,12 @@ class WebhookToolExecutor:
                 'success': False,
                 'error': f"Tool execution failed: {str(e)}"
             }
+        
+        # Fallback return - should not reach here
+        return {
+            'success': False,
+            'error': 'Tool execution failed - no session available'
+        }
 
 class DatabaseConfig:
     """Handles database configuration fetching"""
@@ -145,66 +143,76 @@ class DatabaseConfig:
                         'id': 1,
                         'name': 'Default Voice Agent',
                         'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational.',
-                        'voice_model': 'alloy',
-                        'temperature': 0.8,
+                        'voice_model': 'coral',
+                        'temperature': 80,
                         'max_tokens': 4096,
-                        'openai_model': 'gpt-4-turbo',
-                        'livekit_room_name': 'voice-agent-room'
+                        'openai_model': 'gpt-4o',
+                        'livekit_room_name': 'default'
                     }
                 
-                return dict(row)
+                return {
+                    'id': row['id'],
+                    'name': row['name'],
+                    'system_prompt': row['system_prompt'],
+                    'voice_model': row['voice_model'],
+                    'temperature': row['temperature'],
+                    'max_tokens': row['max_tokens'],
+                    'openai_model': row['openai_model'],
+                    'livekit_room_name': row['livekit_room_name']
+                }
                 
             finally:
                 await conn.close()
                 
         except Exception as e:
-            logger.error(f"Database config error: {e}")
-            # Return default configuration as fallback
+            logger.error(f"Database error: {e}")
+            # Return default configuration on error
             return {
                 'id': 1,
                 'name': 'Default Voice Agent',
                 'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational.',
-                'voice_model': 'alloy',
-                'temperature': 0.8,
+                'voice_model': 'coral',
+                'temperature': 80,
                 'max_tokens': 4096,
-                'openai_model': 'gpt-4-turbo',
-                'livekit_room_name': 'voice-agent-room'
+                'openai_model': 'gpt-4o',
+                'livekit_room_name': 'default'
             }
 
-def create_external_tool_functions(webhook_executor: WebhookToolExecutor):
-    """Create external tool functions for the agent"""
+# Initialize global webhook executor
+webhook_executor = WebhookToolExecutor()
+
+@function_tool
+async def execute_web_search(query: str) -> str:
+    """Search the internet for current information"""
+    logger.info(f"Executing web search: {query}")
     
-    async def execute_web_search(query: str) -> str:
-        """Search the web for information"""
-        result = await webhook_executor.execute_external_tool('web_search', {'query': query})
-        
-        if result['success']:
-            return f"Search results for '{query}':\n{result['result']}"
-        else:
-            return f"Search failed: {result['error']}"
+    result = await webhook_executor.execute_external_tool('web_search', {
+        'query': query
+    })
     
-    async def execute_automation(action: str, params: Optional[Dict[str, Any]] = None) -> str:
-        """Execute automation workflows"""
-        result = await webhook_executor.execute_external_tool('automation', {
-            'action': action,
-            'params': params or {}
-        })
-        
-        if result['success']:
-            return f"Automation '{action}' completed: {result['result']}"
-        else:
-            return f"Automation failed: {result['error']}"
+    if result['success']:
+        return f"Search results for '{query}': {result['result']}"
+    else:
+        return f"Search failed: {result['error']}"
+
+@function_tool
+async def execute_automation(action: str, params: Dict[str, Any] = None) -> str:
+    """Execute automation workflows and tasks"""
+    logger.info(f"Executing automation: {action}")
     
-    # Return function definitions
-    return {
-        'execute_web_search': execute_web_search,
-        'execute_automation': execute_automation
-    }
+    result = await webhook_executor.execute_external_tool('automation', {
+        'action': action,
+        'params': params or {}
+    })
+    
+    if result['success']:
+        return f"Automation '{action}' completed: {result['result']}"
+    else:
+        return f"Automation failed: {result['error']}"
 
 async def entrypoint(ctx: JobContext):
-    """Main entry point for the voice agent"""
+    """Main entry point for the voice agent - following working patterns from guide"""
     
-    # Initialize components
     logger.info("Initializing voice agent with webhook integration...")
     
     # Load configuration from database
@@ -212,70 +220,93 @@ async def entrypoint(ctx: JobContext):
     agent_config = await db_config.get_agent_config()
     logger.info(f"Loaded agent config: {agent_config['name']}")
     
-    # Initialize webhook tool executor
-    webhook_executor = WebhookToolExecutor()
+    # Convert temperature from percentage to Realtime API range (0.6-1.2)
+    temp_raw = float(agent_config.get('temperature', 80))
+    realtime_temp = max(0.6, min(1.2, 0.6 + (temp_raw / 100.0) * 0.6))
     
-    # Create external tool functions
-    external_functions = create_external_tool_functions(webhook_executor)
+    logger.info(f"Using voice model: {agent_config.get('voice_model', 'coral')}, temperature: {realtime_temp}")
     
-    # Create function context for LiveKit
-    from livekit.agents.llm import FunctionContext
-    fnc_ctx = FunctionContext()
-    
-    # Add functions to context
-    for name, func in external_functions.items():
-        if hasattr(fnc_ctx, 'ai_functions'):
-            fnc_ctx.ai_functions[name] = func
-    
-    # Initialize OpenAI model with functions
     try:
-        model = openai.LLM(
-            model="gpt-4o-realtime-preview-2024-10-01",
-            temperature=agent_config['temperature']
-        )
+        # Connect to room with audio-only subscription (from guide pattern)
+        await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+        logger.info(f"Connected to room: {ctx.room.name}")
         
-        logger.info("OpenAI Realtime model initialized with external tools")
+        # Subscribe to audio tracks (critical for audio flow)
+        @ctx.room.on("track_published")
+        def on_track_published(publication, participant):
+            if publication.kind == rtc.TrackKind.KIND_AUDIO:
+                publication.set_subscribed(True)
+                logger.info(f"Subscribed to audio track from {participant.identity}")
+        
+        # Wait for participant before starting agent
+        participant = await ctx.wait_for_participant()
+        logger.info(f"Participant joined: {participant.identity}")
+        
+        # Try Realtime API first (preferred approach from guide)
+        try:
+            from livekit.plugins.openai import realtime
+            
+            session = AgentSession(
+                llm=realtime.RealtimeModel(
+                    model="gpt-4o-realtime-preview",
+                    voice=agent_config.get('voice_model', 'coral'),
+                    temperature=realtime_temp,
+                    instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.')
+                ),
+                allow_interruptions=True,
+                min_interruption_duration=0.5,
+                min_endpointing_delay=0.5,
+                max_endpointing_delay=6.0,
+            )
+            
+            # Start session
+            await session.start(room=ctx.room)
+            
+            # Generate initial greeting
+            await session.generate_reply(
+                instructions="Greet the user warmly and let them know you have access to web search and automation tools."
+            )
+            
+            logger.info("Voice agent started successfully with OpenAI Realtime API")
+            
+        except Exception as realtime_error:
+            logger.error(f"Realtime API failed: {realtime_error}")
+            
+            # Fallback to STT-LLM-TTS pipeline
+            logger.info("Falling back to STT-LLM-TTS pipeline...")
+            
+            # Convert temperature for standard LLM (0-2 range)
+            llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
+            
+            session = AgentSession(
+                vad=silero.VAD.load(),
+                stt=openai.STT(language="en"),
+                llm=openai.LLM(
+                    model="gpt-4o",
+                    temperature=llm_temp,
+                ),
+                tts=openai.TTS(voice=agent_config.get('voice_model', 'coral')),
+            )
+            
+            # Create agent with external tools
+            agent = Agent(
+                instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.'),
+                tools=[execute_web_search, execute_automation]
+            )
+            
+            # Start session with agent
+            await session.start(agent=agent, room=ctx.room)
+            
+            # Generate initial greeting
+            await session.generate_reply(
+                instructions="Greet the user warmly and let them know you have access to web search and automation tools."
+            )
+            
+            logger.info("Voice agent started successfully with STT-LLM-TTS fallback")
         
     except Exception as e:
-        logger.error(f"Failed to initialize OpenAI model: {e}")
+        logger.error(f"Failed to start voice agent: {e}")
         raise
-    
-    # Create and start the voice agent
-    try:
-        agent = VoicePipelineAgent(
-            vad=ctx.proc.userdata.get("vad"),
-            stt=openai.STT(),
-            llm=model,
-            tts=openai.TTS(),
-            fnc_ctx=fnc_ctx,
-        )
-        
-        # Connect to room and start processing
-        await ctx.connect()
-        agent.start(ctx.room)
-        
-        # Initial greeting
-        await agent.say("Hello! I'm your voice assistant with access to external tools. How can I help you today?")
-        
-        logger.info("Voice agent started successfully")
-        
-        # Keep the agent running
-        await asyncio.sleep(float('inf'))
-        
-    except Exception as e:
-        logger.error(f"Agent error: {e}")
-        raise
-    
-    finally:
-        # Cleanup
-        await webhook_executor.close_session()
-        logger.info("Voice agent session ended")
 
 if __name__ == "__main__":
-    # Configure worker options
-    worker_options = WorkerOptions(
-        entrypoint_fnc=entrypoint
-    )
-    
-    # Start the worker
-    cli.run_app(worker_options)
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
