@@ -43,9 +43,9 @@ const RESPONSE_LENGTHS = [
   { value: 'detailed', label: 'Detailed', description: 'Comprehensive responses' }
 ];
 
-interface DataSource {
+interface WebhookConfig {
   id: string;
-  type: 'mcp' | 'youtube' | 'website' | 'database';
+  type: 'webhook' | 'n8n' | 'zapier';
   name: string;
   url?: string;
   config: Record<string, any>;
@@ -61,8 +61,8 @@ interface DataSource {
 export default function Configuration() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("agent");
-  const [mcpServers, setMcpServers] = useState<DataSource[]>([]);
-  const [newMcpServer, setNewMcpServer] = useState({ name: '', url: '' });
+  const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfig[]>([]);
+  const [newWebhookConfig, setNewWebhookConfig] = useState({ name: '', url: '' });
   
   // Agent configuration state
   const [agentName, setAgentName] = useState("");
@@ -72,17 +72,14 @@ export default function Configuration() {
   const [responseLength, setResponseLength] = useState("moderate");
   const [temperature, setTemperature] = useState([70]);
   
-  // Data sources state (deprecated - using mcpServers instead)
-  const [dataSources, setDataSources] = useState<DataSource[]>([]);
-  
-  // Service connections state
+  // Service connections state  
   const [services, setServices] = useState<{
     basic: {
       livekit: { enabled: boolean; status: 'connected' | 'error' };
       openai: { enabled: boolean; status: 'connected' | 'error' };
     };
     extras: {
-      mcp: { enabled: boolean; status: 'disconnected' | 'connected' | 'error' };
+      'external-tools': { enabled: boolean; status: 'disconnected' | 'connected' | 'error' };
     };
   }>({
     basic: {
@@ -90,7 +87,7 @@ export default function Configuration() {
       openai: { enabled: true, status: 'connected' }
     },
     extras: {
-      mcp: { enabled: false, status: 'disconnected' }
+      'external-tools': { enabled: false, status: 'disconnected' }
     }
   });
 
@@ -103,12 +100,7 @@ export default function Configuration() {
     refetchInterval: 10000
   });
 
-  const { data: existingMcpServers, refetch: refetchMcpServers } = useQuery({
-    queryKey: ["/api/mcp/servers"],
-    staleTime: 0, // Always fetch fresh data
-    refetchOnMount: true,
-    refetchOnWindowFocus: true
-  });
+  // No longer needed - webhook configuration is environment-based
 
   // Initialize form with active agent data
   useEffect(() => {
@@ -533,8 +525,8 @@ Keep responses conversational, helpful, and engaging.`,
         <TabsContent value="datasources" className="space-y-6">
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Add MCP Server</CardTitle>
-              <CardDescription>Connect Model Context Protocol servers to extend your agent with external tools, APIs, and services</CardDescription>
+              <CardTitle>External Tool Configuration</CardTitle>
+              <CardDescription>Configure webhook endpoints for external tool integration (N8N, Zapier, etc.)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">

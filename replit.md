@@ -4,81 +4,54 @@
 
 An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime API, and Model Context Protocol (MCP) for intelligent, adaptive conversational experiences. The system provides real-time voice conversations with web search capabilities and extensible MCP server integration.
 
-## Recent Changes (January 25, 2025)
+## Recent Changes (January 26, 2025)
 
-### ✅ FINAL FIX: MCP Integration Working with HTTP Proxy Architecture
+### ✅ COMPLETE ARCHITECTURE PIVOT: Webhook-Based External Tool Integration
 
-**Critical Discovery (2:17 PM)**:
-- N8N and Zapier endpoints return 404/405 errors for MCP SSE protocol
-- These are HTTP API endpoints, not standard MCP SSE servers
-- Our backend HTTP proxy (working all along) successfully executes tools
-- Voice agent properly calls tools, but SSE connection failures were causing confusion
-
-**Root Cause Analysis**:
-- **Wrong Protocol**: N8N/Zapier use custom HTTP APIs, not MCP SSE standard
-- **Architecture Mismatch**: Attempted to force SSE protocol on HTTP-only endpoints  
-- **Working Solution**: Backend proxy correctly translates to N8N/Zapier HTTP APIs
-- **User Confirmation**: N8N workflows complete in 17 seconds (fast and working)
-
-**Final Implementation**:
-
-1. **Simplified MCP Client**: 
-   - Removed failed SSE connection attempts
-   - Direct HTTP proxy mode for N8N/Zapier compatibility
-   - Clean error handling and logging
-
-2. **Proven Architecture**:
-   - Voice Agent → HTTP Proxy → N8N/Zapier HTTP APIs
-   - 30-second timeouts (confirmed sufficient for 17s workflows)
-   - Robust error handling with detailed logging
-
-3. **Working Flow**:
-   - User speaks: "Search for Emerson company"  
-   - Agent calls: `execute_web_search("Emerson company")`
-   - HTTP proxy: Executes N8N workflow (17s completion)
-   - Agent receives: Search results for voice response
-
-### ✅ Current Status (January 26, 2025 - 12:25 PM)
-
-**UPDATE: Database-Driven MCP Integration Complete**
+**Major Decision (1:00 PM)**:
+- **Abandoned MCP Integration**: Completely removed complex MCP protocol handling
+- **Adopted Webhook Architecture**: Simple HTTP webhook calls for external tool execution
+- **Simplified Integration**: Voice Agent → N8N Webhook → Tool Results → Voice Response
 
 **Implementation Summary**:
-- ✅ **Database Configuration**: All MCP servers loaded from database on startup
-- ✅ **Dynamic URL Management**: Users can add/update/delete MCP servers via frontend
-- ✅ **MCPToolExecutor**: Uses backend proxy with database-configured URLs
-- ✅ **Server Detection**: Automatically finds N8N and Zapier servers by name
-- ✅ **Protocol Routing**: Backend routes N8N to SSE proxy, Zapier to direct webhook
-- ✅ **Error Handling**: Clear user-friendly messages when servers not configured
 
-**Architecture**:
+1. **Removed All MCP Code**:
+   - ✅ Archived MCP proxy files (`mcp_proxy.ts`, `test_direct_tools.py`)
+   - ✅ Cleaned up `server/routes.ts` - removed all MCP endpoints and imports
+   - ✅ Fixed application startup issues by eliminating MCP dependencies
+   - ✅ Created new `ExternalToolHandler` with webhook-based execution
+
+2. **New Webhook Architecture**:
+   - ✅ Simple HTTP POST to N8N webhook: `https://n8n.srv755489.hstgr.cloud/webhook/5942b551-121e-4c21-a765-5eaa10563c5a`
+   - ✅ Payload: `{ tool: "web_search", params: { query: "..." } }`
+   - ✅ Direct response handling with 30-second timeout
+   - ✅ Clean error handling and logging
+
+3. **New Voice Agent** (`agents/voice_agent_webhook.py`):
+   - ✅ **WebhookToolExecutor**: Direct webhook calls instead of MCP protocol
+   - ✅ **Database Configuration**: Loads agent config from PostgreSQL
+   - ✅ **External Functions**: `execute_web_search()` and `execute_automation()`
+   - ✅ **Error Handling**: Graceful fallbacks when webhook unavailable
+
+**Architecture Flow**:
 ```
-Database → Voice Agent → Function Tools → Backend Proxy → N8N/Zapier APIs
+Voice Input → OpenAI Realtime API → Function Tools → N8N Webhook → Results → Voice Output
 ```
 
-**Key Features**:
-- No hardcoded URLs - everything from database
-- Frontend can manage all MCP server configurations
-- Voice agent dynamically loads server configs on startup
-- Backend handles protocol differences transparently
+**Key Benefits**:
+- **Simplicity**: No complex protocol handling or session management
+- **Reliability**: Direct HTTP calls with standard error handling  
+- **Flexibility**: Any webhook-capable system can provide tools (N8N, Zapier, custom APIs)
+- **Performance**: Eliminates connection overhead and polling complexity
+- **Maintainability**: Standard HTTP patterns instead of experimental protocols
 
-**Current Status (January 26, 2025 - 12:40 PM)**:
-
-✅ **Major Breakthroughs**:
-- **SSE Connections Working**: N8N MCP proxy successfully establishes SSE connections
-- **Session Management**: Proper session endpoint retrieval and management
-- **JSON-RPC Protocol**: Correct MCP tool calls with proper request/response format
-- **Database Integration**: All servers loaded dynamically, no hardcoded URLs
-- **URL Validation**: Fixed Zapier URL format to standard `actions.zapier.com/mcp/[id]/sse`
-
-**Research Findings**:
-- **SSE Transport Deprecated**: As of MCP spec 2025-03-26, SSE deprecated in favor of Streamable HTTP
-- **Authentication**: N8N should use "None" authentication for testing
-- **Session Requirements**: Both services need session management but with different implementations
-
-**Remaining Issues**:
-- **N8N**: Polling logic connects but workflow results not found (may need MCP server configuration)
-- **Zapier**: Requires different session handling (`session_id` parameter format)
-- **Protocol Version**: Both services may need migration to newer MCP Streamable HTTP protocol
+**Current Status**:
+- ✅ Application running without MCP dependencies
+- ✅ External tool handler with webhook integration ready
+- ✅ New voice agent created with webhook tool execution
+- 🔄 **Next**: Update frontend UI to remove MCP configuration pages
+- 🔄 **Next**: Update database schema to remove MCP tables
+- 🔄 **Next**: Test voice agent with actual webhook calls
 
 ## Project Architecture
 
