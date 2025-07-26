@@ -200,7 +200,7 @@ class WebhookToolDiscovery {
       console.log('[Tool Discovery] Tools discovered:', JSON.stringify(toolData, null, 2));
       
       // Update any active agent configuration with available tools info
-      const activeAgent = await this.storage.getActiveAgentConfig();
+      const activeAgent = await this.storage.getActiveAgentConfig(1); // Default user ID
       if (activeAgent) {
         const updatedSettings = {
           ...activeAgent.settings,
@@ -245,10 +245,12 @@ class WebhookToolDiscovery {
    */
   async getDiscoveredTools(): Promise<AvailableTool[]> {
     try {
-      const activeAgent = await this.storage.getActiveAgentConfig();
+      const activeAgent = await this.storage.getActiveAgentConfig(1); // Default user ID
       if (activeAgent?.settings?.discoveredTools?.tools) {
+        console.log('[Tool Discovery] Retrieved tools from database:', activeAgent.settings.discoveredTools.tools);
         return activeAgent.settings.discoveredTools.tools;
       }
+      console.log('[Tool Discovery] No tools found in database');
       return [];
     } catch (error) {
       console.error('[Tool Discovery] Error getting discovered tools:', error);

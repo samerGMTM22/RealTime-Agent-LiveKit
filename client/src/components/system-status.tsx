@@ -6,7 +6,6 @@ interface SystemStatusProps {
   status?: {
     livekit: string;
     openai: string;
-    mcp: string;
     latency: string;
     timestamp: string;
   };
@@ -101,23 +100,7 @@ export default function SystemStatus({ status }: SystemStatusProps) {
               </div>
             </div>
             
-            {/* MCP Servers */}
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-300">MCP Servers</span>
-              <div className="flex items-center space-x-2">
-                <div className={cn(
-                  "w-2 h-2 rounded-full animate-pulse",
-                  getStatusColor(status.mcp).split(' ')[1]
-                )}></div>
-                <span className={cn(
-                  "text-sm font-medium",
-                  getStatusColor(status.mcp).split(' ')[0]
-                )}>
-                  {getStatusLabel(status.mcp)}
-                </span>
-              </div>
-            </div>
-            
+
             {/* Audio Latency */}
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-300">Audio Latency</span>
