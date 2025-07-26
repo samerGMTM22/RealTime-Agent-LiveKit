@@ -25,6 +25,7 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 
 **Previous Updates (2:00-2:30 PM)**:
 - **Language Selector Added**: Multi-language support with English as default
+- **English-First Voice Agent**: Voice agent configured to always respond in English unless user specifically requests another language
 - **Complete MCP Reference Cleanup**: Replaced all "MCP" mentions with "External Tools" in UI
 - **Database Schema Updates**: Added language, openaiModel, and liverkitRoomName fields
 - **Manual Webhook Testing**: Added `/api/external-tools/manual-test` endpoint for connectivity verification
@@ -99,6 +100,7 @@ Voice Input → OpenAI Realtime API → Function Tools → N8N Webhook → Resul
 - ✅ Voice agent ready for production use with external tool capabilities
 - ✅ **PRODUCTION READY**: Natural language processing, extended timeouts, English defaults
 - ✅ **USER CONFIRMED**: System working perfectly with successful web search and email automation
+- ✅ **ENGLISH-FIRST CONFIGURATION**: Voice agent defaults to English responses unless user specifies otherwise
 
 ## Project Architecture
 
@@ -112,11 +114,12 @@ Voice Input → OpenAI Realtime API → Function Tools → N8N Webhook → Resul
 
 ### Key Components
 
-#### Voice Agent (`agents/voice_agent_realtime.py`)
-- Pure OpenAI Realtime API integration (no STT-LLM-TTS fallback)
-- Database configuration fetching
-- MCP web search integration with result polling
+#### Voice Agent (`agents/voice_agent_webhook.py`)
+- OpenAI Realtime API integration with STT-LLM-TTS fallback
+- Database configuration fetching with English-first defaults
+- External tool integration via N8N webhook architecture
 - Proper LiveKit room audio subscription and bidirectional flow
+- **English Language Priority**: Always responds in English unless user requests another language
 
 #### Backend API (`server/`)
 - LiveKit room and token management
