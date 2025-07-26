@@ -79,13 +79,42 @@ class WebhookToolExecutor:
                 ) as response:
                     
                     if response.status == 200:
-                        result = await response.json()
-                        logger.info(f"Webhook call successful for {tool_name}")
-                        return {
-                            'success': True,
-                            'result': result.get('result', 'Tool executed successfully'),
-                            'tool': tool_name
-                        }
+                        try:
+                            response_text = await response.text()
+                            logger.info(f"Webhook response for {tool_name}: {response_text}")
+                            
+                            # Handle empty responses gracefully
+                            if not response_text or response_text.strip() == '':
+                                logger.info(f"Webhook call successful for {tool_name} (empty response)")
+                                return {
+                                    'success': True,
+                                    'result': 'Tool executed successfully',
+                                    'tool': tool_name
+                                }
+                            
+                            # Try to parse as JSON
+                            try:
+                                result = json.loads(response_text)
+                                return {
+                                    'success': True,
+                                    'result': result.get('result', result),
+                                    'tool': tool_name
+                                }
+                            except json.JSONDecodeError:
+                                # Return text response if not valid JSON
+                                return {
+                                    'success': True,
+                                    'result': response_text,
+                                    'tool': tool_name
+                                }
+                                
+                        except Exception as e:
+                            logger.error(f"Error processing webhook response for {tool_name}: {e}")
+                            return {
+                                'success': True,  # Still consider success if we got 200
+                                'result': 'Tool executed but response processing failed',
+                                'tool': tool_name
+                            }
                     else:
                         error_text = await response.text()
                         logger.error(f"Webhook call failed: {response.status} - {error_text}")

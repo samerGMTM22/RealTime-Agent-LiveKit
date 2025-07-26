@@ -46,9 +46,23 @@ class ExternalToolHandler {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        console.log(`External tool '${tool}' completed successfully`);
-        return { success: true, result };
+        const responseText = await response.text();
+        console.log(`External tool '${tool}' response:`, responseText);
+        
+        // Handle empty responses gracefully
+        if (!responseText || responseText.trim() === '') {
+          console.log(`External tool '${tool}' completed with empty response`);
+          return { success: true, result: 'Tool executed successfully' };
+        }
+        
+        try {
+          const result = JSON.parse(responseText);
+          console.log(`External tool '${tool}' completed successfully`);
+          return { success: true, result };
+        } catch (parseError) {
+          console.log(`External tool '${tool}' completed with text response:`, responseText);
+          return { success: true, result: responseText };
+        }
       } else {
         const errorText = await response.text();
         console.error(`External tool '${tool}' failed: ${response.status} ${errorText}`);
@@ -536,7 +550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const status = {
         livekit: 'online',
         openai: 'connected',
-        externalTools: 'ready',
+        externalTools: 'connected',
         latency: '45ms',
         timestamp: new Date().toISOString()
       };
