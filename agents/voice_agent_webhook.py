@@ -61,11 +61,10 @@ class WebhookToolExecutor:
         try:
             await self.init_session()
             
-            # Prepare webhook payload
+            # Prepare webhook payload - simplified format for N8N
             payload = {
                 'tool': tool_name,
-                'params': params,
-                'timestamp': asyncio.get_event_loop().time()
+                **params  # Flatten params directly into the payload  
             }
             
             logger.info(f"Calling external webhook for tool: {tool_name}")

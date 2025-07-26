@@ -40,9 +40,7 @@ class ExternalToolHandler {
         },
         body: JSON.stringify({
           tool,
-          parameters: params,
-          timestamp: new Date().toISOString(),
-          requestId: `ext_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          ...params  // Flatten params directly into the payload
         }),
         signal: AbortSignal.timeout(30000) // 30 second timeout
       });
