@@ -123,6 +123,31 @@ export default function Configuration() {
     refetchInterval: 10000
   });
 
+  // Query for discovered external tools
+  const { data: discoveredTools, refetch: refetchDiscoveredTools } = useQuery({
+    queryKey: ["/api/external-tools/discovered"],
+    refetchInterval: 30000 // Refresh every 30 seconds
+  });
+
+  // Mutation for triggering manual discovery
+  const triggerDiscoveryMutation = useMutation({
+    mutationFn: () => apiRequest('/api/external-tools/discover', { method: 'POST' }),
+    onSuccess: () => {
+      refetchDiscoveredTools();
+      toast({
+        title: "Tool Discovery",
+        description: "External tools have been refreshed successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Discovery Failed", 
+        description: "Failed to refresh external tools",
+        variant: "destructive"
+      });
+    }
+  });
+
   // No longer needed - webhook configuration is environment-based
 
   // Initialize form with active agent data
@@ -579,8 +604,8 @@ Keep responses conversational, helpful, and engaging.`,
                       <div className="flex-1">
                         <h4 className="font-medium text-purple-400 mb-2">3. Tool Discovery</h4>
                         <p className="text-sm text-purple-200/80">
-                          The system automatically discovers available tools from configured webhooks every 5 minutes. 
-                          Tools are registered dynamically and made available to the voice agent.
+                          The system automatically discovers available tools at the start of each interaction. 
+                          Tools are registered dynamically and made available to the voice agent immediately.
                         </p>
                       </div>
                     </div>
@@ -618,7 +643,7 @@ Keep responses conversational, helpful, and engaging.`,
                     <div>
                       <h3 className="font-medium">Webhook System</h3>
                       <p className="text-sm text-gray-400">Background tool discovery & execution</p>
-                      <p className="text-xs text-gray-500 mt-1">Updates database every 5 minutes automatically</p>
+                      <p className="text-xs text-gray-500 mt-1">Updates automatically at interaction start + background refresh</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -631,46 +656,65 @@ Keep responses conversational, helpful, and engaging.`,
 
                 {/* Discovered Tools */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-gray-300">Discovered Tools</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-300">Discovered Tools</h4>
+                    <div className="flex items-center space-x-2">
+                      {discoveredTools?.lastDiscovery && (
+                        <span className="text-xs text-gray-500">
+                          Last: {new Date(discoveredTools.lastDiscovery).toLocaleTimeString()}
+                        </span>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => triggerDiscoveryMutation.mutate()}
+                        disabled={triggerDiscoveryMutation.isPending}
+                        className="h-6 px-2 text-xs"
+                      >
+                        {triggerDiscoveryMutation.isPending ? "Refreshing..." : "Refresh"}
+                      </Button>
+                    </div>
+                  </div>
                   
-                  {services.extras['external-tools'].status === 'connected' ? (
+                  {discoveredTools?.tools && discoveredTools.tools.length > 0 ? (
                     <div className="grid gap-3">
-                      <div className="p-3 border border-green-500/30 rounded-lg bg-green-500/5">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-1.5 bg-green-500/20 rounded">
-                            <Search className="h-3 w-3 text-green-400" />
+                      {discoveredTools.tools.map((tool: any, index: number) => (
+                        <div key={index} className="p-3 border border-green-500/30 rounded-lg bg-green-500/5">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-1.5 bg-green-500/20 rounded">
+                              {tool.category === 'search' ? (
+                                <Search className="h-3 w-3 text-green-400" />
+                              ) : tool.category === 'automation' ? (
+                                <Zap className="h-3 w-3 text-green-400" />
+                              ) : (
+                                <Settings className="h-3 w-3 text-green-400" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <h5 className="text-sm font-medium">{tool.name}</h5>
+                              <p className="text-xs text-gray-400">{tool.description}</p>
+                            </div>
+                            <Badge variant="outline" className="border-green-500/50 text-green-400 text-xs">
+                              Available
+                            </Badge>
                           </div>
-                          <div className="flex-1">
-                            <h5 className="text-sm font-medium">Web Search</h5>
-                            <p className="text-xs text-gray-400">Search the internet for current information</p>
-                          </div>
-                          <Badge variant="outline" className="border-green-500/50 text-green-400 text-xs">
-                            Available
-                          </Badge>
                         </div>
-                      </div>
-                      
-                      <div className="p-3 border border-blue-500/30 rounded-lg bg-blue-500/5">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-1.5 bg-blue-500/20 rounded">
-                            <Zap className="h-3 w-3 text-blue-400" />
-                          </div>
-                          <div className="flex-1">
-                            <h5 className="text-sm font-medium">Automation</h5>
-                            <p className="text-xs text-gray-400">Trigger workflows and automations</p>
-                          </div>
-                          <Badge variant="outline" className="border-blue-500/50 text-blue-400 text-xs">
-                            Available
-                          </Badge>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-center py-6 text-gray-400">
                       <div className="space-y-2">
                         <Settings className="h-8 w-8 mx-auto text-gray-500" />
-                        <p className="text-sm">No tools discovered</p>
-                        <p className="text-xs">Configure N8N_WEBHOOK_URL to enable tool discovery</p>
+                        <p className="text-sm">
+                          {services.extras['external-tools'].status === 'connected' 
+                            ? "No tools discovered yet" 
+                            : "External tools not configured"}
+                        </p>
+                        <p className="text-xs">
+                          {services.extras['external-tools'].status === 'connected' 
+                            ? "Click Refresh to discover available tools" 
+                            : "Configure N8N_WEBHOOK_URL to enable tool discovery"}
+                        </p>
                       </div>
                     </div>
                   )}

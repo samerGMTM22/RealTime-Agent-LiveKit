@@ -225,6 +225,22 @@ class WebhookToolDiscovery {
   }
 
   /**
+   * Force update tools in database (public method for API use)
+   */
+  async forceUpdateTools(tools: AvailableTool[]): Promise<void> {
+    console.log('[Tool Discovery] Force updating tools in database');
+    await this.updateToolsInDatabase(tools);
+  }
+
+  /**
+   * Trigger discovery at interaction start (room join)
+   */
+  async triggerDiscoveryOnInteraction(): Promise<void> {
+    console.log('[Tool Discovery] Triggering discovery for new interaction');
+    await this.discoverAndUpdateTools();
+  }
+
+  /**
    * Get last discovered tools from database
    */
   async getDiscoveredTools(): Promise<AvailableTool[]> {

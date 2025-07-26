@@ -308,10 +308,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate access token for the user
       const token = await liveKitService.createAccessToken(roomName, 'user');
 
-      // Start AI agent for this room
+      // Start AI agent for this room and trigger tool discovery
       try {
         await startAIAgent(roomName);
         console.log(`AI agent started for room: ${roomName}`);
+        
+        // Trigger tool discovery at interaction start
+        setTimeout(async () => {
+          try {
+            await webhookToolDiscovery.triggerDiscoveryOnInteraction();
+          } catch (discoveryError) {
+            console.error('Error triggering discovery on interaction:', discoveryError);
+          }
+        }, 2000); // 2 second delay to let agent settle
+        
       } catch (agentError) {
         console.error(`Error starting AI agent: ${agentError}`);
         // Continue without agent - room still usable
@@ -529,14 +539,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/external-tools/discovered", async (req, res) => {
     try {
-      const tools = await webhookToolDiscovery.getDiscoveredTools();
-      res.json({ tools });
+      const discoveredTools = await webhookToolDiscovery.getDiscoveredTools();
+      const activeAgent = await storage.getActiveAgentConfig(1); // Default user
+      
+      res.json({
+        tools: discoveredTools,
+        lastDiscovery: (activeAgent?.settings as any)?.discoveredTools?.discoveredAt || null,
+        webhookUrl: (activeAgent?.settings as any)?.discoveredTools?.webhookUrl || null,
+        count: discoveredTools.length,
+        status: discoveredTools.length > 0 ? 'connected' : 'disconnected'
+      });
     } catch (error: any) {
       console.error('Error getting discovered tools:', error);
       res.status(500).json({ 
         success: false, 
         error: error.message || 'Failed to get discovered tools' 
       });
+    }
+  });
+
+  // Trigger manual tool discovery
+  app.post("/api/external-tools/discover", async (req, res) => {
+    try {
+      console.log("Manual tool discovery triggered");
+      const result = await webhookToolDiscovery.testDiscovery();
+      
+      if (result.success && result.availableTools) {
+        // Force update database
+        await webhookToolDiscovery.forceUpdateTools(result.availableTools);
+        
+        res.json({
+          success: true,
+          tools: result.availableTools,
+          count: result.availableTools.length,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.json({
+          success: false,
+          error: result.error || 'Discovery failed',
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error: any) {
+      console.error("Manual discovery error:", error);
+      res.status(500).json({ error: error.message || "Manual discovery failed" });
     }
   });
 

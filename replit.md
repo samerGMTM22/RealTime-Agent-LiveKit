@@ -13,7 +13,17 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 - **Adopted Webhook Architecture**: Simple HTTP webhook calls for external tool execution
 - **Simplified Integration**: Voice Agent → N8N Webhook → Tool Results → Voice Response
 
-**Latest Updates (2:00-2:30 PM)**:
+**Latest Updates (3:30-3:40 PM - January 26, 2025)**:
+- **Interaction-Based Tool Discovery**: Tool discovery now triggers automatically at start of each voice interaction instead of 5-minute intervals
+- **Real Database Integration**: Frontend now displays actual discovered tools from database instead of hardcoded values
+- **Enhanced API Endpoints**: Added `/api/external-tools/discovered` with full discovery metadata and `/api/external-tools/discover` for manual triggers
+- **Dynamic Tool Display**: UI shows real tool names, descriptions, and categories from webhook responses
+- **Manual Refresh Control**: Users can manually trigger tool discovery with refresh button showing last discovery time
+- **Improved User Experience**: Updated all text references from "every 5 minutes" to "at interaction start + background refresh"
+- **Database Tool Storage**: Tools stored in agent settings under `discoveredTools` with timestamps and webhook URL tracking
+- **Interactive Tool Management**: Real-time tool status updates with proper loading states and error handling
+
+**Previous Updates (2:00-2:30 PM)**:
 - **Language Selector Added**: Multi-language support with English as default
 - **Complete MCP Reference Cleanup**: Replaced all "MCP" mentions with "External Tools" in UI
 - **Database Schema Updates**: Added language, openaiModel, and liverkitRoomName fields
@@ -56,11 +66,12 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
    - Added environment variable configuration instructions
    - Replaced MCP server management with webhook tool discovery
 
-5. **✅ AUTOMATIC TOOL DISCOVERY SYSTEM**:
-   - Created `WebhookToolDiscovery` class with background parallel processing
-   - Automatic tool discovery on server startup (every 5 minutes)
-   - External tools endpoints: `/api/external-tools/test-webhook`, `/api/external-tools/discovered`
-   - Database integration for discovered tool storage
+5. **✅ INTERACTION-BASED TOOL DISCOVERY SYSTEM**:
+   - Created `WebhookToolDiscovery` class with interaction-triggered discovery
+   - Automatic tool discovery at start of each voice interaction (room join)
+   - External tools endpoints: `/api/external-tools/test-webhook`, `/api/external-tools/discovered`, `/api/external-tools/discover`
+   - Real-time database integration with tool metadata storage
+   - Manual refresh capabilities with timestamp tracking
 
 **Architecture Flow**:
 ```
