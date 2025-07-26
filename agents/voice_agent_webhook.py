@@ -130,7 +130,7 @@ class DatabaseConfig:
                 # Get active agent configuration
                 query = """
                 SELECT id, name, system_prompt, voice_model, temperature, 
-                       max_tokens, openai_model, livekit_room_name
+                       openai_model, livekit_room_name
                 FROM agent_configs 
                 WHERE id = $1 AND is_active = true
                 LIMIT 1
@@ -145,7 +145,6 @@ class DatabaseConfig:
                         'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational.',
                         'voice_model': 'coral',
                         'temperature': 80,
-                        'max_tokens': 4096,
                         'openai_model': 'gpt-4o',
                         'livekit_room_name': 'default'
                     }
@@ -156,7 +155,6 @@ class DatabaseConfig:
                     'system_prompt': row['system_prompt'],
                     'voice_model': row['voice_model'],
                     'temperature': row['temperature'],
-                    'max_tokens': row['max_tokens'],
                     'openai_model': row['openai_model'],
                     'livekit_room_name': row['livekit_room_name']
                 }
@@ -173,7 +171,6 @@ class DatabaseConfig:
                 'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational.',
                 'voice_model': 'coral',
                 'temperature': 80,
-                'max_tokens': 4096,
                 'openai_model': 'gpt-4o',
                 'livekit_room_name': 'default'
             }
@@ -253,14 +250,7 @@ async def entrypoint(ctx: JobContext):
         try:
             from livekit.plugins.openai import realtime
             
-            # Create agent with external tools for Realtime API
-            agent = Agent(
-                instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.'),
-                tools=[execute_web_search, execute_automation]
-            )
-            
             session = AgentSession(
-                agent=agent,
                 llm=realtime.RealtimeModel(
                     model="gpt-4o-realtime-preview",
                     voice=agent_config.get('voice_model', 'coral'),
@@ -272,8 +262,14 @@ async def entrypoint(ctx: JobContext):
                 max_endpointing_delay=6.0,
             )
             
-            # Start session
-            await session.start(room=ctx.room)
+            # Create agent with external tools for Realtime API
+            agent = Agent(
+                instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.'),
+                tools=[execute_web_search, execute_automation]
+            )
+            
+            # Start session with agent
+            await session.start(room=ctx.room, agent=agent)
             
             # Generate initial greeting
             await session.generate_reply(
@@ -291,14 +287,7 @@ async def entrypoint(ctx: JobContext):
             # Convert temperature for standard LLM (0-2 range)
             llm_temp = min(2.0, float(temp_raw) / 100.0 * 2.0)
             
-            # Create agent with external tools
-            agent = Agent(
-                instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.'),
-                tools=[execute_web_search, execute_automation]
-            )
-            
             session = AgentSession(
-                agent=agent,
                 vad=silero.VAD.load(),
                 stt=openai.STT(language="en"),
                 llm=openai.LLM(
@@ -312,8 +301,14 @@ async def entrypoint(ctx: JobContext):
                 max_endpointing_delay=6.0,
             )
             
-            # Start session
-            await session.start(room=ctx.room)
+            # Create agent with external tools
+            agent = Agent(
+                instructions=agent_config.get('system_prompt', 'You are a helpful voice assistant with access to external tools.'),
+                tools=[execute_web_search, execute_automation]
+            )
+            
+            # Start session with agent
+            await session.start(room=ctx.room, agent=agent)
             
             # Generate initial greeting
             await session.generate_reply(
