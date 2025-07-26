@@ -182,7 +182,7 @@ class DatabaseConfig:
                     return {
                         'id': 1,
                         'name': 'Default Voice Agent',
-                        'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Always respond in English unless specifically asked to use another language.',
+                        'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Always respond in English unless specifically asked to use another language.if asked to use sensitive information like email or other confirm that you got right from user before using in any task',
                         'voice_model': 'coral',
                         'temperature': 80,
                         'language': 'en',
