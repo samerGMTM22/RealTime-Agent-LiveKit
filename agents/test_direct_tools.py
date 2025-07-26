@@ -4,18 +4,21 @@ import asyncio
 import sys
 sys.path.append('.')
 
-from voice_agent_direct_tools import execute_web_search, send_email
+from voice_agent_direct_tools import search_web, send_email, load_mcp_servers
 
 async def test_tools():
     """Test the direct HTTP tools"""
-    print("🧪 Testing Direct HTTP Tools")
+    # Load MCP server configurations first
+    await load_mcp_servers()
+    
+    print("🧪 Testing Direct HTTP Tools with Database Configuration")
     print("=" * 50)
     
     # Test web search
     print("\n1. Testing N8N Web Search Tool:")
     try:
-        result = await execute_web_search("test query")
-        print(f"✅ Web search result: {result[:100]}...")
+        result = await search_web("test query")
+        print(f"✅ Web search result: {result[:200]}...")
     except Exception as e:
         print(f"❌ Web search error: {e}")
     

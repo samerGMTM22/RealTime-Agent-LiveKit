@@ -533,8 +533,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const serverConfig = server;
       console.log(`Processing MCP request for server: ${serverConfig.name}`);
       
-      // Check if this is an N8N server based on protocol type or URL pattern
-      if (serverConfig.protocolType === 'sse' || serverConfig.url.includes('n8n')) {
+      // Check server type and route accordingly
+      if (serverConfig.url.includes('n8n')) {
         // Use enhanced proxy with polling for N8N servers
         console.log(`Using enhanced N8N proxy with result polling for tool: ${tool}`);
         
@@ -550,8 +550,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         return res.json(result);
+      } else if (serverConfig.url.includes('zapier.com')) {
+        // Zapier uses direct webhook format, not JSON-RPC
+        console.log(`Using direct webhook call for Zapier`);
+        
+        // Extract the actual webhook URL (remove /sse suffix if present)
+        const webhookUrl = serverConfig.url.replace(/\/sse$/, '');
+        
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(serverConfig.apiKey ? { 'Authorization': `Bearer ${serverConfig.apiKey}` } : {})
+          },
+          body: JSON.stringify(params) // Send params directly, not wrapped in JSON-RPC
+        });
+        
+        const responseText = await response.text();
+        
+        if (response.ok) {
+          // Try to parse JSON response, fallback to text
+          try {
+            const data = JSON.parse(responseText);
+            return res.json({ success: true, result: data });
+          } catch {
+            return res.json({ success: true, result: responseText });
+          }
+        } else {
+          return res.json({ success: false, error: `Zapier webhook error: ${response.status} ${responseText}` });
+        }
       } else {
-        // For other server types, use standard HTTP call (can be enhanced later)
+        // For other server types, use standard HTTP call
         console.log(`Using standard HTTP call for server type: ${serverConfig.protocolType}`);
         
         const response = await fetch(serverConfig.url, {

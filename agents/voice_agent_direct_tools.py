@@ -51,97 +51,132 @@ setup_logging()
 logger = logging.getLogger("voice-agent-direct-tools")
 load_dotenv()
 
-# Configure URLs from environment or defaults
-N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "https://n8n.srv755489.hstgr.cloud/mcp/43a3ec6f-728e-489b-9456-45f9d41750b7")
-ZAPIER_MCP_URL = os.environ.get("ZAPIER_MCP_URL", "https://mcp.zapier.com/api/mcp/s/MDRmNjkzMDUtYzI0NS00Y2FlLTgzODQtNzU5ZmRjMjViNDI1OmU3ZWQ4YWJjLTIxNDEtNDI5OC1iNTBiLWRlYWUxMjkxYWRkMw==")
+# Test MCP backend connectivity
+try:
+    test_response = requests.get("http://localhost:5000/api/mcp/health", timeout=5)
+    if test_response.status_code == 200:
+        logger.info("✅ MCP backend is available")
+    else:
+        logger.warning("⚠️ MCP backend responded but may have issues")
+except Exception as e:
+    logger.error(f"❌ MCP backend not available: {e}")
 
-# Define function tools directly
-@function_tool
-async def execute_web_search(query: str = "") -> str:
-    """
-    Executes a web search using N8N workflow via MCP proxy.
-    Use this tool to search the internet for current information, news, or research.
-    Provide a search query as the 'query' parameter.
-    """
-    logger.info(f"Executing N8N web search with query: {query}")
+# Global server configurations (loaded once on startup)
+MCP_SERVERS = {}
 
+async def load_mcp_servers():
+    """Load MCP server configurations from database"""
     try:
-        # Use MCP proxy endpoint which handles N8N SSE protocol
         async with aiohttp.ClientSession() as session:
-            # First, get the N8N server ID from MCP servers list
             async with session.get("http://localhost:5000/api/mcp/servers") as resp:
-                servers = await resp.json()
-                n8n_server = next((s for s in servers if 'n8n' in s.get('name', '').lower() or 'n8n' in s.get('url', '')), None)
-                
-                if not n8n_server:
-                    logger.error("N8N MCP server not found in database")
-                    return "I need to configure the N8N server first. Please set it up in the dashboard."
-            
-            # Execute via MCP proxy with proper serverId
-            async with session.post(
-                "http://localhost:5000/api/mcp/execute",
-                json={
-                    "serverId": n8n_server['id'],
-                    "tool": "search",
-                    "params": {"query": query}
-                },
-                headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=35)  # Allow for 30s execution + overhead
-            ) as response:
-                result = await response.json()
-                
-                if result.get('success'):
-                    content = result.get('result', 'Search completed')
-                    logger.info(f"N8N search completed successfully")
-                    return content
+                if resp.status == 200:
+                    servers = await resp.json()
+                    for server in servers:
+                        MCP_SERVERS[server['id']] = server
+                    logger.info(f"✅ Loaded {len(MCP_SERVERS)} MCP servers from database")
                 else:
-                    error_msg = result.get('error', 'Unknown error')
-                    logger.error(f"N8N search failed: {error_msg}")
-                    return f"I encountered an error while searching: {error_msg}"
-                    
+                    logger.error(f"Failed to load MCP servers: HTTP {resp.status}")
     except Exception as e:
-        logger.error(f"An unexpected error occurred in N8N tool: {e}")
-        return "I encountered an unexpected error while searching. Let me help with what I know instead."
+        logger.error(f"Error loading MCP servers: {e}")
+
+# Add MCP Tool Executor class
+class MCPToolExecutor:
+    """Handles direct HTTP execution using database-configured URLs"""
+    
+    @staticmethod
+    async def execute_tool(server_id: int, tool_name: str, params: dict) -> dict:
+        """Execute tool via backend MCP proxy using database configuration"""
+        try:
+            # Use the backend MCP proxy which handles the actual execution
+            payload = {
+                "serverId": server_id,
+                "tool": tool_name,
+                "params": params
+            }
+            
+            logger.info(f"🔧 Executing {tool_name} on server {server_id} via MCP proxy")
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "http://localhost:5000/api/mcp/execute",
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=aiohttp.ClientTimeout(total=35)
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data.get("success"):
+                            result_content = data.get("result", "")
+                            logger.info(f"✅ Tool {tool_name} succeeded")
+                            return {"success": True, "content": result_content}
+                        else:
+                            error_msg = data.get("error", "Unknown error")
+                            logger.error(f"❌ Tool {tool_name} failed: {error_msg}")
+                            return {"success": False, "error": error_msg}
+                    else:
+                        error_text = await response.text()
+                        return {"success": False, "error": f"HTTP {response.status}: {error_text}"}
+                        
+        except Exception as e:
+            logger.error(f"Tool execution exception: {e}")
+            return {"success": False, "error": str(e)}
+
+# Define function tools with database-driven configuration
+@function_tool
+async def search_web(query: str) -> str:
+    """Search the web for current information."""
+    logger.info(f"🔍 Web search requested: {query}")
+    
+    # Find N8N server from loaded configurations
+    n8n_server = next((s for s in MCP_SERVERS.values() if 'n8n' in s.get('name', '').lower() or 'n8n' in s.get('url', '')), None)
+    
+    if not n8n_server:
+        logger.error("N8N server not found in database")
+        return "I need to configure the N8N server first. Please set it up in the dashboard."
+    
+    result = await MCPToolExecutor.execute_tool(
+        server_id=n8n_server['id'],
+        tool_name="search",  # Using standard tool name
+        params={"query": query}
+    )
+    
+    if result["success"]:
+        content = result.get("content", "")
+        if content:
+            return f"Here's what I found about '{query}':\n\n{content}"
+        else:
+            return f"I searched for '{query}' but didn't find specific results."
+    else:
+        return f"I couldn't search for '{query}' right now due to: {result.get('error', 'unknown error')}"
 
 @function_tool
-async def send_email(to: str = "", subject: str = "", body: str = "") -> str:
-    """
-    Sends an email using Zapier integration via MCP proxy.
-    Use this tool to send emails to users or contacts.
-    Provide 'to' (recipient email), 'subject', and 'body' parameters.
-    """
-    logger.info(f"Sending email via Zapier to: {to}")
-
-    try:
-        # Use MCP proxy endpoint which handles Zapier SSE protocol
-        async with aiohttp.ClientSession() as session:
-            # Execute via MCP proxy with Zapier server ID (18)
-            async with session.post(
-                "http://localhost:5000/api/mcp/execute",
-                json={
-                    "serverId": 18,  # Zapier MCP server ID
-                    "tool": "send_email",
-                    "params": {"to": to, "subject": subject, "body": body}
-                },
-                headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=35)  # Allow for 30s execution + overhead
-            ) as response:
-                result = await response.json()
-                
-                if result.get('success'):
-                    logger.info(f"Zapier email sent successfully")
-                    return f"Email sent successfully to {to}"
-                else:
-                    error_msg = result.get('error', 'Unknown error')
-                    logger.error(f"Zapier email failed: {error_msg}")
-                    return f"I encountered an error while sending the email: {error_msg}"
-                    
-    except Exception as e:
-        logger.error(f"An unexpected error occurred in Zapier tool: {e}")
-        return "I encountered an unexpected error while sending the email."
+async def send_email(to: str, subject: str, body: str) -> str:
+    """Send an email using Zapier."""
+    logger.info(f"📧 Email send requested to: {to}")
+    
+    # Find Zapier server from loaded configurations
+    zapier_server = next((s for s in MCP_SERVERS.values() if 'zapier' in s.get('name', '').lower()), None)
+    
+    if not zapier_server:
+        logger.error("Zapier server not found in database")
+        return "I need to configure the Zapier server first. Please set it up in the dashboard."
+    
+    result = await MCPToolExecutor.execute_tool(
+        server_id=zapier_server['id'],
+        tool_name="send_email",
+        params={"to": to, "subject": subject, "body": body}
+    )
+    
+    if result["success"]:
+        return f"✅ Email sent successfully to {to}!"
+    else:
+        return f"❌ Failed to send email to {to}: {result.get('error', 'unknown error')}"
 
 async def entrypoint(ctx: JobContext):
     """Main entry point for the voice agent with direct tool integration."""
+    
+    # 0. Load MCP server configurations from database
+    await load_mcp_servers()
     
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     logger.info(f"Connecting to room: {ctx.room.name}")
@@ -171,7 +206,7 @@ async def entrypoint(ctx: JobContext):
     # 4. Create Agent with instructions and tools
     agent = Agent(
         instructions=config.get("systemPrompt", "You are a helpful voice assistant with web search and email capabilities."),
-        tools=[execute_web_search, send_email]  # Register our function tools directly
+        tools=[search_web, send_email]  # Register our function tools directly
     )
     
     # 5. Create session with STT-LLM-TTS pipeline
