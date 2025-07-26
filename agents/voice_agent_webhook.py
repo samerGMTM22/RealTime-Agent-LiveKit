@@ -81,8 +81,8 @@ class WebhookToolExecutor:
             
             logger.info(f"Calling external webhook for tool: {tool_name}")
             
-            # Make webhook request with timeout  
-            timeout = aiohttp.ClientTimeout(total=30)
+            # Make webhook request with extended timeout for reliable responses
+            timeout = aiohttp.ClientTimeout(total=45)  # 45 second timeout for webhook processing
             if self.session:
                 async with self.session.post(
                     self.webhook_url,
@@ -182,7 +182,7 @@ class DatabaseConfig:
                     return {
                         'id': 1,
                         'name': 'Default Voice Agent',
-                        'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Respond in English.',
+                        'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Always respond in English unless specifically asked to use another language.',
                         'voice_model': 'coral',
                         'temperature': 80,
                         'language': 'en',
@@ -210,7 +210,7 @@ class DatabaseConfig:
             return {
                 'id': 1,
                 'name': 'Default Voice Agent',
-                'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Respond in English.',
+                'system_prompt': 'You are a helpful voice assistant with access to external tools. Be concise and conversational. Always respond in English unless specifically asked to use another language.',
                 'voice_model': 'coral',
                 'temperature': 80,
                 'language': 'en',

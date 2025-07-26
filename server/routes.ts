@@ -46,7 +46,7 @@ class ExternalToolHandler {
             ? `Use automation tools to handle this request: ${params.query || params.message}. If it involves email, include appropriate subject, body, and recipient details.`
             : `Use available tools to help with: ${params.query || params.message}. Provide a helpful and conversational response.`
         }),
-        signal: AbortSignal.timeout(30000) // 30 second timeout
+        signal: AbortSignal.timeout(45000) // 45 second timeout for reliable webhook processing
       });
 
       if (response.ok) {
