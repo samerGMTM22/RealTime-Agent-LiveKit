@@ -61,9 +61,18 @@ class WebhookToolExecutor:
         try:
             await self.init_session()
             
-            # Prepare webhook payload - simplified AI-friendly format for N8N
+            # Prepare webhook payload - natural language format for AI
+            # Use the actual user query/context for more meaningful requests
             user_request = params.get('query') or params.get('message') or f"Execute {tool_name} tool"
-            system_request = f"Process this {tool_name} request and provide a helpful response. Keep responses concise and conversational."
+            
+            # Create contextual system instructions based on tool type
+            if tool_name == 'web_search':
+                system_request = f"Use internet search to find information about: {user_request}. Provide a comprehensive but conversational response suitable for voice."
+            elif tool_name == 'automation':
+                # Extract email context if available
+                system_request = f"Use automation tools to handle this request: {user_request}. If it involves email, include appropriate subject, body, and recipient details."
+            else:
+                system_request = f"Use available tools to help with: {user_request}. Provide a helpful and conversational response."
             
             payload = {
                 "user request": user_request,
@@ -217,34 +226,35 @@ async def execute_web_search(query: str) -> str:
     """Search the internet for current information"""
     logger.info(f"Executing web search: {query}")
     
+    # Pass the natural language query directly - more contextual for AI webhook
     result = await webhook_executor.execute_external_tool('web_search', {
-        'query': query
+        'query': f"Use internet search to find information about: {query}",
+        'message': query
     })
     
     if result['success']:
-        return f"Search results for '{query}': {result['result']}"
+        return f"Search results: {result['result']}"
     else:
         return f"Search failed: {result['error']}"
 
 @function_tool
-async def execute_automation(action: str, params: str = "{}") -> str:
-    """Execute automation workflows and tasks"""
-    logger.info(f"Executing automation: {action}")
+async def execute_automation(request: str, details: str = "") -> str:
+    """Execute automation workflows like sending emails, creating tasks, etc."""
+    logger.info(f"Executing automation: {request}")
     
-    # Parse JSON string params to avoid OpenAI schema issues
-    try:
-        import json
-        parsed_params = json.loads(params) if params != "{}" else {}
-    except:
-        parsed_params = {}
+    # Create more natural request for AI webhook
+    natural_request = f"Use automation tools to {request}"
+    if details:
+        natural_request += f" with these details: {details}"
     
     result = await webhook_executor.execute_external_tool('automation', {
-        'action': action,
-        'params': parsed_params
+        'query': natural_request,
+        'message': request,
+        'details': details
     })
     
     if result['success']:
-        return f"Automation '{action}' completed: {result['result']}"
+        return f"Automation completed: {result['result']}"
     else:
         return f"Automation failed: {result['error']}"
 

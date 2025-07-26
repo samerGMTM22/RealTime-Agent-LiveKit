@@ -40,7 +40,11 @@ class ExternalToolHandler {
         },
         body: JSON.stringify({
           "user request": params.query || params.message || `Execute ${tool} tool`,
-          "system request": `Process this ${tool} request and provide a helpful response. Keep responses concise and conversational.`
+          "system request": tool === 'web_search' 
+            ? `Use internet search to find information about: ${params.query || params.message}. Provide a comprehensive but conversational response suitable for voice.`
+            : tool === 'automation'
+            ? `Use automation tools to handle this request: ${params.query || params.message}. If it involves email, include appropriate subject, body, and recipient details.`
+            : `Use available tools to help with: ${params.query || params.message}. Provide a helpful and conversational response.`
         }),
         signal: AbortSignal.timeout(30000) // 30 second timeout
       });

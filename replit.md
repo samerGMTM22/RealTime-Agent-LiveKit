@@ -25,6 +25,8 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 - **N8N Workflow Activated**: User activated N8N workflow, now returning 200 status codes
 - **Integration Complete**: Full webhook-based external tool integration operational
 - **Simplified AI Format**: Updated to use {"user request": "...", "system request": "..."} format for AI-powered N8N workflows
+- **Natural Language Requests**: Enhanced webhook requests to send natural user language instead of technical system commands
+- **Contextual Tool Instructions**: System requests now provide specific context and instructions for different tool types
 
 **Implementation Summary**:
 
