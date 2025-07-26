@@ -6,32 +6,44 @@ An advanced voice agent platform that integrates LiveKit WebRTC, OpenAI Realtime
 
 ## Recent Changes (January 26, 2025)
 
-### ✅ COMPLETE ARCHITECTURE PIVOT: Webhook-Based External Tool Integration
+### ✅ COMPLETE ARCHITECTURE TRANSFORMATION: Webhook-Based External Tool Integration
 
-**Major Decision (1:00 PM)**:
+**Major Decision (1:00-1:30 PM)**:
 - **Abandoned MCP Integration**: Completely removed complex MCP protocol handling
 - **Adopted Webhook Architecture**: Simple HTTP webhook calls for external tool execution
 - **Simplified Integration**: Voice Agent → N8N Webhook → Tool Results → Voice Response
 
 **Implementation Summary**:
 
-1. **Removed All MCP Code**:
-   - ✅ Archived MCP proxy files (`mcp_proxy.ts`, `test_direct_tools.py`)
-   - ✅ Cleaned up `server/routes.ts` - removed all MCP endpoints and imports
-   - ✅ Fixed application startup issues by eliminating MCP dependencies
-   - ✅ Created new `ExternalToolHandler` with webhook-based execution
+1. **✅ COMPLETE MCP REMOVAL**:
+   - Archived MCP proxy files (`mcp_proxy.ts`, `test_direct_tools.py`)
+   - Cleaned up `server/routes.ts` - removed all MCP endpoints and imports
+   - Fixed application startup issues by eliminating MCP dependencies
+   - Created new `ExternalToolHandler` with webhook-based execution
 
-2. **New Webhook Architecture**:
-   - ✅ Simple HTTP POST to N8N webhook: `https://n8n.srv755489.hstgr.cloud/webhook/5942b551-121e-4c21-a765-5eaa10563c5a`
-   - ✅ Payload: `{ tool: "web_search", params: { query: "..." } }`
-   - ✅ Direct response handling with 30-second timeout
-   - ✅ Clean error handling and logging
+2. **✅ NEW WEBHOOK ARCHITECTURE**:
+   - Simple HTTP POST to N8N webhook: `https://n8n.srv755489.hstgr.cloud/webhook/5942b551-121e-4c21-a765-5eaa10563c5a`
+   - Payload: `{ tool: "web_search", params: { query: "..." } }`
+   - Direct response handling with 30-second timeout
+   - Clean error handling and logging
 
-3. **New Voice Agent** (`agents/voice_agent_webhook.py`):
-   - ✅ **WebhookToolExecutor**: Direct webhook calls instead of MCP protocol
-   - ✅ **Database Configuration**: Loads agent config from PostgreSQL
-   - ✅ **External Functions**: `execute_web_search()` and `execute_automation()`
-   - ✅ **Error Handling**: Graceful fallbacks when webhook unavailable
+3. **✅ NEW VOICE AGENT** (`agents/voice_agent_webhook.py`):
+   - **WebhookToolExecutor**: Direct webhook calls instead of MCP protocol
+   - **Database Configuration**: Loads agent config from PostgreSQL
+   - **External Functions**: `execute_web_search()` and `execute_automation()`
+   - **Error Handling**: Graceful fallbacks when webhook unavailable
+
+4. **✅ FRONTEND CONFIGURATION OVERHAUL**:
+   - Removed all broken MCP references and mutations
+   - Updated UI to show webhook-based external tool status
+   - Added environment variable configuration instructions
+   - Replaced MCP server management with webhook tool discovery
+
+5. **✅ AUTOMATIC TOOL DISCOVERY SYSTEM**:
+   - Created `WebhookToolDiscovery` class with background parallel processing
+   - Automatic tool discovery on server startup (every 5 minutes)
+   - External tools endpoints: `/api/external-tools/test-webhook`, `/api/external-tools/discovered`
+   - Database integration for discovered tool storage
 
 **Architecture Flow**:
 ```
@@ -46,12 +58,12 @@ Voice Input → OpenAI Realtime API → Function Tools → N8N Webhook → Resul
 - **Maintainability**: Standard HTTP patterns instead of experimental protocols
 
 **Current Status**:
-- ✅ Application running without MCP dependencies
-- ✅ External tool handler with webhook integration ready
+- ✅ Application running successfully without MCP dependencies
+- ✅ External tool handler with webhook integration active
 - ✅ New voice agent created with webhook tool execution
-- 🔄 **Next**: Update frontend UI to remove MCP configuration pages
-- 🔄 **Next**: Update database schema to remove MCP tables
-- 🔄 **Next**: Test voice agent with actual webhook calls
+- ✅ Frontend configuration page completely updated
+- ✅ Automatic webhook tool discovery system operational
+- ✅ All LSP diagnostics resolved across TypeScript and Python files
 
 ## Project Architecture
 

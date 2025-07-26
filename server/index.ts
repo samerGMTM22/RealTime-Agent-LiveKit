@@ -63,4 +63,12 @@ app.use((req, res, next) => {
   server.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
   });
+
+  // Start webhook tool discovery in background
+  import('./webhook-tool-discovery').then(({ WebhookToolDiscovery }) => {
+    import('./storage').then(({ storage }) => {
+      const webhookToolDiscovery = new WebhookToolDiscovery(storage);
+      webhookToolDiscovery.startAutomaticDiscovery();
+    });
+  });
 })();

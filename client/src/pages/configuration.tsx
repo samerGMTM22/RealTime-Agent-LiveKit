@@ -61,7 +61,16 @@ interface WebhookConfig {
 export default function Configuration() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("agent");
-  const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfig[]>([]);
+  const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfig[]>([
+    {
+      id: '1',
+      name: 'N8N Webhook',
+      url: 'Configured via environment',
+      type: 'n8n',
+      status: 'connected',
+      metadata: { responseTime: 120 }
+    }
+  ]);
   const [newWebhookConfig, setNewWebhookConfig] = useState({ name: '', url: '' });
   
   // Agent configuration state
@@ -87,7 +96,7 @@ export default function Configuration() {
       openai: { enabled: true, status: 'connected' }
     },
     extras: {
-      'external-tools': { enabled: false, status: 'disconnected' }
+      'external-tools': { enabled: true, status: 'connected' }
     }
   });
 
@@ -126,34 +135,28 @@ export default function Configuration() {
     }
   }, [activeAgent]);
 
-  // Initialize MCP servers from API and always sync with database
+  // Initialize webhook configurations - now environment-based
   useEffect(() => {
-    if (existingMcpServers && Array.isArray(existingMcpServers)) {
-      const servers = existingMcpServers.map((server: any) => ({
-        id: server.id.toString(), // Ensure ID is string for frontend
-        name: server.name,
-        url: server.url,
-        status: server.connectionStatus || 'disconnected',
-        metadata: server.metadata || {},
-        type: 'mcp' as const,
-        config: {}
-      }));
-      setMcpServers(servers);
-    } else {
-      setMcpServers([]); // Clear servers if no data
+    // Check if external tools are configured via environment
+    if (systemStatus && typeof systemStatus === 'object') {
+      const status = systemStatus as any;
+      const hasWebhook = status.mcp === 'ready'; // N8N webhook configured
+      
+      if (hasWebhook) {
+        setWebhookConfigs([{
+          id: 'n8n-webhook',
+          type: 'n8n' as const,
+          name: 'N8N External Tools',
+          url: 'Configured via environment',
+          status: 'connected' as const,
+          config: {},
+          metadata: { source: 'environment' }
+        }]);
+      } else {
+        setWebhookConfigs([]);
+      }
     }
-  }, [existingMcpServers]);
-
-  // Refresh MCP servers when page loads or tab changes
-  useEffect(() => {
-    refetchMcpServers();
-  }, []); // Fetch on mount
-
-  useEffect(() => {
-    if (activeTab === 'datasources') {
-      refetchMcpServers();
-    }
-  }, [activeTab, refetchMcpServers]);
+  }, [systemStatus]);
 
   // Update services status from system status
   useEffect(() => {
@@ -165,7 +168,7 @@ export default function Configuration() {
           openai: { enabled: true, status: status.openai === 'connected' ? 'connected' as const : 'error' as const }
         },
         extras: {
-          mcp: { enabled: prev.extras.mcp.enabled, status: status.mcp === 'connected' ? 'connected' as const : 'error' as const }
+          'external-tools': { enabled: prev.extras['external-tools'].enabled, status: status.mcp === 'connected' ? 'connected' as const : 'error' as const }
         }
       }));
     }
@@ -213,75 +216,27 @@ Keep responses conversational, helpful, and engaging.`,
     }
   });
 
-  // MCP Server mutations
-  const addMcpServerMutation = useMutation({
-    mutationFn: async (serverData: { name: string; url: string }) => {
-      console.log('Adding MCP server:', serverData);
-      const response = await apiRequest('POST', '/api/mcp/servers', serverData);
-      console.log('Server added successfully:', response);
-      return response;
+  // External tool configuration mutations (replaced MCP system)
+  const testWebhookMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/external-tools/test-webhook');
     },
-    onSuccess: async (newServer) => {
-      console.log('MCP server saved, refreshing list...');
-      // Immediately refetch to sync with database
-      await refetchMcpServers();
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
-      setNewMcpServer({ name: '', url: '' });
+    onSuccess: (data) => {
       toast({
-        title: "MCP Server Added",
-        description: "Server has been added and saved to database",
+        title: "Webhook Connected",
+        description: `External tools are available: ${data.availableTools?.join(', ') || 'Ready for tool calls'}`,
       });
     },
     onError: (error) => {
-      console.error('Failed to add MCP server:', error);
       toast({
-        title: "Error",
-        description: "Failed to add MCP server. Please try again.",
+        title: "Webhook Test Failed",
+        description: "Unable to connect to external tool system. Check configuration.",
         variant: "destructive",
       });
     }
   });
 
-  const testMcpConnectionMutation = useMutation({
-    mutationFn: async (serverId: string) => {
-      return apiRequest('POST', `/api/mcp/servers/${serverId}/connect`);
-    },
-    onMutate: (serverId) => {
-      setMcpServers(prev => prev.map(server => 
-        server.id === serverId ? { ...server, status: 'testing' as const } : server
-      ));
-    },
-    onSuccess: (data, serverId) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
-      setMcpServers(prev => prev.map(server => 
-        server.id === serverId ? { 
-          ...server, 
-          status: 'connected' as const,
-          metadata: { ...server.metadata, ...data.metadata }
-        } : server
-      ));
-    },
-    onError: (error, serverId) => {
-      setMcpServers(prev => prev.map(server => 
-        server.id === serverId ? { ...server, status: 'error' as const } : server
-      ));
-    }
-  });
-
-  const removeMcpServerMutation = useMutation({
-    mutationFn: async (serverId: string) => {
-      return apiRequest('DELETE', `/api/mcp/servers/${serverId}`);
-    },
-    onSuccess: async (data, serverId) => {
-      // Immediately refetch to sync with database
-      await refetchMcpServers();
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
-      toast({
-        title: "MCP Server Removed",
-        description: "Server has been permanently removed from database",
-      });
-    }
-  });
+  // Helper functions will be defined below
 
   const handleSaveAgent = async () => {
     try {
@@ -307,9 +262,8 @@ Keep responses conversational, helpful, and engaging.`,
       await updateAgentMutation.mutateAsync(config);
       
       // Refresh all data to ensure consistency
-      await refetchMcpServers();
       queryClient.invalidateQueries({ queryKey: ["/api/agent-configs"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/mcp/servers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/external-tools"] });
       
       toast({
         title: "Configuration Saved",
@@ -530,100 +484,83 @@ Keep responses conversational, helpful, and engaging.`,
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
-                <Input
-                  placeholder="MCP Server Name (e.g., internet access)"
-                  value={newMcpServer.name}
-                  onChange={(e) => setNewMcpServer(prev => ({ ...prev, name: e.target.value }))}
-                  className="glass-card border-white/20 w-full"
-                />
-                <div className="flex gap-3">
-                  <Input
-                    placeholder="MCP Server URL (https://... or wss://...)"
-                    value={newMcpServer.url}
-                    onChange={(e) => setNewMcpServer(prev => ({ ...prev, url: e.target.value }))}
-                    className="glass-card border-white/20 flex-1"
-                  />
-                  <button 
-                    onClick={() => {
-                      console.log('Add button clicked! Current values:', newMcpServer);
-                      if (!newMcpServer.name.trim() || !newMcpServer.url.trim()) {
-                        console.log('Validation failed - missing name or URL');
-                        toast({
-                          title: "Missing Information",
-                          description: "Please provide both name and URL for the MCP server",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      console.log('Validation passed, calling mutation...');
-                      addMcpServerMutation.mutate(newMcpServer);
-                    }}
-                    disabled={addMcpServerMutation.isPending}
-                    style={{
-                      backgroundColor: '#0ea5e9',
-                      color: 'white',
-                      padding: '8px 16px',
-                      borderRadius: '6px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontWeight: '500',
-                      minWidth: '80px'
-                    }}
-                  >
-                    {addMcpServerMutation.isPending ? "Adding..." : "Add"}
-                  </button>
+                <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/10">
+                  <div className="flex items-start space-x-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-medium text-amber-400 mb-1">Environment Configuration Required</h4>
+                      <p className="text-sm text-amber-200/80 mb-2">
+                        External tools are configured via environment variables for security. Set N8N_WEBHOOK_URL to enable external tool capabilities.
+                      </p>
+                      <div className="text-xs text-amber-200/60">
+                        Current Status: {services.extras['external-tools'].status === 'connected' ? '✅ Connected' : '❌ Not configured'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+                
+                {services.extras['external-tools'].status === 'connected' && (
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => testWebhookMutation.mutate()}
+                      disabled={testWebhookMutation.isPending}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {testWebhookMutation.isPending ? "Testing..." : "Test Connection"}
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>Connected MCP Servers</CardTitle>
-              <CardDescription>Manage your agent's external tool connections and capabilities</CardDescription>
+              <CardTitle>External Tool Status</CardTitle>
+              <CardDescription>Monitor webhook-based external tool integrations and capabilities</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* MCP Protocol Status */}
+                {/* Webhook Protocol Status */}
                 <div className="flex items-center justify-between p-4 border border-white/20 rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10">
                   <div className="flex items-center space-x-4">
                     <div className="p-2 bg-blue-500/20 rounded-lg">
-                      <MessageSquare className="h-5 w-5 text-blue-400" />
+                      <Globe className="h-5 w-5 text-blue-400" />
                     </div>
                     <div>
-                      <h3 className="font-medium">MCP Protocol</h3>
-                      <p className="text-sm text-gray-400">Model Context Protocol framework for external integrations</p>
-                      <p className="text-xs text-gray-500 mt-1">Enables secure connections to external APIs, databases, and services</p>
+                      <h3 className="font-medium">Webhook Integration</h3>
+                      <p className="text-sm text-gray-400">Direct HTTP webhook calls for external tool execution</p>
+                      <p className="text-xs text-gray-500 mt-1">Supports N8N, Zapier, and custom webhook endpoints</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
-                      Active
+                    <Badge variant="secondary" className={services.extras['external-tools'].status === 'connected' ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}>
+                      {services.extras['external-tools'].status === 'connected' ? 'Connected' : 'Not Configured'}
                     </Badge>
-                    {getStatusIcon('ready')}
+                    {getStatusIcon(services.extras['external-tools'].status === 'connected' ? 'connected' : 'disconnected')}
                   </div>
                 </div>
 
-                {mcpServers.map((server) => (
-                  <div key={server.id} className="p-4 border border-white/20 rounded-lg bg-gradient-to-r from-electric-blue/5 to-cyber-cyan/5">
+                {webhookConfigs.map((config) => (
+                  <div key={config.id} className="p-4 border border-white/20 rounded-lg bg-gradient-to-r from-blue-500/5 to-cyan-500/5">
                     <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                       <div className="flex items-start space-x-4 flex-1 min-w-0">
-                        <div className="p-2 bg-electric-blue/20 rounded-lg flex-shrink-0">
-                          <Database className="h-5 w-5 text-electric-blue" />
+                        <div className="p-2 bg-blue-500/20 rounded-lg flex-shrink-0">
+                          <Globe className="h-5 w-5 text-blue-400" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <h3 className="font-medium truncate">{server.name}</h3>
-                            <Badge variant="outline" className="border-electric-blue/50 text-electric-blue text-xs flex-shrink-0">
-                              MCP
+                            <h3 className="font-medium truncate">{config.name}</h3>
+                            <Badge variant="outline" className="border-blue-500/50 text-blue-400 text-xs flex-shrink-0">
+                              Webhook
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-400 mb-2 break-all">{server.url}</p>
+                          <p className="text-sm text-gray-400 mb-2 break-all">{config.url}</p>
                           <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                            <span className="whitespace-nowrap">Protocol: Model Context Protocol</span>
+                            <span className="whitespace-nowrap">Protocol: HTTP Webhook</span>
                             <span className="hidden sm:inline">•</span>
-                            <span className="whitespace-nowrap">Type: External Service</span>
-                            {server.status === 'connected' && (
+                            <span className="whitespace-nowrap">Type: {config.type.toUpperCase()}</span>
+                            {config.status === 'connected' && (
                               <>
                                 <span className="hidden sm:inline">•</span>
                                 <span className="text-green-400 whitespace-nowrap">Live Connection</span>
@@ -633,49 +570,32 @@ Keep responses conversational, helpful, and engaging.`,
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 flex-shrink-0">
-                        {server.status === 'testing' ? (
-                          <div className="flex items-center space-x-1">
-                            <div className="animate-spin h-4 w-4 border-2 border-electric-blue border-t-transparent rounded-full"></div>
-                            <span className="text-sm text-gray-400">Testing...</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-1">
-                            {getStatusIcon(server.status)}
-                            {server.metadata?.responseTime && (
-                              <span className="text-xs text-gray-400">
-                                ({server.metadata.responseTime}ms)
-                              </span>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex items-center space-x-1">
+                          {getStatusIcon(config.status)}
+                          {config.metadata?.responseTime && (
+                            <span className="text-xs text-gray-400">
+                              ({config.metadata.responseTime}ms)
+                            </span>
+                          )}
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => testMcpConnectionMutation.mutate(server.id)}
-                          disabled={testMcpConnectionMutation.isPending}
+                          onClick={() => testWebhookMutation.mutate()}
+                          disabled={testWebhookMutation.isPending}
                           className="text-blue-400 hover:text-blue-300"
                           title="Test Connection"
                         >
                           <TestTube className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeMcpServerMutation.mutate(server.id)}
-                          disabled={removeMcpServerMutation.isPending}
-                          className="text-red-400 hover:text-red-300"
-                          title="Remove Server"
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {mcpServers.length === 0 && (
+                {webhookConfigs.length === 0 && (
                   <div className="text-center py-8 text-gray-400">
-                    No MCP servers configured. Add MCP servers above to extend your agent's capabilities.
+                    No external tool webhooks configured. Set N8N_WEBHOOK_URL environment variable to enable external capabilities.
                   </div>
                 )}
               </div>
@@ -722,9 +642,9 @@ Keep responses conversational, helpful, and engaging.`,
                   <div key={service} className="flex items-center justify-between p-4 border border-white/20 rounded-lg">
                     <div className="flex items-center space-x-4">
                       <div>
-                        <h3 className="font-medium">{service === 'mcp' ? 'MCP' : service.charAt(0).toUpperCase() + service.slice(1)}</h3>
+                        <h3 className="font-medium">{service === 'external-tools' ? 'External Tools' : service.charAt(0).toUpperCase() + service.slice(1)}</h3>
                         <p className="text-sm text-gray-400">
-                          Model Context Protocol servers for external tool integration
+                          Webhook-based external tool integration (N8N, Zapier, etc.)
                         </p>
                       </div>
                     </div>

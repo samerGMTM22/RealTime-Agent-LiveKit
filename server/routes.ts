@@ -65,6 +65,10 @@ class ExternalToolHandler {
 
 const externalToolHandler = new ExternalToolHandler();
 
+// Initialize webhook tool discovery
+import { WebhookToolDiscovery } from './webhook-tool-discovery';
+const webhookToolDiscovery = new WebhookToolDiscovery(storage);
+
 
 
 // AI Agent implementation
@@ -449,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
 
-  // External tool execute endpoint (webhook-based)
+  // External tool endpoints (webhook-based)
   app.post("/api/external-tools/execute", async (req, res) => {
     const { tool, params } = req.body;
     
@@ -465,6 +469,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         success: false, 
         error: error.message || 'Failed to execute external tool' 
+      });
+    }
+  });
+
+  app.post("/api/external-tools/test-webhook", async (req, res) => {
+    try {
+      const result = await webhookToolDiscovery.testDiscovery();
+      res.json(result);
+    } catch (error: any) {
+      console.error('Webhook test error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || 'Failed to test webhook' 
+      });
+    }
+  });
+
+  app.get("/api/external-tools/discovered", async (req, res) => {
+    try {
+      const tools = await webhookToolDiscovery.getDiscoveredTools();
+      res.json({ tools });
+    } catch (error: any) {
+      console.error('Error getting discovered tools:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message || 'Failed to get discovered tools' 
       });
     }
   });
