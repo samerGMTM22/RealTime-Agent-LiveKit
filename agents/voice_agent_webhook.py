@@ -61,10 +61,13 @@ class WebhookToolExecutor:
         try:
             await self.init_session()
             
-            # Prepare webhook payload - simplified format for N8N
+            # Prepare webhook payload - simplified AI-friendly format for N8N
+            user_request = params.get('query') or params.get('message') or f"Execute {tool_name} tool"
+            system_request = f"Process this {tool_name} request and provide a helpful response. Keep responses concise and conversational."
+            
             payload = {
-                'tool': tool_name,
-                **params  # Flatten params directly into the payload  
+                "user request": user_request,
+                "system request": system_request
             }
             
             logger.info(f"Calling external webhook for tool: {tool_name}")

@@ -39,8 +39,8 @@ class ExternalToolHandler {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tool,
-          ...params  // Flatten params directly into the payload
+          "user request": params.query || params.message || `Execute ${tool} tool`,
+          "system request": `Process this ${tool} request and provide a helpful response. Keep responses concise and conversational.`
         }),
         signal: AbortSignal.timeout(30000) // 30 second timeout
       });
