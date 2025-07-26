@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { liveKitService } from "./lib/livekit";
 import { openaiService } from "./lib/openai";
 import { n8nMCPProxy } from "./mcp_proxy";
-import { enhancedN8NMCPProxy } from "./mcp_proxy_enhanced";
+
 
 import { webScraperService } from "./lib/scraper";
 import { getAgentTemplate, createAgentConfigFromTemplate } from "./config/agent-config";
@@ -535,50 +535,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check server type and route accordingly
       if (serverConfig.url.includes('n8n')) {
-        // Use enhanced proxy with polling for N8N servers
-        console.log(`Using enhanced N8N proxy with result polling for tool: ${tool}`);
+        // Use N8N MCP proxy with proper SSE handling
+        console.log(`Using N8N MCP proxy for tool: ${tool}`);
         
-        const result = await enhancedN8NMCPProxy.callN8NToolWithPolling(
+        const result = await n8nMCPProxy.callN8NTool(
           serverConfig.url,
           tool,
           params,
-          serverConfig.apiKey || undefined,
-          {
-            pollInterval: 1000,    // Poll every second
-            maxWaitTime: 30000     // Max 30 seconds
-          }
+          serverConfig.apiKey || undefined
         );
         
         return res.json(result);
       } else if (serverConfig.url.includes('zapier.com')) {
-        // Zapier uses direct webhook format, not JSON-RPC
-        console.log(`Using direct webhook call for Zapier`);
+        // Zapier MCP server also needs SSE session management  
+        console.log(`Using Zapier MCP with SSE session for tool: ${tool}`);
         
-        // Extract the actual webhook URL (remove /sse suffix if present)
-        const webhookUrl = serverConfig.url.replace(/\/sse$/, '');
+        let zapierUrl = serverConfig.url;
         
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(serverConfig.apiKey ? { 'Authorization': `Bearer ${serverConfig.apiKey}` } : {})
-          },
-          body: JSON.stringify(params) // Send params directly, not wrapped in JSON-RPC
-        });
-        
-        const responseText = await response.text();
-        
-        if (response.ok) {
-          // Try to parse JSON response, fallback to text
-          try {
-            const data = JSON.parse(responseText);
-            return res.json({ success: true, result: data });
-          } catch {
-            return res.json({ success: true, result: responseText });
-          }
-        } else {
-          return res.json({ success: false, error: `Zapier webhook error: ${response.status} ${responseText}` });
+        // Check if this is a proper Zapier MCP URL
+        if (!zapierUrl.includes('actions.zapier.com/mcp/')) {
+          console.warn(`Invalid Zapier MCP URL format: ${zapierUrl}`);
+          return res.json({ 
+            success: false, 
+            error: `Invalid Zapier MCP URL. Expected format: https://actions.zapier.com/mcp/[id]/sse but got: ${zapierUrl}` 
+          });
         }
+        
+        // Use N8N proxy for Zapier too since both use SSE + session management
+        const result = await n8nMCPProxy.callN8NTool(
+          zapierUrl,
+          tool,
+          params,
+          serverConfig.apiKey || undefined
+        );
+        
+        return res.json(result);
       } else {
         // For other server types, use standard HTTP call
         console.log(`Using standard HTTP call for server type: ${serverConfig.protocolType}`);
@@ -630,7 +621,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     try {
       // Pass to proxy handler
-      const handled = enhancedN8NMCPProxy.handleWebhookCallback(requestId, data);
+      // Using direct SSE connection now, no webhook handling needed
+      const handled = false;
       
       if (handled) {
         res.json({ success: true, message: 'Callback processed successfully' });

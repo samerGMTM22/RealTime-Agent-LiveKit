@@ -61,9 +61,24 @@ Database → Voice Agent → Function Tools → Backend Proxy → N8N/Zapier API
 - Voice agent dynamically loads server configs on startup
 - Backend handles protocol differences transparently
 
-**Current Issues**:
-- N8N: 30-second timeout (workflow execution may need optimization)
-- Zapier: Needs actual webhook URL configuration in database
+**Current Status (January 26, 2025 - 12:40 PM)**:
+
+✅ **Major Breakthroughs**:
+- **SSE Connections Working**: N8N MCP proxy successfully establishes SSE connections
+- **Session Management**: Proper session endpoint retrieval and management
+- **JSON-RPC Protocol**: Correct MCP tool calls with proper request/response format
+- **Database Integration**: All servers loaded dynamically, no hardcoded URLs
+- **URL Validation**: Fixed Zapier URL format to standard `actions.zapier.com/mcp/[id]/sse`
+
+**Research Findings**:
+- **SSE Transport Deprecated**: As of MCP spec 2025-03-26, SSE deprecated in favor of Streamable HTTP
+- **Authentication**: N8N should use "None" authentication for testing
+- **Session Requirements**: Both services need session management but with different implementations
+
+**Remaining Issues**:
+- **N8N**: Polling logic connects but workflow results not found (may need MCP server configuration)
+- **Zapier**: Requires different session handling (`session_id` parameter format)
+- **Protocol Version**: Both services may need migration to newer MCP Streamable HTTP protocol
 
 ## Project Architecture
 

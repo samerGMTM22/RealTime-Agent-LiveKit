@@ -122,7 +122,7 @@ export class N8NMCPProxy {
   }
 
   private async pollForResults(messagesUrl: string, requestId: string, apiKey?: string): Promise<any> {
-    const maxAttempts = 10;
+    const maxAttempts = 15; // Increased from 10 to 15 attempts
     const baseDelay = 500; // Start with 500ms
     
     console.log(`N8N MCP Proxy: Starting polling for request ${requestId}`);
@@ -159,19 +159,35 @@ export class N8NMCPProxy {
         
         if (response.ok) {
           const responseText = await response.text();
+          console.log(`N8N MCP Proxy: Polling response ${response.status} for ${requestId}:`, responseText.substring(0, 300));
           
           try {
             const result = JSON.parse(responseText);
             
+            // Log raw result for debugging
+            console.log(`N8N MCP Proxy: Parsed polling result for ${requestId}:`, JSON.stringify(result).substring(0, 200));
+            
             // Check if we got a completed result
             if (result.result && result.result.status === 'completed') {
               console.log(`N8N MCP Proxy: Got completed result for ${requestId}`);
-              return result.result.content;
+              return result.result.content || result.result.data || result.result;
             }
             
             // Check if result has content directly (alternative response format)
             if (result.result && typeof result.result === 'string') {
               console.log(`N8N MCP Proxy: Got direct result for ${requestId}`);
+              return result.result;
+            }
+            
+            // Check for various success indicators
+            if (result.result && (result.result.content || result.result.data)) {
+              console.log(`N8N MCP Proxy: Got result content for ${requestId}`);
+              return result.result.content || result.result.data;
+            }
+            
+            // Check if this is the actual result without wrapper
+            if (result.result && !result.result.status && typeof result.result === 'object') {
+              console.log(`N8N MCP Proxy: Got object result for ${requestId}`);
               return result.result;
             }
             
@@ -196,10 +212,11 @@ export class N8NMCPProxy {
           }
         } else if (response.status === 404) {
           // Request ID not found yet, continue polling
-          console.log(`N8N MCP Proxy: Request ${requestId} not found yet, continuing to poll...`);
+          console.log(`N8N MCP Proxy: Request ${requestId} not found yet (404), continuing to poll...`);
           continue;
         } else {
-          console.error(`N8N MCP Proxy: Polling failed with status ${response.status} for ${requestId}`);
+          const errorText = await response.text();
+          console.error(`N8N MCP Proxy: Polling failed with status ${response.status} for ${requestId}: ${errorText.substring(0, 200)}`);
         }
         
       } catch (error) {
