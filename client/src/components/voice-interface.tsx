@@ -16,10 +16,11 @@ export default function VoiceInterface({ activeAgent, sessionId, onSessionStart 
     isConnected,
     isRecording,
     isMuted,
+    isStarting,
+    connectionStatus,
     startSession,
     stopSession,
-    toggleMute,
-    connectionStatus
+    toggleMute
   } = useVoiceSession();
 
   const handleStartSession = async () => {
@@ -100,12 +101,12 @@ export default function VoiceInterface({ activeAgent, sessionId, onSessionStart 
         <div className="flex items-center justify-center space-x-4">
           <Button
             onClick={handleStartSession}
-            disabled={isConnected || !activeAgent}
+            disabled={isConnected || isStarting || !activeAgent}
             className="glass-card hover:bg-green-500/20 transition-all duration-300 px-6 py-3 rounded-xl flex items-center space-x-2"
             variant="ghost"
           >
             <Play className="h-5 w-5 text-green-400" />
-            <span>Start Session</span>
+            <span>{isStarting ? 'Starting...' : 'Start Session'}</span>
           </Button>
           
           <Button

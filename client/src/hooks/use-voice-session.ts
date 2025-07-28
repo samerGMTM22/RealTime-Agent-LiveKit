@@ -9,6 +9,7 @@ export function useVoiceSession() {
   const [isRecording, setIsRecording] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
+  const [isStarting, setIsStarting] = useState(false);
   
   const { 
     room, 
@@ -19,7 +20,14 @@ export function useVoiceSession() {
   } = useLiveKit();
 
   const startSession = useCallback(async (agentConfigId: number): Promise<string> => {
+    // Prevent multiple concurrent session starts
+    if (isStarting || isConnected) {
+      console.warn('Session start already in progress or session already active');
+      throw new Error('Session start already in progress or session already active');
+    }
+
     try {
+      setIsStarting(true);
       setConnectionStatus('connecting');
       
       // Generate session ID
@@ -56,8 +64,10 @@ export function useVoiceSession() {
       console.error('Failed to start voice session:', error);
       setConnectionStatus('error');
       throw error;
+    } finally {
+      setIsStarting(false);
     }
-  }, [connectToRoom]);
+  }, [connectToRoom, isStarting, isConnected]);
 
   const stopSession = useCallback(async () => {
     try {
@@ -94,6 +104,7 @@ export function useVoiceSession() {
     isRecording,
     isMuted,
     connectionStatus,
+    isStarting,
     startSession,
     stopSession,
     toggleMute,
