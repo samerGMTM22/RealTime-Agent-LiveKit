@@ -443,6 +443,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete session endpoint
+  app.delete("/api/sessions/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const success = await storage.deleteSessionConversations(sessionId);
+      
+      if (success) {
+        res.json({ message: "Session deleted successfully" });
+      } else {
+        res.status(404).json({ error: "Session not found or already deleted" });
+      }
+    } catch (error) {
+      console.error("Error deleting session:", error);
+      res.status(500).json({ error: "Failed to delete session" });
+    }
+  });
+
   // Data sources endpoints
   app.get("/api/data-sources/:agentConfigId", async (req, res) => {
     try {

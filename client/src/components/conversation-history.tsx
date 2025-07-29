@@ -1,8 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, MessageCircle, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, MessageCircle, Calendar, Trash2 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface SessionHistoryProps {
   agentConfigId: number;
@@ -18,10 +32,30 @@ interface SessionSummary {
 }
 
 export default function SessionHistory({ agentConfigId }: SessionHistoryProps) {
+  const { toast } = useToast();
+  
   const { data: sessions = [], isLoading } = useQuery<SessionSummary[]>({
     queryKey: ["/api/sessions/history", agentConfigId],
     queryFn: () => fetch(`/api/sessions/history/${agentConfigId}`).then(res => res.json()),
     enabled: !!agentConfigId,
+  });
+
+  const deleteSessionMutation = useMutation({
+    mutationFn: (sessionId: string) => apiRequest(`/api/sessions/${sessionId}`, "DELETE"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sessions/history", agentConfigId] });
+      toast({
+        title: "Session deleted",
+        description: "The session and all its conversations have been removed.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Delete failed",
+        description: "Could not delete the session. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -63,9 +97,39 @@ export default function SessionHistory({ agentConfigId }: SessionHistoryProps) {
                         {format(new Date(session.startTime), 'MMM dd, yyyy')}
                       </span>
                     </div>
-                    <span className="text-xs text-gray-400">
-                      {formatDistanceToNow(new Date(session.startTime), { addSuffix: true })}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-400">
+                        {formatDistanceToNow(new Date(session.startTime), { addSuffix: true })}
+                      </span>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Session</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this session? This will permanently remove all {session.messageCount} conversations from this session. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteSessionMutation.mutate(session.sessionId)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              Delete Session
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                   
                   <div className="flex items-center justify-between text-xs text-gray-400">

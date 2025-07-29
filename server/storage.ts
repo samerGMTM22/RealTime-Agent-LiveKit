@@ -27,6 +27,7 @@ export interface IStorage {
   getConversationsBySessionId(sessionId: string): Promise<Conversation[]>;
   getConversationsByAgentConfigId(agentConfigId: number): Promise<Conversation[]>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
+  deleteSessionConversations(sessionId: string): Promise<boolean>;
   
   // Session history methods
   getSessionHistory(agentConfigId: number): Promise<any[]>;
@@ -134,6 +135,16 @@ export class DatabaseStorage implements IStorage {
       .values(insertConversation)
       .returning();
     return conversation;
+  }
+
+  async deleteSessionConversations(sessionId: string): Promise<boolean> {
+    try {
+      const result = await db.delete(conversations).where(eq(conversations.sessionId, sessionId));
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error('Error deleting session conversations:', error);
+      return false;
+    }
   }
 
   async getSessionHistory(agentConfigId: number): Promise<any[]> {
