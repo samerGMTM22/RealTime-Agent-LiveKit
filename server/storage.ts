@@ -27,6 +27,9 @@ export interface IStorage {
   getConversationsBySessionId(sessionId: string): Promise<Conversation[]>;
   getConversationsByAgentConfigId(agentConfigId: number): Promise<Conversation[]>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
+  
+  // Session history methods
+  getSessionHistory(agentConfigId: number): Promise<any[]>;
 
   // Data source methods
   getDataSourcesByAgentConfigId(agentConfigId: number): Promise<DataSource[]>;
@@ -131,6 +134,50 @@ export class DatabaseStorage implements IStorage {
       .values(insertConversation)
       .returning();
     return conversation;
+  }
+
+  async getSessionHistory(agentConfigId: number): Promise<any[]> {
+    try {
+      // Get session summaries grouped by sessionId
+      const result = await db
+        .selectDistinct({
+          sessionId: conversations.sessionId,
+          startTime: conversations.timestamp,
+          agentConfigId: conversations.agentConfigId
+        })
+        .from(conversations)
+        .where(eq(conversations.agentConfigId, agentConfigId))
+        .orderBy(conversations.timestamp);
+
+      // Get additional session details for each session
+      const sessionSummaries = await Promise.all(
+        result.map(async (session) => {
+          const sessionConversations = await this.getConversationsBySessionId(session.sessionId);
+          const messageCount = sessionConversations.length;
+          const latestTimestamp = sessionConversations.length > 0 
+            ? sessionConversations[sessionConversations.length - 1].timestamp
+            : session.startTime;
+          
+          return {
+            sessionId: session.sessionId,
+            startTime: session.startTime,
+            endTime: latestTimestamp,
+            messageCount,
+            duration: latestTimestamp && session.startTime 
+              ? Math.round((new Date(latestTimestamp).getTime() - new Date(session.startTime).getTime()) / 1000 / 60) 
+              : 0,
+            agentConfigId: session.agentConfigId
+          };
+        })
+      );
+
+      return sessionSummaries.sort((a, b) => 
+        new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime()
+      );
+    } catch (error) {
+      console.error('Error getting session history:', error);
+      return [];
+    }
   }
 
   async getDataSourcesByAgentConfigId(agentConfigId: number): Promise<DataSource[]> {

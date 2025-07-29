@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import VoiceInterface from "@/components/voice-interface";
-import ConversationHistory from "@/components/conversation-history";
+import SessionHistory from "@/components/conversation-history";
 import SystemStatus from "@/components/system-status";
 import { Button } from "@/components/ui/button";
 import { Mic, Cog } from "lucide-react";
@@ -85,8 +85,8 @@ export default function Dashboard() {
                 onSessionStart={setCurrentSessionId}
               />
               
-              {currentSessionId && (
-                <ConversationHistory sessionId={currentSessionId} />
+              {activeAgent && (
+                <SessionHistory agentConfigId={activeAgent.id} />
               )}
             </div>
 

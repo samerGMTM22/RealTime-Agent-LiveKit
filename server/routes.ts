@@ -431,6 +431,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Session history endpoint
+  app.get("/api/sessions/history/:agentConfigId", async (req, res) => {
+    try {
+      const agentConfigId = parseInt(req.params.agentConfigId);
+      const sessionHistory = await storage.getSessionHistory(agentConfigId);
+      res.json(sessionHistory);
+    } catch (error) {
+      console.error("Error fetching session history:", error);
+      res.status(500).json({ error: "Failed to fetch session history" });
+    }
+  });
+
   // Data sources endpoints
   app.get("/api/data-sources/:agentConfigId", async (req, res) => {
     try {
