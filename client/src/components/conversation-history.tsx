@@ -20,6 +20,7 @@ interface SessionSummary {
 export default function SessionHistory({ agentConfigId }: SessionHistoryProps) {
   const { data: sessions = [], isLoading } = useQuery<SessionSummary[]>({
     queryKey: ["/api/sessions/history", agentConfigId],
+    queryFn: () => fetch(`/api/sessions/history/${agentConfigId}`).then(res => res.json()),
     enabled: !!agentConfigId,
   });
 

@@ -7,7 +7,7 @@ import {
   type McpServer, type InsertMcpServer
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -138,39 +138,44 @@ export class DatabaseStorage implements IStorage {
 
   async getSessionHistory(agentConfigId: number): Promise<any[]> {
     try {
-      // Get session summaries grouped by sessionId
-      const result = await db
-        .selectDistinct({
-          sessionId: conversations.sessionId,
-          startTime: conversations.timestamp,
-          agentConfigId: conversations.agentConfigId
-        })
+      // Get all conversations for this agent, ordered by timestamp
+      const allConversations = await db.select()
         .from(conversations)
         .where(eq(conversations.agentConfigId, agentConfigId))
         .orderBy(conversations.timestamp);
 
-      // Get additional session details for each session
-      const sessionSummaries = await Promise.all(
-        result.map(async (session) => {
-          const sessionConversations = await this.getConversationsBySessionId(session.sessionId);
-          const messageCount = sessionConversations.length;
-          const latestTimestamp = sessionConversations.length > 0 
-            ? sessionConversations[sessionConversations.length - 1].timestamp
-            : session.startTime;
-          
-          return {
-            sessionId: session.sessionId,
-            startTime: session.startTime,
-            endTime: latestTimestamp,
-            messageCount,
-            duration: latestTimestamp && session.startTime 
-              ? Math.round((new Date(latestTimestamp).getTime() - new Date(session.startTime).getTime()) / 1000 / 60) 
-              : 0,
-            agentConfigId: session.agentConfigId
-          };
-        })
-      );
+      // Group conversations by session ID
+      const sessionMap = new Map<string, Conversation[]>();
+      
+      for (const conversation of allConversations) {
+        const sessionId = conversation.sessionId;
+        if (!sessionMap.has(sessionId)) {
+          sessionMap.set(sessionId, []);
+        }
+        sessionMap.get(sessionId)!.push(conversation);
+      }
 
+      // Create session summaries (conversations are already sorted)
+      const sessionSummaries = Array.from(sessionMap.entries()).map(([sessionId, sessionConversations]) => {
+        const startTime = sessionConversations[0]?.timestamp;
+        const endTime = sessionConversations[sessionConversations.length - 1]?.timestamp;
+        const messageCount = sessionConversations.length;
+
+        const duration = startTime && endTime 
+          ? Math.round((new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000 / 60)
+          : 0;
+
+        return {
+          sessionId,
+          startTime,
+          endTime,
+          messageCount,
+          duration: Math.max(0, duration),
+          agentConfigId
+        };
+      });
+
+      // Sort sessions by start time (most recent first)
       return sessionSummaries.sort((a, b) => 
         new Date(b.startTime || 0).getTime() - new Date(a.startTime || 0).getTime()
       );
