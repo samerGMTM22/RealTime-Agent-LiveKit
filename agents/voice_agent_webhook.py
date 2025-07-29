@@ -14,7 +14,7 @@ import os
 import sys
 import json
 import aiohttp
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 
 # Add the project root to the Python path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -27,6 +27,7 @@ from livekit.agents.llm import function_tool
 
 # Database imports
 import asyncpg
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -155,12 +156,34 @@ class WebhookToolExecutor:
         }
 
 class DatabaseConfig:
-    """Handles database configuration fetching"""
+    """Handles database configuration fetching and conversation saving"""
     
     def __init__(self):
         self.db_url = os.getenv('DATABASE_URL')
         if not self.db_url:
             raise ValueError("DATABASE_URL environment variable not set")
+    
+    async def save_conversation(self, agent_config_id: int, session_id: str, user_message: Optional[str] = None, agent_response: Optional[str] = None) -> bool:
+        """Save conversation data to database"""
+        try:
+            conn = await asyncpg.connect(self.db_url)
+            
+            try:
+                query = """
+                INSERT INTO conversations (agent_config_id, session_id, user_message, agent_response, timestamp)
+                VALUES ($1, $2, $3, $4, $5)
+                """
+                
+                await conn.execute(query, agent_config_id, session_id, user_message, agent_response, datetime.utcnow())
+                logger.info(f"Saved conversation: session={session_id}, user='{user_message[:50] if user_message else 'None'}...', agent='{agent_response[:50] if agent_response else 'None'}...'")
+                return True
+                
+            finally:
+                await conn.close()
+                
+        except Exception as e:
+            logger.error(f"Failed to save conversation: {e}")
+            return False
     
     async def get_agent_config(self, agent_id: int = 1) -> Dict[str, Any]:
         """Fetch agent configuration from database"""
@@ -218,8 +241,15 @@ class DatabaseConfig:
                 'livekit_room_name': 'default'
             }
 
-# Initialize global webhook executor
+# Initialize global webhook executor and conversation context
 webhook_executor = WebhookToolExecutor()
+
+# Global conversation context for tracking current session
+current_session_context = {
+    'db_config': None,
+    'agent_config_id': None,
+    'session_id': None
+}
 
 def detect_sensitive_info(text: str) -> dict:
     """
@@ -268,6 +298,15 @@ async def execute_web_search(query: str, confirmed: str = "no") -> str:
     """
     logger.info(f"Executing web search: {query} (confirmed: {confirmed})")
     
+    # Save the user request to conversation history
+    if current_session_context['db_config'] and current_session_context['session_id']:
+        await current_session_context['db_config'].save_conversation(
+            agent_config_id=current_session_context['agent_config_id'],
+            session_id=current_session_context['session_id'],
+            user_message=f"Web search request: {query}",
+            agent_response=None
+        )
+    
     # Check for potentially sensitive personal information searches
     personal_info_patterns = [
         'phone number', 'address of', 'home address', 'email address', 
@@ -295,9 +334,27 @@ async def execute_web_search(query: str, confirmed: str = "no") -> str:
     })
     
     if result['success']:
-        return f"Search results: {result['result']}"
+        response = f"Search results: {result['result']}"
+        # Save the agent response to conversation history
+        if current_session_context['db_config'] and current_session_context['session_id']:
+            await current_session_context['db_config'].save_conversation(
+                agent_config_id=current_session_context['agent_config_id'],
+                session_id=current_session_context['session_id'],
+                user_message=None,
+                agent_response=response
+            )
+        return response
     else:
-        return f"Search failed: {result['error']}"
+        error_response = f"Search failed: {result['error']}"
+        # Save the error response to conversation history
+        if current_session_context['db_config'] and current_session_context['session_id']:
+            await current_session_context['db_config'].save_conversation(
+                agent_config_id=current_session_context['agent_config_id'],
+                session_id=current_session_context['session_id'],
+                user_message=None,
+                agent_response=error_response
+            )
+        return error_response
 
 @function_tool
 async def execute_automation(request: str, details: str = "", confirmed: str = "no") -> str:
@@ -310,6 +367,18 @@ async def execute_automation(request: str, details: str = "", confirmed: str = "
         confirmed: Set to 'yes' only after user has confirmed sensitive information
     """
     logger.info(f"Executing automation: {request} (confirmed: {confirmed})")
+    
+    # Save the user request to conversation history
+    if current_session_context['db_config'] and current_session_context['session_id']:
+        user_request = f"Automation request: {request}"
+        if details:
+            user_request += f" with details: {details}"
+        await current_session_context['db_config'].save_conversation(
+            agent_config_id=current_session_context['agent_config_id'],
+            session_id=current_session_context['session_id'],
+            user_message=user_request,
+            agent_response=None
+        )
     
     # Use helper function to detect sensitive information
     full_text = f"{request} {details}".strip()
@@ -346,9 +415,56 @@ async def execute_automation(request: str, details: str = "", confirmed: str = "
     })
     
     if result['success']:
-        return f"Automation completed: {result['result']}"
+        response = f"Automation completed: {result['result']}"
+        # Save the agent response to conversation history
+        if current_session_context['db_config'] and current_session_context['session_id']:
+            await current_session_context['db_config'].save_conversation(
+                agent_config_id=current_session_context['agent_config_id'],
+                session_id=current_session_context['session_id'],
+                user_message=None,
+                agent_response=response
+            )
+        return response
     else:
-        return f"Automation failed: {result['error']}"
+        error_response = f"Automation failed: {result['error']}"
+        # Save the error response to conversation history
+        if current_session_context['db_config'] and current_session_context['session_id']:
+            await current_session_context['db_config'].save_conversation(
+                agent_config_id=current_session_context['agent_config_id'],
+                session_id=current_session_context['session_id'],
+                user_message=None,
+                agent_response=error_response
+            )
+        return error_response
+
+class ConversationTracker:
+    """Tracks and saves conversations during voice sessions"""
+    
+    def __init__(self, db_config: DatabaseConfig, agent_config_id: int, session_id: str):
+        self.db_config = db_config
+        self.agent_config_id = agent_config_id
+        self.session_id = session_id
+        self.last_user_message = None
+        
+    async def on_user_message(self, message: str):
+        """Track user message"""
+        self.last_user_message = message
+        logger.info(f"User message tracked: {message[:100]}...")
+        
+    async def on_agent_response(self, response: str):
+        """Track agent response and save conversation pair"""
+        logger.info(f"Agent response tracked: {response[:100]}...")
+        
+        # Save the conversation pair to database
+        await self.db_config.save_conversation(
+            agent_config_id=self.agent_config_id,
+            session_id=self.session_id,
+            user_message=self.last_user_message,
+            agent_response=response
+        )
+        
+        # Reset for next conversation turn
+        self.last_user_message = None
 
 async def entrypoint(ctx: JobContext):
     """Main entry point for the voice agent - following working patterns from guide"""
@@ -359,6 +475,18 @@ async def entrypoint(ctx: JobContext):
     db_config = DatabaseConfig()
     agent_config = await db_config.get_agent_config()
     logger.info(f"Loaded agent config: {agent_config['name']}")
+    
+    # Extract session ID from room name
+    session_id = ctx.room.name
+    logger.info(f"Session ID: {session_id}")
+    
+    # Initialize conversation tracker and set global context
+    conversation_tracker = ConversationTracker(db_config, agent_config['id'], session_id)
+    
+    # Set global session context for function tools to use
+    current_session_context['db_config'] = db_config
+    current_session_context['agent_config_id'] = agent_config['id']
+    current_session_context['session_id'] = session_id
     
     # Convert temperature from percentage to Realtime API range (0.6-1.2)
     temp_raw = float(agent_config.get('temperature', 80))
@@ -407,10 +535,13 @@ async def entrypoint(ctx: JobContext):
             # Start session with agent
             await session.start(room=ctx.room, agent=agent)
             
-            # Generate initial greeting
+            # Generate initial greeting and save it
             await session.generate_reply(
                 instructions="Greet the user warmly and let them know you have access to web search and automation tools."
             )
+            
+            # Save the initial greeting as a conversation entry
+            await conversation_tracker.on_agent_response("Hello! I'm your voice assistant with access to web search and automation tools. How can I help you today?")
             
             logger.info("Voice agent started successfully with OpenAI Realtime API")
             
@@ -449,10 +580,13 @@ async def entrypoint(ctx: JobContext):
             # Start session with agent
             await session.start(room=ctx.room, agent=agent)
             
-            # Generate initial greeting
+            # Generate initial greeting and save it
             await session.generate_reply(
                 instructions="Greet the user warmly and let them know you have access to web search and automation tools."
             )
+            
+            # Save the initial greeting as a conversation entry
+            await conversation_tracker.on_agent_response("Hello! I'm your voice assistant with access to web search and automation tools. How can I help you today!")
             
             logger.info("Voice agent started successfully with STT-LLM-TTS fallback")
         
