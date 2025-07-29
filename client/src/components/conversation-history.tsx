@@ -41,7 +41,7 @@ export default function SessionHistory({ agentConfigId }: SessionHistoryProps) {
   });
 
   const deleteSessionMutation = useMutation({
-    mutationFn: (sessionId: string) => apiRequest(`/api/sessions/${sessionId}`, "DELETE"),
+    mutationFn: (sessionId: string) => apiRequest("DELETE", `/api/sessions/${sessionId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/sessions/history", agentConfigId] });
       toast({
